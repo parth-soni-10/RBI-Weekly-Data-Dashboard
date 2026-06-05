@@ -210,7 +210,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
       <div class="chart-wrap" style="height:230px"><canvas id="cGold"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Rupee spot rate — Friday close</div><div class="chart-note">INR per unit of foreign currency · higher = weaker rupee</div></div></div>
+      <div class="chart-hdr"><div><div class="chart-title">Rupee spot rate — Friday close</div><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button></div>
       <div class="chart-wrap" style="height:230px"><canvas id="cFx"></canvas></div>
     </div>
@@ -236,7 +236,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     Δ = change vs. the previous week.
     <strong>Forex reserves</strong> in USD million &amp; ₹ crore.
     <strong>Gold</strong> in USD million, ₹ crore, and metric tonnes.
-    <strong>Rupee spot rate</strong> per USD and EUR (higher = rupee weaker).
+    <strong>Rupee spot rate</strong> (USD/INR, EUR/INR) from Yahoo Finance Friday close (higher = rupee weaker).
     <strong>Nifty 50</strong> and <strong>Sensex</strong> Friday closing prices from Yahoo Finance.
     </p>
   </div>
@@ -265,15 +265,14 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
       <span id="footer-last-week-label">RBI WSS — Latest available Friday (May 29, 2026)</span>
     </a>
     <a class="src-link" href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>RBI Weekly Statistical Supplement — Full index</a>
-    <a class="src-link" href="https://www.rbi.org.in/Scripts/WSSView.aspx?TYPE=Basic" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>RBI WSS — Basic series (all tables)</a>
-    <a class="src-link" href="https://finance.yahoo.com/quote/%5ENSEI/" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>Yahoo Finance — Nifty 50 (^NSEI) &amp; Sensex (^BSESN)</a>
   </div>
   <p>Forex reserves, gold, and rupee spot rates scraped from RBI WSS Excel files — one report per Friday.
      Equity data from Yahoo Finance public chart API. No API keys required.</p>
+  <p style="margin-top:6px;font-size:11px;color:var(--muted);"><strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.</p>
 </footer>
 
 <script>
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty'};
+let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty'};
 
 function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -366,13 +365,18 @@ async function startFetch() {
     
     const latest = records[records.length-1];
     if (latest) {
-      const [y,m,d] = latest.date.split('-');
-      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d)}/${y}`;
+      // latest.date is the "as on" (previous) Friday; link and label should reflect publication Friday (as-on + 7 days)
+      const asOn = new Date(latest.date);
+      const pub = new Date(asOn);
+      pub.setDate(pub.getDate() + 7);
+      const py = pub.getFullYear();
+      const pm = pub.getMonth() + 1;
+      const pd = pub.getDate();
+      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pm}/${pd}/${py}`;
       const footerLink = document.getElementById('footer-last-week');
       const footerLabel = document.getElementById('footer-last-week-label');
       footerLink.href = lastFridayUrl;
-      const dateObj = new Date(latest.date);
-      footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+      footerLabel.textContent = `RBI WSS — Latest available Friday (published ${pub.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
     }
   } else {
     appendLog('❌ No records were fetched.', 'err');
@@ -426,7 +430,14 @@ function rebuildTable(){
       return `<td><div class="cell-group"><div class="cell-main">${fmt(val,dec)}${suffix}</div>${dFmt}</div></td>`;
     }
     const [y,m,d2] = row.date.split('-');
-    const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d2)}/${y}`;
+    // RBI link must use publication date (as-on date + 7 days, since report published Friday shows previous week's data)
+    const asOn = new Date(row.date);
+    const pub = new Date(asOn);
+    pub.setDate(pub.getDate() + 7);
+    const py = pub.getFullYear();
+    const pm = pub.getMonth() + 1;
+    const pd = pub.getDate();
+    const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pm}/${pd}/${py}`;
     tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:500">${row.date}</a>${isLatest?' <span style="font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
       + cell(row.total_usd, prev?.total_usd)
       + cell(row.total_inr, prev?.total_inr)
@@ -451,22 +462,55 @@ function mkBar(id,diffs,label){ if(charts[id]) charts[id].destroy(); charts[id]=
 function mkLine(id,datasets,yFmt){ if(charts[id]) charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),{type:'line',data:{labels:labels(),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{color:tickC,font:{size:11},boxWidth:12}},tooltip:{backgroundColor:'#14532d',titleColor:'#dcfce7',bodyColor:'#bbf7d0',borderColor:G,borderWidth:1}},scales:axOpts(yFmt||(v=>v.toFixed(2)))}});}
 function ds(data,color,label,dash=[]){ return{label,data,borderColor:color,backgroundColor:color+'18',fill:true,tension:.35,pointRadius:3,pointBackgroundColor:color,borderWidth:2,borderDash:dash};}
 
-function rebuildCharts(){
+function rebuildResGold(){
   const resRaw=records.map(r=>modes.res==='usd'?r.total_usd:r.total_inr);
   mkBar('cRes',diff(resRaw),modes.res==='usd'?'Δ USD mn':'Δ INR cr');
   const goldRaw=records.map(r=>modes.gold==='usd'?r.gold_usd:modes.gold==='inr'?r.gold_inr:r.gold_tons);
   mkBar('cGold',diff(goldRaw),modes.gold==='usd'?'Δ Gold USD mn':modes.gold==='inr'?'Δ Gold INR cr':'Δ Gold Tonnes');
+}
+function rebuildFx(){
   const usdD=records.map(r=>r.usd_inr), eurD=records.map(r=>r.eur_inr);
   if(modes.fx==='usd') mkLine('cFx',[ds(usdD,G,'USD/INR')],v=>v.toFixed(2));
   else if(modes.fx==='eur') mkLine('cFx',[ds(eurD,BLUE,'EUR/INR')],v=>v.toFixed(2));
   else mkLine('cFx',[ds(usdD,G,'USD/INR'),ds(eurD,BLUE,'EUR/INR',[5,3])],v=>v.toFixed(2));
+}
+function rebuildIdxClose(){
   const nifD=records.map(r=>r.nifty), senD=records.map(r=>r.sensex);
   if(modes.idx==='nifty') mkLine('cIdx',[ds(nifD,G,'Nifty 50')],v=>(v/1000).toFixed(1)+'k');
   else if(modes.idx==='sensex') mkLine('cIdx',[ds(senD,AMB,'Sensex')],v=>(v/1000).toFixed(1)+'k');
-  else { const n0=nifD.find(v=>v!=null), s0=senD.find(v=>v!=null); const nN=nifD.map(v=>v!=null&&n0?+((v-n0)/n0*100).toFixed(2):null); const sN=senD.map(v=>v!=null&&s0?+((v-s0)/s0*100).toFixed(2):null); mkLine('cIdx',[ds(nN,G,'Nifty 50 (%)'),ds(sN,AMB,'Sensex (%)',[5,3])],v=>v.toFixed(1)+'%'); }
+  else { 
+    // cumulative % from first non-null (kept for "Both (%)" tab)
+    const n0=nifD.find(v=>v!=null), s0=senD.find(v=>v!=null); 
+    const nN=nifD.map(v=>v!=null&&n0?+((v-n0)/n0*100).toFixed(2):null); 
+    const sN=senD.map(v=>v!=null&&s0?+((v-s0)/s0*100).toFixed(2):null); 
+    mkLine('cIdx',[ds(nN,G,'Nifty 50 (%)'),ds(sN,AMB,'Sensex (%)',[5,3])],v=>v.toFixed(1)+'%'); 
+  }
+}
+function rebuildIdxDelta(){
+  const nifD=records.map(r=>r.nifty), senD=records.map(r=>r.sensex);
+  if(modes.idxd==='nifty') {
+    mkBar('cIdxDelta', diff(nifD), 'Nifty 50 Δ points');
+  } else {
+    mkBar('cIdxDelta', diff(senD), 'Sensex Δ points');
+  }
+}
+function rebuildCharts(){
+  rebuildResGold();
+  rebuildFx();
+  rebuildIdxClose();
+  rebuildIdxDelta();
 }
 
-function sw(el,group,mode){ modes[group]=mode; el.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); el.classList.add('on'); if(records.length) rebuildCharts(); }
+function sw(el,group,mode){ 
+  modes[group]=mode; 
+  el.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); 
+  el.classList.add('on'); 
+  if(!records.length) return;
+  if(group==='res' || group==='gold') rebuildResGold();
+  else if(group==='fx') rebuildFx();
+  else if(group==='idx') rebuildIdxClose();
+  else if(group==='idxd') rebuildIdxDelta();
+}
 </script>
 </body>
 </html>

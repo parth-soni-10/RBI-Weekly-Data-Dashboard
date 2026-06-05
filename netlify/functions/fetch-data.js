@@ -271,13 +271,16 @@ async function getYahooClose(symbol, targetDate) {
 }
 
 // ─── PROCESS ONE FRIDAY ───────────────────────────────────────
-async function processOneFriday(friday) {
-  const iso = isoDate(friday);
+async function processOneFriday(pubFriday) {
+  // The publication Friday's WSS shows reserves/gold data "as on" the *previous* Friday
+  const asOn = new Date(pubFriday);
+  asOn.setDate(asOn.getDate() - 7);
+  const iso = isoDate(asOn);
 
-  // 1. Fetch RBI page
+  // 1. Fetch RBI page (using publication date)
   let html;
   try {
-    const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(friday)}`, 10000);
+    const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(pubFriday)}`, 10000);
     html = await res.text();
   } catch(e) {
     return { iso, error: `RBI page: ${e.message}` };
@@ -287,12 +290,32 @@ async function processOneFriday(friday) {
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page" };
 
-  // 3. Download both Excels + Yahoo in parallel
-  const [resBuf, spotBuf, nifty, sensex] = await Promise.all([
+  // 3. Determine Yahoo targets
+  // Historical: exact as-on Friday close
+  // For current/recent publication week: use the last updated (most recent) data available
+  let niftyTarget = asOn;
+  let sensexTarget = asOn;
+  let usdTarget = asOn;
+  let eurTarget = asOn;
+
+  const now = new Date();
+  const daysSincePub = (now.getTime() - pubFriday.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSincePub < 14) {
+    // recent publication — fetch latest available equity/forex data for "current week"
+    niftyTarget = now;
+    sensexTarget = now;
+    usdTarget = now;
+    eurTarget = now;
+  }
+
+  // Download both Excels + Yahoo in parallel
+  const [resBuf, spotBuf, nifty, sensex, usdInr, eurInr] = await Promise.all([
     get(urls.reserves, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null),
     urls.spot ? get(urls.spot, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null) : null,
-    getYahooClose("^NSEI",  friday),
-    getYahooClose("^BSESN", friday),
+    getYahooClose("^NSEI",  niftyTarget),
+    getYahooClose("^BSESN", sensexTarget),
+    getYahooClose("USDINR=X", usdTarget),
+    getYahooClose("EURINR=X", eurTarget),
   ]);
 
   if (!resBuf) return { iso, error: "reserves Excel download failed" };
@@ -306,14 +329,14 @@ async function processOneFriday(friday) {
   return {
     iso,
     record: {
-      date:      iso,
+      date:      iso,  // as-on date (previous Friday)
       total_usd: reserves.total_usd,
       total_inr: reserves.total_inr,
       gold_usd:  reserves.gold_usd,
       gold_inr:  reserves.gold_inr,
       gold_tons: reserves.gold_tons,
-      usd_inr:   spot.usd_inr,
-      eur_inr:   spot.eur_inr,
+      usd_inr:   usdInr || spot.usd_inr,
+      eur_inr:   eurInr || spot.eur_inr,
       nifty,
       sensex,
     }
