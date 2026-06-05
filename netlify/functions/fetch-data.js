@@ -1,7 +1,6 @@
 const fetch = require("node-fetch");
 const XLSX = require("node-xlsx");
 
-// ========== DATE HELPERS ==========
 function getAllFridaysUntilToday() {
   const start = new Date("2026-01-01");
   const end = new Date();
@@ -10,16 +9,13 @@ function getAllFridaysUntilToday() {
   const daysAhead = day <= 5 ? 5 - day : 12 - day;
   const cur = new Date(start);
   cur.setDate(cur.getDate() + (daysAhead === 0 ? 7 : daysAhead));
-  while (cur <= end) {
-    fridays.push(new Date(cur));
-    cur.setDate(cur.getDate() + 7);
-  }
+  while (cur <= end) { fridays.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
   return fridays;
 }
+
 function fmtDate(d) { return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; }
 function isoDate(d) { return d.toISOString().slice(0,10); }
 
-// ========== FETCH WITH TIMEOUT ==========
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -27,13 +23,9 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeout);
     return res;
-  } catch (err) {
-    clearTimeout(timeout);
-    throw err;
-  }
+  } catch (err) { clearTimeout(timeout); throw err; }
 }
 
-// ========== RBI HELPERS ==========
 async function getRbiPageHtml(d) {
   const url = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtDate(d)}`;
   const res = await fetchWithTimeout(url, { headers: { "User-Agent": "Mozilla/5.0" } }, 8000);
@@ -84,7 +76,7 @@ function parseReservesExcel(buf) {
       }
     }
     return r;
-  } catch (err) { return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null }; }
+  } catch { return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null }; }
 }
 
 function parseSpotRateExcel(buf) {
@@ -104,7 +96,7 @@ function parseSpotRateExcel(buf) {
       if (r.usd_inr && r.eur_inr) break;
     }
     return r;
-  } catch (err) { return { usd_inr: null, eur_inr: null }; }
+  } catch { return { usd_inr: null, eur_inr: null }; }
 }
 
 async function getYahooValue(symbol, targetDate) {
@@ -153,28 +145,32 @@ async function processOneFriday(friday) {
   }
 }
 
-async function scrapeAllWeeks() {
-  const fridays = getAllFridaysUntilToday();
-  const logs = [];
-  const records = [];
-  logs.push(`Processing ${fridays.length} Fridays sequentially…`);
-  for (let i = 0; i < fridays.length; i++) {
-    const result = await processOneFriday(fridays[i]);
-    if (result.record) {
-      records.push(result.record);
-      logs.push(`✓ ${result.iso} | USD reserves ${result.record.total_usd?.toLocaleString()}M`);
-    } else {
-      logs.push(`✗ ${result.iso} — ${result.error}`);
-    }
-    // polite delay
-    await new Promise(r => setTimeout(r, 500));
-  }
-  logs.push(`✓ Complete — ${records.length}/${fridays.length} records.`);
-  records.sort((a,b)=>a.date.localeCompare(b.date));
-  const lastFriday = fridays[fridays.length-1];
-  const lastFridayUrl = lastFriday ? `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtDate(lastFriday)}` : null;
-  const lastFridayIso = lastFriday ? isoDate(lastFriday) : null;
-  return { records, logs, lastFridayUrl, lastFridayIso };
-}
+exports.handler = async (event) => {
+  const query = event.queryStringParameters || {};
+  let weekOffset = parseInt(query.weekOffset);
+  if (isNaN(weekOffset)) weekOffset = 0;
 
-module.exports = { scrapeAllWeeks };
+  const allFridays = getAllFridaysUntilToday();
+  if (weekOffset >= allFridays.length) {
+    return {
+      statusCode: 404,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "No more weeks", done: true })
+    };
+  }
+
+  const targetFriday = allFridays[allFridays.length - 1 - weekOffset];
+  const result = await processOneFriday(targetFriday);
+
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      done: false,
+      record: result.record || null,
+      error: result.error || null,
+      weekIndex: weekOffset,
+      totalWeeks: allFridays.length
+    })
+  };
+};

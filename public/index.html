@@ -310,85 +310,74 @@ async function startFetch() {
   const btn = document.getElementById('start-btn');
   btn.disabled = true;
   setStatus('running');
-  appendLog('Starting background job...');
-
-  let jobId = null;
-
+  appendLog('Starting sequential fetch (one week per request)...');
+  
+  let allRecords = [];
+  let offset = 0;
+  let totalWeeks = 0;
+  
+  // First, get the total number of weeks (from the first call)
   try {
-    const startRes = await fetch('/.netlify/functions/fetch-data-background', { method: 'POST' });
-    
-    // Check if response is OK and has content
-    if (!startRes.ok) {
-      const text = await startRes.text();
-      throw new Error(`HTTP ${startRes.status}: ${text.substring(0, 100)}`);
-    }
-    
-    const text = await startRes.text();
-    if (!text || text.trim() === '') {
-      throw new Error('Empty response from background function');
-    }
-    
-    const data = JSON.parse(text);
-    jobId = data.jobId;
-    if (!jobId) throw new Error('No jobId returned');
-    appendLog(`Job started with ID: ${jobId}. Polling...`);
+    const res = await fetch('/.netlify/functions/fetch-data?weekOffset=0');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    totalWeeks = data.totalWeeks || 0;
+    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each...`);
   } catch (err) {
-    appendLog(`✗ Could not start job: ${err.message}`, 'err');
-    setStatus('error');
+    appendLog(`Error getting total weeks: ${err.message}`, 'err');
     btn.disabled = false;
+    setStatus('error');
     return;
   }
-
-  // Polling loop (same as before, but include the safe JSON parsing)
-  let completed = false;
-  let attempts = 0;
-  const MAX_ATTEMPTS = 180;
   
-  while (!completed && attempts < MAX_ATTEMPTS) {
-    await new Promise(r => setTimeout(r, 1000));
-    attempts++;
-    setProgress(0, 0);
+  for (offset = 0; offset < totalWeeks; offset++) {
+    setProgress(offset, totalWeeks);
+    appendLog(`Fetching week ${offset+1}/${totalWeeks}...`);
+    
     try {
-      const statusRes = await fetch(`/.netlify/functions/fetch-data-status?jobId=${jobId}`);
-      if (!statusRes.ok) continue;
-      
-      const statusText = await statusRes.text();
-      if (!statusText) continue;
-      const statusData = JSON.parse(statusText);
-      
-      if (statusData.status === 'completed') {
-        records = statusData.records || [];
-        if (records.length) {
-          updateUI();
-          appendLog(`✅ Job complete! Fetched ${records.length} weeks.`, 'ok');
-          setStatus('done');
-          const latest = records[records.length-1];
-          if (latest && statusData.lastFridayUrl) {
-            document.getElementById('footer-last-week').href = statusData.lastFridayUrl;
-            const dateObj = new Date(latest.date);
-            document.getElementById('footer-last-week-label').textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
-          }
-        } else {
-          appendLog('⚠️ Job completed but no records.', 'warn');
-          setStatus('error');
-        }
-        completed = true;
+      const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
+      if (res.status === 404) {
+        appendLog(`Reached end of available data.`, 'warn');
         break;
-      } else if (statusData.status === 'error') {
-        appendLog(`❌ Job failed: ${statusData.error || 'Unknown error'}`, 'err');
-        setStatus('error');
-        completed = true;
-        break;
-      } else if (attempts % 5 === 0) {
-        appendLog(`Still processing... (${attempts}s)`, 'warn');
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const data = await res.json();
+      if (data.error) {
+        appendLog(`⚠️ Week ${offset+1} (offset ${offset}): ${data.error}`, 'warn');
+      } else if (data.record) {
+        allRecords.push(data.record);
+        appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
+      } else {
+        appendLog(`⚠️ Week ${offset+1} returned empty record`, 'warn');
       }
     } catch (err) {
-      // silent polling errors
+      appendLog(`✗ Request failed for week ${offset+1}: ${err.message}`, 'err');
     }
+    
+    // Polite delay to avoid overwhelming the server
+    await new Promise(r => setTimeout(r, 500));
   }
   
-  if (!completed) {
-    appendLog('Polling timeout – job may still be running.', 'err');
+  if (allRecords.length > 0) {
+    records = allRecords.sort((a,b) => a.date.localeCompare(b.date));
+    updateUI();
+    appendLog(`✅ Complete! Fetched ${records.length} weeks.`);
+    setStatus('done');
+    
+    // Update footer with the latest week's RBI link
+    const latest = records[records.length-1];
+    if (latest) {
+      const [y,m,d] = latest.date.split('-');
+      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d)}/${y}`;
+      const footerLink = document.getElementById('footer-last-week');
+      const footerLabel = document.getElementById('footer-last-week-label');
+      footerLink.href = lastFridayUrl;
+      const dateObj = new Date(latest.date);
+      footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+    }
+  } else {
+    appendLog('❌ No records were fetched.', 'err');
     setStatus('error');
   }
   
