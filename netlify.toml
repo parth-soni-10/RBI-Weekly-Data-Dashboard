@@ -1,6 +1,15 @@
 [build]
-  publish = "public"
+  publish = "."
   functions = "netlify/functions"
 
 [functions]
+  # fetch-crude hits PPAC + 5 TankerMap ports + Yahoo in parallel — needs up to 20s
   node_bundler = "esbuild"
+
+[[functions]]
+  function = "fetch-crude"
+  timeout = 20
+
+[[functions]]
+  function = "fetch-data"
+  timeout = 26

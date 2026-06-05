@@ -1,7 +1,7 @@
 {
   "name": "rbi-weekly-dashboard-netlify",
-  "version": "1.0.0",
-  "description": "Netlify function for RBI weekly reserves scraper",
+  "version": "1.1.0",
+  "description": "Netlify functions for RBI weekly reserves scraper + live crude oil data",
   "dependencies": {
     "node-fetch": "^2.7.0",
     "node-xlsx": "^0.23.0"
