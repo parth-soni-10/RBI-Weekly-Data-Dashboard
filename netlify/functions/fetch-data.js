@@ -74,66 +74,52 @@ async function downloadXlsx(url) {
 function parseReservesExcel(buf) {
   try {
     const sheets = XLSX.parse(buf);
-    if (!sheets.length) return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
+    let reservesSheet = null;
 
-    // Search through all sheets (like pandas reads the whole workbook)
+    // Find the correct sheet: either named "T_2" or contains "Foreign Exchange Reserves"
     for (const sheet of sheets) {
-      const rows = sheet.data;
-      if (!rows.length) continue;
-
-      // Convert to string lowercase for searching (like df_str)
-      const rowsStr = rows.map(row => row.map(cell => String(cell ?? "").toLowerCase()).join(" "));
-
-      // ---- Total Reserves ----
-      let totalRowIdx = -1;
-      for (let i = 0; i < rowsStr.length; i++) {
-        if (rowsStr[i].includes("total reserves") || rowsStr[i].includes("total foreign exchange reserves")) {
-          totalRowIdx = i;
-          break;
-        }
+      if (sheet.name === "T_2") {
+        reservesSheet = sheet;
+        break;
       }
-
-      let total_usd = null, total_inr = null;
-      if (totalRowIdx !== -1) {
-        const numbers = rows[totalRowIdx].map(cell => parseFloat(cell)).filter(n => !isNaN(n));
-        if (numbers.length >= 1) total_usd = numbers[0];
-        if (numbers.length >= 2) total_inr = numbers[1];
-      }
-
-      // ---- Gold ----
-      let goldRowIdx = -1;
-      for (let i = 0; i < rowsStr.length; i++) {
-        if (rowsStr[i].includes("gold") && !rowsStr[i].includes("total")) {
-          goldRowIdx = i;
-          break;
-        }
-      }
-
-      let gold_usd = null, gold_inr = null, gold_tons = null;
-      if (goldRowIdx !== -1) {
-        const numbers = rows[goldRowIdx].map(cell => parseFloat(cell)).filter(n => !isNaN(n));
-        if (numbers.length >= 1) gold_usd = numbers[0];
-        if (numbers.length >= 2) gold_inr = numbers[1];
-        if (numbers.length >= 3) gold_tons = numbers[2];
-      }
-
-      // ---- Gold tonnes fallback (search for "tonnes" row) ----
-      if (gold_tons === null) {
-        for (let i = 0; i < rowsStr.length; i++) {
-          if (rowsStr[i].includes("gold") && (rowsStr[i].includes("tonnes") || rowsStr[i].includes("metric") || rowsStr[i].includes("tons"))) {
-            const numbers = rows[i].map(cell => parseFloat(cell)).filter(n => !isNaN(n));
-            if (numbers.length) gold_tons = numbers[0];
-            break;
-          }
-        }
-      }
-
-      // If we found total_usd (the main goal), return immediately
-      if (total_usd !== null) {
-        return { total_usd, total_inr, gold_usd, gold_inr, gold_tons };
+      // Check first few rows for the title
+      const firstRows = sheet.data.slice(0, 5).map(r => r.join(" ")).join(" ");
+      if (firstRows.includes("Foreign Exchange Reserves")) {
+        reservesSheet = sheet;
+        break;
       }
     }
-    return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
+
+    if (!reservesSheet) {
+      console.error("No reserves sheet found");
+      return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
+    }
+
+    const rows = reservesSheet.data;
+    let total_usd = null, total_inr = null;
+    let gold_usd = null, gold_inr = null;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.length) continue;
+      const firstCell = String(row[0] || "").trim();
+
+      // Match "1 Total Reserves" (exact start, case‑insensitive)
+      if (firstCell.match(/^1\s+Total Reserves/i)) {
+        // column index 2 (third column) = USD million, index 1 = INR crore
+        if (row[2] !== undefined && !isNaN(parseFloat(row[2]))) total_usd = parseFloat(row[2]);
+        if (row[1] !== undefined && !isNaN(parseFloat(row[1]))) total_inr = parseFloat(row[1]);
+      }
+
+      // Match "1.2 Gold"
+      if (firstCell.match(/^1\.2\s+Gold/i)) {
+        if (row[2] !== undefined && !isNaN(parseFloat(row[2]))) gold_usd = parseFloat(row[2]);
+        if (row[1] !== undefined && !isNaN(parseFloat(row[1]))) gold_inr = parseFloat(row[1]);
+      }
+    }
+
+    // Gold tonnes: not available in this sheet – leave null
+    return { total_usd, total_inr, gold_usd, gold_inr, gold_tons: null };
   } catch (err) {
     console.error("parseReservesExcel error:", err);
     return { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
