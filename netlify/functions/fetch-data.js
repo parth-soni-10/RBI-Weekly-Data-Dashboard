@@ -1,6 +1,11 @@
 const fetch = require("node-fetch");
 const XLSX  = require("node-xlsx");
 
+// NOTE: Crude oil import data (daily_import_estimates.json, india_bound_tankers.json etc.)
+// is loaded client-side in index.html from static india_crude_import_data/ folder (generated
+// by running the separate Python pipeline locally). No changes to this scraper for crude.
+// All RBI + yfinance logic here remains for 10-week as-on Friday records.
+
 // ─── DATE HELPERS ────────────────────────────────────────────
 function getAllFridaysUntilToday() {
   const start = new Date("2026-01-01");
