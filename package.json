@@ -1,8 +1,9 @@
 {
-  "name": "rbi-forex-dashboard",
+  "name": "rbi-weekly-dashboard-netlify",
   "version": "1.0.0",
+  "description": "Netlify function for RBI weekly reserves scraper",
   "dependencies": {
-    "node-xlsx": "^0.23.0",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "node-xlsx": "^0.23.0"
   }
 }

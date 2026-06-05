@@ -32,7 +32,7 @@ async function get(url, timeoutMs = 10000) {
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0" }
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Referer": "https://www.rbi.org.in/" }
     });
     clearTimeout(tid);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -44,31 +44,64 @@ async function get(url, timeoutMs = 10000) {
 }
 
 // ─── FIND EXCEL LINKS ON RBI PAGE ────────────────────────────
+// Matches the Python logic: look for tr containing "Foreign Exchange Reserves", take its .XLSX link
 function findExcelUrls(html) {
   const urls = {};
-  // iterate all <tr> blocks
   const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let m;
   while ((m = trRe.exec(html)) !== null) {
     const cell = m[1];
-    const href = cell.match(/href="([^"]+\.xlsx)"/i);
-    if (!href) continue;
-    let link = href[1];
-    if (!link.startsWith("http")) link = "https://www.rbi.org.in" + link;
     const text = cell.replace(/<[^>]+>/g, " ").toLowerCase();
-    if (text.includes("foreign exchange reserves"))
-      urls.reserves = urls.reserves || link;
+    if (text.includes("foreign exchange reserves")) {
+      const href = cell.match(/href="([^"]+\.xlsx)"/i);
+      if (href) {
+        let link = href[1];
+        if (!link.startsWith("http")) link = "https://www.rbi.org.in" + link;
+        urls.reserves = link;
+        // break to match python: only the first matching row for reserves
+        break;
+      }
+    }
+  }
+  // keep spot logic for compatibility (may find "Ratios and Rates" etc if text matches)
+  trRe.lastIndex = 0;
+  while ((m = trRe.exec(html)) !== null) {
+    const cell = m[1];
+    const text = cell.replace(/<[^>]+>/g, " ").toLowerCase();
     if (text.includes("foreign exchange market") ||
         text.includes("exchange rate") ||
-        text.includes("spot rate"))
-      urls.spot = urls.spot || link;
+        text.includes("spot rate")) {
+      const href = cell.match(/href="([^"]+\.xlsx)"/i);
+      if (href && !urls.spot) {
+        let link = href[1];
+        if (!link.startsWith("http")) link = "https://www.rbi.org.in" + link;
+        urls.spot = link;
+      }
+    }
   }
   return urls;
 }
 
+// helper to parse number, strip commas etc.
+// Only accept strings that are purely numeric (after removing commas) to avoid
+// picking numbers out of labels like "1 Total Reserves" or "1.2 Gold"
+function toNum(v) {
+  if (v == null) return NaN;
+  if (typeof v === "number") return v;
+  const s = String(v).trim();
+  // after removing commas, must match pure number pattern
+  const cleaned = s.replace(/,/g, "");
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) {
+    return NaN;
+  }
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? NaN : n;
+}
+
 // ─── PARSE RESERVES EXCEL ────────────────────────────────────
-// Strategy: scan every sheet, every row. Use flexible keyword matching
-// rather than assuming fixed column positions (RBI reformats occasionally).
+// Strategy: same logic as the Python scraper (row keyword search, then first two
+// numerics in row order, but adjusted for actual table layout where INR Cr appears
+// before US$ Mn in the "As on" columns)
 function parseReservesExcel(buf) {
   const result = { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
   let sheets;
@@ -76,55 +109,101 @@ function parseReservesExcel(buf) {
 
   for (const sheet of sheets) {
     const rows = sheet.data || [];
+    // ── Total reserves ──────────────────────────────────────
+    let total_row_idx = null;
     for (let i = 0; i < rows.length; i++) {
       const row  = rows[i];
-      // build a flat lowercased string of the whole row for matching
       const text = row.map(c => String(c ?? "")).join(" ").toLowerCase();
-      // pull every numeric value from this row
-      const nums = row.map(c => parseFloat(c)).filter(n => !isNaN(n) && isFinite(n));
-
-      // ── Total reserves ──────────────────────────────────────
-      if (result.total_usd === null &&
-          (text.includes("total reserves") || text.includes("total foreign exchange reserves"))) {
-        // USD is usually the larger number (>100,000 mn), INR is huge (crore)
-        // Typical range: USD ~500k-700k, INR ~4000k-6000k crore
-        const usdCandidates = nums.filter(n => n > 50000 && n < 2000000);
-        const inrCandidates = nums.filter(n => n > 2000000);
-        if (usdCandidates.length) result.total_usd = usdCandidates[0];
-        if (inrCandidates.length) result.total_inr = inrCandidates[0];
-        // Fallback: if only two numbers and one is bigger, assign by size
-        if (result.total_usd === null && nums.length >= 2) {
-          result.total_usd = Math.min(...nums.slice(0, 3));
-          result.total_inr = Math.max(...nums.slice(0, 3));
-        }
+      if (text.includes("total reserves") || text.includes("total foreign exchange reserves")) {
+        total_row_idx = i;
+        break;
       }
-
-      // ── Gold ────────────────────────────────────────────────
-      if (result.gold_usd === null &&
-          text.includes("gold") && !text.includes("total") &&
-          !text.includes("tonnes") && !text.includes("metric")) {
-        const usdCandidates = nums.filter(n => n > 1000 && n < 500000);
-        const inrCandidates = nums.filter(n => n > 500000);
-        if (usdCandidates.length) result.gold_usd = usdCandidates[0];
-        if (inrCandidates.length) result.gold_inr = inrCandidates[0];
-        if (result.gold_usd === null && nums.length >= 2) {
-          result.gold_usd = Math.min(...nums.slice(0, 3));
-          result.gold_inr = Math.max(...nums.slice(0, 3));
-        }
-      }
-
-      // ── Gold tonnes ─────────────────────────────────────────
-      if (result.gold_tons === null &&
-          text.includes("gold") &&
-          (text.includes("tonnes") || text.includes("metric") || text.includes("tons"))) {
-        // tonnes is typically 700–1100
-        const tonCandidates = nums.filter(n => n > 200 && n < 5000);
-        if (tonCandidates.length) result.gold_tons = tonCandidates[0];
-      }
-
-      if (result.total_usd && result.gold_usd) break;
     }
-    if (result.total_usd && result.gold_usd) break;
+    if (total_row_idx !== null) {
+      let inr_val = null;
+      let usd_val = null;
+      const row = rows[total_row_idx];
+      for (let col = 0; col < row.length; col++) {
+        const cell_val = toNum(row[col]);
+        if (!isNaN(cell_val) && isFinite(cell_val)) {
+          if (inr_val === null) {
+            inr_val = cell_val;
+          } else {
+            usd_val = cell_val;
+            break;
+          }
+        }
+      }
+      result.total_inr = inr_val;
+      result.total_usd = usd_val;
+    }
+
+    // ── Gold ────────────────────────────────────────────────
+    let gold_row_idx = null;
+    for (let i = 0; i < rows.length; i++) {
+      const row  = rows[i];
+      const text = row.map(c => String(c ?? "")).join(" ").toLowerCase();
+      if (text.includes("gold") && !text.includes("total")) {
+        gold_row_idx = i;
+        break;
+      }
+    }
+    if (gold_row_idx !== null) {
+      let inr_val = null;
+      let usd_val = null;
+      const row = rows[gold_row_idx];
+      for (let col = 0; col < row.length; col++) {
+        const cell_val = toNum(row[col]);
+        if (!isNaN(cell_val) && isFinite(cell_val)) {
+          if (inr_val === null) {
+            inr_val = cell_val;
+          } else {
+            usd_val = cell_val;
+            break;
+          }
+        }
+      }
+      result.gold_inr = inr_val;
+      result.gold_usd = usd_val;
+    }
+
+    // ── Gold tonnes ─────────────────────────────────────────
+    let tonnes_row_idx = null;
+    for (let i = 0; i < rows.length; i++) {
+      const row  = rows[i];
+      const text = row.map(c => String(c ?? "")).join(" ").toLowerCase();
+      if (text.includes("gold") &&
+          (text.includes("tonnes") || text.includes("metric") || text.includes("tons"))) {
+        tonnes_row_idx = i;
+        break;
+      }
+    }
+    if (tonnes_row_idx !== null) {
+      const row = rows[tonnes_row_idx];
+      for (let col = 0; col < row.length; col++) {
+        const val = toNum(row[col]);
+        if (!isNaN(val) && isFinite(val)) {
+          result.gold_tons = val;
+          break;
+        }
+      }
+    }
+
+    if (result.gold_tons === null && gold_row_idx !== null) {
+      const row = rows[gold_row_idx];
+      const numbers = [];
+      for (let col = 0; col < row.length; col++) {
+        const val = toNum(row[col]);
+        if (!isNaN(val) && isFinite(val)) {
+          numbers.push(val);
+        }
+      }
+      if (numbers.length >= 3) {
+        result.gold_tons = numbers[2];
+      }
+    }
+
+    if (result.total_usd !== null && result.gold_usd !== null) break;
   }
 
   return result;
@@ -147,7 +226,7 @@ function parseSpotRateExcel(buf) {
           !text.includes("euro") && !text.includes("eur")) {
         // scan right-to-left to get the most recent value
         for (let j = row.length - 1; j >= 0; j--) {
-          const v = parseFloat(row[j]);
+          const v = toNum(row[j]);
           if (!isNaN(v) && v > 50 && v < 200) { result.usd_inr = v; break; }
         }
       }
@@ -155,7 +234,7 @@ function parseSpotRateExcel(buf) {
       if (result.eur_inr === null &&
           (text.includes("euro") || text.includes("eur"))) {
         for (let j = row.length - 1; j >= 0; j--) {
-          const v = parseFloat(row[j]);
+          const v = toNum(row[j]);
           if (!isNaN(v) && v > 50 && v < 200) { result.eur_inr = v; break; }
         }
       }
@@ -204,7 +283,7 @@ async function processOneFriday(friday) {
     return { iso, error: `RBI page: ${e.message}` };
   }
 
-  // 2. Find Excel links
+  // 2. Find Excel links (now matches Python "Foreign Exchange Reserves" row logic primarily)
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page" };
 
