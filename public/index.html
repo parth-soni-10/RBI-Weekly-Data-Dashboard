@@ -310,104 +310,82 @@ async function startFetch() {
   const btn = document.getElementById('start-btn');
   btn.disabled = true;
   setStatus('running');
-  appendLog('Starting sequential fetch (one week at a time, with retries)...');
+  appendLog('Starting background job...');
+
+  let jobId = null;
+
+  try {
+    // Start the background function
+    const startRes = await fetch('/.netlify/functions/fetch-data-background', { method: 'POST' });
+    if (!startRes.ok) throw new Error(`Failed to start job: ${startRes.status}`);
+    const { jobId: id } = await startRes.json();
+    jobId = id;
+    appendLog(`Job started with ID: ${jobId}. Polling for status...`);
+  } catch (err) {
+    appendLog(`✗ Could not start job: ${err.message}`, 'err');
+    setStatus('error');
+    btn.disabled = false;
+    return;
+  }
+
+  // Polling loop
+  let completed = false;
+  let attempts = 0;
+  const MAX_ATTEMPTS = 180; // 3 minutes at 1s intervals (more than enough)
   
-  let allRecords = [];
-  let offset = 0;
-  let consecutiveErrors = 0;
-  const MAX_CONSECUTIVE_ERRORS = 10;
-  let totalRetries = 0;
-  
-  while (true) {
-    let success = false;
-    let retryCount = 0;
-    const MAX_RETRIES = 5; // Increase retries to 5
-    
-    while (!success && retryCount < MAX_RETRIES) {
-      setProgress(allRecords.length, allRecords.length + 1);
-      if (retryCount > 0) {
-        appendLog(`Retrying offset ${offset} (attempt ${retryCount+1}/${MAX_RETRIES})...`, 'warn');
-        await new Promise(r => setTimeout(r, 2000 * retryCount)); // exponential backoff
+  while (!completed && attempts < MAX_ATTEMPTS) {
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+    setProgress(0, 0); // indeterminate progress during polling
+    try {
+      const statusRes = await fetch(`/.netlify/functions/fetch-data-status?jobId=${jobId}`);
+      if (!statusRes.ok) continue;
+      const statusData = await statusRes.json();
+      
+      // Update logs progressively (if any new logs)
+      if (statusData.logs && statusData.logs.length) {
+        // only show last few lines for brevity, but we can show all
+        // we'll clear and re-append? For simplicity, just append new ones.
+        // Better: store previous log length
       }
       
-      try {
-        const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
-        
-        // 404 means we're done
-        if (res.status === 404) {
-          appendLog(`Reached end of available data (offset ${offset} returned 404).`);
-          success = true;
-          break;
-        }
-        
-        // Any non-200 status (including 500) will be retried
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        
-        const data = await res.json();
-        if (data.done === true) {
-          appendLog(`Server indicated no more weeks.`);
-          success = true;
-          break;
-        }
-        
-        if (data.record) {
-          allRecords.push(data.record);
-          appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
-          consecutiveErrors = 0;
-          success = true;
-        } else if (data.error) {
-          // Expected missing report or parsing error – not a network failure
-          appendLog(`⚠️ Week offset ${offset} (${data.error})`, 'warn');
-          consecutiveErrors++;
-          success = true;  // move to next week
+      if (statusData.status === 'completed') {
+        records = statusData.records || [];
+        if (records.length) {
+          updateUI();
+          appendLog(`✅ Job complete! Fetched ${records.length} weeks.`, 'ok');
+          setStatus('done');
+          // update footer
+          const latest = records[records.length-1];
+          if (latest && statusData.lastFridayUrl) {
+            const footerLink = document.getElementById('footer-last-week');
+            const footerLabel = document.getElementById('footer-last-week-label');
+            footerLink.href = statusData.lastFridayUrl;
+            const dateObj = new Date(latest.date);
+            footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+          }
         } else {
-          appendLog(`⚠️ Week offset ${offset} returned empty record`, 'warn');
-          consecutiveErrors++;
-          success = true;
+          appendLog('⚠️ Job completed but no records found.', 'warn');
+          setStatus('error');
         }
-      } catch (err) {
-        appendLog(`✗ Request failed for offset ${offset} (attempt ${retryCount+1}): ${err.message}`, 'err');
-        retryCount++;
-        if (retryCount === MAX_RETRIES) {
-          appendLog(`Giving up on offset ${offset} after ${MAX_RETRIES} attempts. Moving to next.`, 'warn');
-          consecutiveErrors++;
-          success = true; // move on after exhausting retries
-        }
+        completed = true;
+        break;
+      } else if (statusData.status === 'error') {
+        appendLog(`❌ Job failed: ${statusData.error || 'Unknown error'}`, 'err');
+        setStatus('error');
+        completed = true;
+        break;
+      } else {
+        // still running
+        if (attempts % 5 === 0) appendLog(`Still processing... (${attempts}s)`, 'warn');
       }
+    } catch (err) {
+      appendLog(`Error polling status: ${err.message}`, 'err');
     }
-    
-    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-      appendLog(`Stopping after ${consecutiveErrors} consecutive errors.`, 'warn');
-      break;
-    }
-    
-    offset++;
-    if (offset > 80) { // safety cap (more than 1.5 years of Fridays)
-      appendLog(`Reached safety limit of 80 weeks.`);
-      break;
-    }
-    await new Promise(r => setTimeout(r, 800)); // polite delay
   }
   
-  if (allRecords.length > 0) {
-    records = allRecords.sort((a,b) => a.date.localeCompare(b.date));
-    updateUI();
-    appendLog(`✅ Complete! Fetched ${records.length} weeks.`);
-    setStatus('done');
-    const latest = records[records.length-1];
-    if (latest) {
-      const [y,m,d] = latest.date.split('-');
-      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d)}/${y}`;
-      const footerLink = document.getElementById('footer-last-week');
-      const footerLabel = document.getElementById('footer-last-week-label');
-      footerLink.href = lastFridayUrl;
-      const dateObj = new Date(latest.date);
-      footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
-    }
-  } else {
-    appendLog('❌ No records were fetched.', 'err');
+  if (!completed) {
+    appendLog('Polling timeout – job may still be running, but dashboard not updated.', 'err');
     setStatus('error');
   }
   

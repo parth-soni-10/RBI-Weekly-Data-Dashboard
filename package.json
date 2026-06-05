@@ -4,6 +4,7 @@
   "description": "RBI Foreign Exchange Reserves Dashboard",
   "dependencies": {
     "node-xlsx": "^0.23.0",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "@netlify/blobs": "^1.0.0"
   }
 }
