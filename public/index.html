@@ -315,43 +315,53 @@ async function startFetch() {
   let allRecords = [];
   let offset = 0;
   let consecutiveErrors = 0;
-  const MAX_CONSECUTIVE_ERRORS = 8;
+  const MAX_CONSECUTIVE_ERRORS = 10;
   let totalRetries = 0;
   
   while (true) {
     let success = false;
     let retryCount = 0;
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 5; // Increase retries to 5
     
     while (!success && retryCount < MAX_RETRIES) {
       setProgress(allRecords.length, allRecords.length + 1);
-      if (retryCount > 0) appendLog(`Retrying offset ${offset} (attempt ${retryCount+1}/${MAX_RETRIES})...`, 'warn');
+      if (retryCount > 0) {
+        appendLog(`Retrying offset ${offset} (attempt ${retryCount+1}/${MAX_RETRIES})...`, 'warn');
+        await new Promise(r => setTimeout(r, 2000 * retryCount)); // exponential backoff
+      }
       
       try {
         const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
+        
+        // 404 means we're done
         if (res.status === 404) {
           appendLog(`Reached end of available data (offset ${offset} returned 404).`);
           success = true;
           break;
         }
+        
+        // Any non-200 status (including 500) will be retried
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
+        
         const data = await res.json();
         if (data.done === true) {
           appendLog(`Server indicated no more weeks.`);
           success = true;
           break;
         }
+        
         if (data.record) {
           allRecords.push(data.record);
           appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
           consecutiveErrors = 0;
           success = true;
         } else if (data.error) {
+          // Expected missing report or parsing error – not a network failure
           appendLog(`⚠️ Week offset ${offset} (${data.error})`, 'warn');
           consecutiveErrors++;
-          success = true;  // this is not a network error, just missing data
+          success = true;  // move to next week
         } else {
           appendLog(`⚠️ Week offset ${offset} returned empty record`, 'warn');
           consecutiveErrors++;
@@ -360,10 +370,10 @@ async function startFetch() {
       } catch (err) {
         appendLog(`✗ Request failed for offset ${offset} (attempt ${retryCount+1}): ${err.message}`, 'err');
         retryCount++;
-        if (retryCount < MAX_RETRIES) await new Promise(r => setTimeout(r, 1500));
-        else {
+        if (retryCount === MAX_RETRIES) {
+          appendLog(`Giving up on offset ${offset} after ${MAX_RETRIES} attempts. Moving to next.`, 'warn');
           consecutiveErrors++;
-          success = true; // move on after retries exhausted
+          success = true; // move on after exhausting retries
         }
       }
     }
@@ -374,11 +384,11 @@ async function startFetch() {
     }
     
     offset++;
-    if (offset > 60) { // safety cap: no more than 60 weeks (~1 year)
-      appendLog(`Reached safety limit of 60 weeks.`);
+    if (offset > 80) { // safety cap (more than 1.5 years of Fridays)
+      appendLog(`Reached safety limit of 80 weeks.`);
       break;
     }
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 800)); // polite delay
   }
   
   if (allRecords.length > 0) {
