@@ -103,7 +103,7 @@ function toNum(v) {
 // numerics in row order, but adjusted for actual table layout where INR Cr appears
 // before US$ Mn in the "As on" columns)
 function parseReservesExcel(buf) {
-  const result = { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
+  const result = { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null };
   let sheets;
   try { sheets = XLSX.parse(buf); } catch(e) { return result; }
 
@@ -165,42 +165,6 @@ function parseReservesExcel(buf) {
       }
       result.gold_inr = inr_val;
       result.gold_usd = usd_val;
-    }
-
-    // ── Gold tonnes ─────────────────────────────────────────
-    let tonnes_row_idx = null;
-    for (let i = 0; i < rows.length; i++) {
-      const row  = rows[i];
-      const text = row.map(c => String(c ?? "")).join(" ").toLowerCase();
-      if (text.includes("gold") &&
-          (text.includes("tonnes") || text.includes("metric") || text.includes("tons"))) {
-        tonnes_row_idx = i;
-        break;
-      }
-    }
-    if (tonnes_row_idx !== null) {
-      const row = rows[tonnes_row_idx];
-      for (let col = 0; col < row.length; col++) {
-        const val = toNum(row[col]);
-        if (!isNaN(val) && isFinite(val)) {
-          result.gold_tons = val;
-          break;
-        }
-      }
-    }
-
-    if (result.gold_tons === null && gold_row_idx !== null) {
-      const row = rows[gold_row_idx];
-      const numbers = [];
-      for (let col = 0; col < row.length; col++) {
-        const val = toNum(row[col]);
-        if (!isNaN(val) && isFinite(val)) {
-          numbers.push(val);
-        }
-      }
-      if (numbers.length >= 3) {
-        result.gold_tons = numbers[2];
-      }
     }
 
     if (result.total_usd !== null && result.gold_usd !== null) break;
@@ -290,32 +254,16 @@ async function processOneFriday(pubFriday) {
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page" };
 
-  // 3. Determine Yahoo targets
-  // Historical: exact as-on Friday close
-  // For current/recent publication week: use the last updated (most recent) data available
-  let niftyTarget = asOn;
-  let sensexTarget = asOn;
-  let usdTarget = asOn;
-  let eurTarget = asOn;
-
-  const now = new Date();
-  const daysSincePub = (now.getTime() - pubFriday.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSincePub < 14) {
-    // recent publication — fetch latest available equity/forex data for "current week"
-    niftyTarget = now;
-    sensexTarget = now;
-    usdTarget = now;
-    eurTarget = now;
-  }
-
+  // 3. Yahoo targets use the as-on Friday (previous week) for all.
+  // Nifty and Sensex (and rupee) for the latest record will be the values at scrape time (up to latest available).
   // Download both Excels + Yahoo in parallel
   const [resBuf, spotBuf, nifty, sensex, usdInr, eurInr] = await Promise.all([
     get(urls.reserves, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null),
     urls.spot ? get(urls.spot, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null) : null,
-    getYahooClose("^NSEI",  niftyTarget),
-    getYahooClose("^BSESN", sensexTarget),
-    getYahooClose("USDINR=X", usdTarget),
-    getYahooClose("EURINR=X", eurTarget),
+    getYahooClose("^NSEI",  asOn),
+    getYahooClose("^BSESN", asOn),
+    getYahooClose("USDINR=X", asOn),
+    getYahooClose("EURINR=X", asOn),
   ]);
 
   if (!resBuf) return { iso, error: "reserves Excel download failed" };
@@ -334,7 +282,6 @@ async function processOneFriday(pubFriday) {
       total_inr: reserves.total_inr,
       gold_usd:  reserves.gold_usd,
       gold_inr:  reserves.gold_inr,
-      gold_tons: reserves.gold_tons,
       usd_inr:   usdInr || spot.usd_inr,
       eur_inr:   eurInr || spot.eur_inr,
       nifty,

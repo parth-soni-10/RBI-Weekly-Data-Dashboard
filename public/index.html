@@ -169,6 +169,9 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
 
 <div class="section active" id="sec-dashboard">
 <main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
+  <div style="background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:#713f12;">
+    <strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.
+  </div>
   <div class="fetch-panel">
     <div class="panel-label">Data fetch — RBI Weekly Statistical Supplement</div>
     <div class="prog-track"><div class="prog-fill" id="prog-bar"></div></div>
@@ -187,8 +190,8 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
       <div class="mc-sub">₹ crore (latest)</div><div class="mc-delta" id="d-res-inr"></div></div>
     <div class="mc"><div class="mc-label">Gold</div><div class="mc-val" id="m-gold-usd">—</div>
       <div class="mc-sub">USD million (latest)</div><div class="mc-delta" id="d-gold-usd"></div></div>
-    <div class="mc"><div class="mc-label">Gold tonnes</div><div class="mc-val" id="m-gold-t">—</div>
-      <div class="mc-sub">metric tonnes (latest)</div><div class="mc-delta" id="d-gold-t"></div></div>
+    <div class="mc"><div class="mc-label">Gold INR</div><div class="mc-val" id="m-gold-inr">—</div>
+      <div class="mc-sub">₹ crore (latest)</div><div class="mc-delta" id="d-gold-inr"></div></div>
     <div class="mc"><div class="mc-label">USD / INR</div><div class="mc-val" id="m-usd-inr">—</div>
       <div class="mc-sub">spot rate (latest Friday)</div><div class="mc-delta" id="d-usd-inr"></div></div>
     <div class="mc"><div class="mc-label">EUR / INR</div><div class="mc-val" id="m-eur-inr">—</div>
@@ -206,7 +209,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><div class="chart-title">Gold reserves — weekly change</div><div class="chart-note">Week-on-week Δ</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button><button class="tab" onclick="sw(this,'gold','inr')">INR cr</button><button class="tab" onclick="sw(this,'gold','tons')">Tonnes</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button><button class="tab" onclick="sw(this,'gold','inr')">INR cr</button></div>
       <div class="chart-wrap" style="height:230px"><canvas id="cGold"></canvas></div>
     </div>
     <div class="chart-card">
@@ -235,7 +238,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     All values from the <strong>Friday closing / reporting date</strong>.
     Δ = change vs. the previous week.
     <strong>Forex reserves</strong> in USD million &amp; ₹ crore.
-    <strong>Gold</strong> in USD million, ₹ crore, and metric tonnes.
+    <strong>Gold</strong> in USD million and ₹ crore.
     <strong>Rupee spot rate</strong> (USD/INR, EUR/INR) from Yahoo Finance Friday close (higher = rupee weaker).
     <strong>Nifty 50</strong> and <strong>Sensex</strong> Friday closing prices from Yahoo Finance.
     </p>
@@ -244,7 +247,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div class="tbl-header"><h2>Weekly summary — last 5 Fridays</h2><span id="tbl-updated"></span></div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" style="overflow-x:auto;display:none">
-      <table id="data-table"><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Forex Reserves</th><th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Gold Holdings</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Rupee Spot Rate</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Equity Markets</th></tr><tr><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th>Tonnes</th><th style="border-left:1px solid var(--border)">USD/INR</th><th>EUR/INR</th><th style="border-left:1px solid var(--border)">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
+      <table id="data-table"><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Forex Reserves</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Gold Holdings</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Rupee Spot Rate</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Equity Markets</th></tr><tr><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th style="border-left:1px solid var(--border)">USD/INR</th><th>EUR/INR</th><th style="border-left:1px solid var(--border)">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
     </div>
   </div>
   <div class="tbl-wrap" id="eq-tbl-wrap" style="margin-top:1.25rem">
@@ -252,6 +255,13 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div id="eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="eq-tbl-container" style="overflow-x:auto;display:none">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Nifty 50</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Sensex</th></tr><tr><th style="border-left:1px solid var(--border)">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="eq-tbl-body"></tbody></table>
+    </div>
+  </div>
+  <div class="tbl-wrap" id="rupee-eq-tbl-wrap" style="margin-top:1.25rem">
+    <div class="tbl-header"><h2>Rupee Spot Rate &amp; Equity Markets — up to latest available</h2><span id="rupee-eq-tbl-updated"></span></div>
+    <div id="rupee-eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
+    <div id="rupee-eq-tbl-container" style="overflow-x:auto;display:none">
+      <table><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="3" style="text-align:center;border-left:1px solid var(--border)">USD/INR</th><th colspan="3" style="text-align:center;border-left:1px solid var(--border)">EUR/INR</th><th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Nifty 50</th><th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Sensex</th></tr><tr><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th></tr></thead><tbody id="rupee-eq-tbl-body"></tbody></table>
     </div>
   </div>
 </main>
@@ -268,7 +278,6 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
   </div>
   <p>Forex reserves, gold, and rupee spot rates scraped from RBI WSS Excel files — one report per Friday.
      Equity data from Yahoo Finance public chart API. No API keys required.</p>
-  <p style="margin-top:6px;font-size:11px;color:var(--muted);"><strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.</p>
 </footer>
 
 <script>
@@ -279,6 +288,11 @@ function showSection(name, el) {
   document.getElementById('sec-'+name).classList.add('active');
   document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
+  if(name==='table' && records.length){
+    rebuildTable();
+    rebuildEqTable();
+    rebuildRupeeEqTable();
+  }
   return false;
 }
 
@@ -396,19 +410,21 @@ function updateUI(){
   records.sort((a,b)=>a.date.localeCompare(b.date));
   const L=records[records.length-1], P=records.length>1?records[records.length-2]:null;
   const set=(id,val,did,dval,dec=0)=>{
-    document.getElementById(id).textContent=fmt(val,dec)+(id==='m-gold-t'&&val?'t':'');
+    document.getElementById(id).textContent=fmt(val,dec);
     if(did) document.getElementById(did).innerHTML=fmtD(dval,dec);
   };
   set('m-res-usd', L.total_usd,'d-res-usd', P?L.total_usd-P.total_usd:null);
   set('m-res-inr', L.total_inr,'d-res-inr', P?L.total_inr-P.total_inr:null);
   set('m-gold-usd',L.gold_usd, 'd-gold-usd',P?L.gold_usd-P.gold_usd:null);
-  set('m-gold-t',  L.gold_tons,'d-gold-t',  P&&L.gold_tons!=null&&P.gold_tons!=null?+(L.gold_tons-P.gold_tons).toFixed(2):null,2);
+  set('m-gold-inr',L.gold_inr,'d-gold-inr',P?L.gold_inr-P.gold_inr:null);
   set('m-usd-inr', L.usd_inr,  'd-usd-inr', P?+(L.usd_inr-P.usd_inr).toFixed(2):null,2);
   set('m-eur-inr', L.eur_inr,  'd-eur-inr', P?+(L.eur_inr-P.eur_inr).toFixed(2):null,2);
   set('m-nifty',   L.nifty,    'd-nifty',   P?+(L.nifty-P.nifty).toFixed(1):null,1);
   set('m-sensex',  L.sensex,   'd-sensex',  P?+(L.sensex-P.sensex).toFixed(1):null,1);
   rebuildCharts();
   rebuildTable();
+  rebuildEqTable();
+  rebuildRupeeEqTable();
 }
 
 function rebuildTable(){
@@ -443,11 +459,92 @@ function rebuildTable(){
       + cell(row.total_inr, prev?.total_inr)
       + cell(row.gold_usd,  prev?.gold_usd)
       + cell(row.gold_inr,  prev?.gold_inr)
-      + cell(row.gold_tons, prev?.gold_tons, 2, 't')
       + cell(row.usd_inr,   prev?.usd_inr, 2)
       + cell(row.eur_inr,   prev?.eur_inr, 2)
       + cell(row.nifty,     prev?.nifty, 1)
       + cell(row.sensex,    prev?.sensex, 1);
+    body.appendChild(tr);
+  });
+}
+
+function rebuildEqTable(){
+  const last5 = records.slice(-5);
+  if(!last5.length) return;
+  document.getElementById('eq-tbl-empty').style.display='none';
+  document.getElementById('eq-tbl-container').style.display='block';
+  document.getElementById('eq-tbl-updated').textContent=`Data through ${last5[last5.length-1].date}`;
+  const body=document.getElementById('eq-tbl-body');
+  body.innerHTML='';
+  const firstN = records[0] ? records[0].nifty : null;
+  const firstS = records[0] ? records[0].sensex : null;
+  last5.forEach((row,i)=>{
+    const prev=i>0?last5[i-1]:null;
+    const isLatest=(i===last5.length-1);
+    const tr=document.createElement('tr');
+    if(isLatest) tr.style.background='rgba(220,252,231,0.4)';
+    function cell(val,prevVal,dec=0,suffix=''){
+      const d=prevVal!=null&&val!=null?val-prevVal:null;
+      const dFmt=d!=null?`<span class=\"cell-delta ${d>=0?'up':'dn'}\">${d>=0?'+':''}${fmt(d,dec)}</span>`:'';
+      return `<td><div class=\"cell-group\"><div class=\"cell-main\">${fmt(val,dec)}${suffix}</div>${dFmt}</div></td>`;
+    }
+    const ytdN = firstN!=null && row.nifty!=null ? +((row.nifty - firstN)/firstN *100).toFixed(2) : null;
+    const ytdS = firstS!=null && row.sensex!=null ? +((row.sensex - firstS)/firstS *100).toFixed(2) : null;
+    tr.innerHTML=`<td class=\"date-cell\">${row.date}${isLatest?' <span style=\"font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle\">latest</span>':''}</td>`
+      + cell(row.nifty, prev?.nifty,1)
+      + cell(row.nifty!=null&&prev?.nifty!=null ? row.nifty-prev.nifty : null, null,1)
+      + cell(row.nifty!=null&&prev?.nifty!=null ? +((row.nifty-prev.nifty)/prev.nifty*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdN, null,2,'%')
+      + cell(row.sensex, prev?.sensex,1)
+      + cell(row.sensex!=null&&prev?.sensex!=null ? row.sensex-prev.sensex : null, null,1)
+      + cell(row.sensex!=null&&prev?.sensex!=null ? +((row.sensex-prev.sensex)/prev.sensex*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdS, null,2,'%');
+    body.appendChild(tr);
+  });
+}
+
+function rebuildRupeeEqTable(){
+  const last5 = records.slice(-5);
+  if(!last5.length) return;
+  document.getElementById('rupee-eq-tbl-empty').style.display='none';
+  document.getElementById('rupee-eq-tbl-container').style.display='block';
+  document.getElementById('rupee-eq-tbl-updated').textContent=`Up to latest available (last record ${last5[last5.length-1].date})`;
+  const body=document.getElementById('rupee-eq-tbl-body');
+  body.innerHTML='';
+  const firstUsd = records[0] ? records[0].usd_inr : null;
+  const firstEur = records[0] ? records[0].eur_inr : null;
+  const firstN = records[0] ? records[0].nifty : null;
+  const firstS = records[0] ? records[0].sensex : null;
+  last5.forEach((row,i)=>{
+    const prev=i>0?last5[i-1]:null;
+    const isLatest=(i===last5.length-1);
+    const tr=document.createElement('tr');
+    if(isLatest) tr.style.background='rgba(220,252,231,0.4)';
+    function cell(val,prevVal,dec=2,suffix=''){
+      const d=prevVal!=null&&val!=null?val-prevVal:null;
+      const dFmt=d!=null?`<span class=\"cell-delta ${d>=0?'up':'dn'}\">${d>=0?'+':''}${fmt(d,dec)}</span>`:'';
+      return `<td><div class=\"cell-group\"><div class=\"cell-main\">${fmt(val,dec)}${suffix}</div>${dFmt}</div></td>`;
+    }
+    const ytdUsd = firstUsd!=null && row.usd_inr!=null ? +((row.usd_inr - firstUsd)/firstUsd *100).toFixed(2) : null;
+    const ytdEur = firstEur!=null && row.eur_inr!=null ? +((row.eur_inr - firstEur)/firstEur *100).toFixed(2) : null;
+    const ytdN = firstN!=null && row.nifty!=null ? +((row.nifty - firstN)/firstN *100).toFixed(2) : null;
+    const ytdS = firstS!=null && row.sensex!=null ? +((row.sensex - firstS)/firstS *100).toFixed(2) : null;
+    tr.innerHTML=`<td class=\"date-cell\">${row.date}${isLatest?' <span style=\"font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle\">latest</span>':''}</td>`
+      + cell(row.usd_inr, prev?.usd_inr,2)
+      + cell(row.usd_inr!=null&&prev?.usd_inr!=null ? row.usd_inr-prev.usd_inr : null, null,2)
+      + cell(row.usd_inr!=null&&prev?.usd_inr!=null ? +((row.usd_inr-prev.usd_inr)/prev.usd_inr*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdUsd, null,2,'%')
+      + cell(row.eur_inr, prev?.eur_inr,2)
+      + cell(row.eur_inr!=null&&prev?.eur_inr!=null ? row.eur_inr-prev.eur_inr : null, null,2)
+      + cell(row.eur_inr!=null&&prev?.eur_inr!=null ? +((row.eur_inr-prev.eur_inr)/prev.eur_inr*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdEur, null,2,'%')
+      + cell(row.nifty, prev?.nifty,1)
+      + cell(row.nifty!=null&&prev?.nifty!=null ? row.nifty-prev.nifty : null, null,1)
+      + cell(row.nifty!=null&&prev?.nifty!=null ? +((row.nifty-prev.nifty)/prev.nifty*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdN, null,2,'%')
+      + cell(row.sensex, prev?.sensex,1)
+      + cell(row.sensex!=null&&prev?.sensex!=null ? row.sensex-prev.sensex : null, null,1)
+      + cell(row.sensex!=null&&prev?.sensex!=null ? +((row.sensex-prev.sensex)/prev.sensex*100).toFixed(2) : null, null,2,'%')
+      + cell(ytdS, null,2,'%');
     body.appendChild(tr);
   });
 }
@@ -465,8 +562,8 @@ function ds(data,color,label,dash=[]){ return{label,data,borderColor:color,backg
 function rebuildResGold(){
   const resRaw=records.map(r=>modes.res==='usd'?r.total_usd:r.total_inr);
   mkBar('cRes',diff(resRaw),modes.res==='usd'?'Δ USD mn':'Δ INR cr');
-  const goldRaw=records.map(r=>modes.gold==='usd'?r.gold_usd:modes.gold==='inr'?r.gold_inr:r.gold_tons);
-  mkBar('cGold',diff(goldRaw),modes.gold==='usd'?'Δ Gold USD mn':modes.gold==='inr'?'Δ Gold INR cr':'Δ Gold Tonnes');
+  const goldRaw=records.map(r=>modes.gold==='usd'?r.gold_usd:r.gold_inr);
+  mkBar('cGold',diff(goldRaw),modes.gold==='usd'?'Δ Gold USD mn':'Δ Gold INR cr');
 }
 function rebuildFx(){
   const usdD=records.map(r=>r.usd_inr), eurD=records.map(r=>r.eur_inr);
