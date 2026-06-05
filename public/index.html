@@ -431,46 +431,64 @@ async function startFetch() {
   appendLog('Starting sequential fetch (one week at a time)...');
   
   let allRecords = [];
-  let totalWeeks = 0;
+  let offset = 0;
+  let consecutiveErrors = 0;
+  const MAX_CONSECUTIVE_ERRORS = 5;   // stop after 5 failures in a row
   
-  // First, get total number of weeks
-  try {
-    const res = await fetch('/.netlify/functions/fetch-data?weekOffset=0');
-    const data = await res.json();
-    totalWeeks = data.totalWeeks || 0;
-    if (totalWeeks === 0) throw new Error('Could not determine total weeks');
-    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each...`);
-  } catch(e) {
-    appendLog(`Error getting total weeks: ${e.message}`, 'err');
-    btn.disabled = false;
-    setStatus('error');
-    return;
-  }
-  
-  for (let offset = 0; offset < totalWeeks; offset++) {
-    setProgress(offset, totalWeeks);
-    appendLog(`Fetching week ${offset+1}/${totalWeeks} (offset ${offset})...`);
+  while (true) {
+    setProgress(allRecords.length, allRecords.length + 1); // indeterminate progress bar
     
     try {
       const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
+      
+      // 404 means we've exhausted all available weeks
+      if (res.status === 404) {
+        appendLog(`Reached end of available data (offset ${offset} returned 404).`);
+        break;
+      }
+      
       if (!res.ok) {
-        if (res.status === 404) break;
         throw new Error(`HTTP ${res.status}`);
       }
       
       const data = await res.json();
-      if (data.error) {
-        appendLog(`⚠️ Week ${offset+1} error: ${data.error}`, 'warn');
-      } else if (data.record) {
-        allRecords.push(data.record);
-        appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr??'N/A'}`);
+      
+      // If the function explicitly says we're done
+      if (data.done === true) {
+        appendLog(`Server indicated no more weeks.`);
+        break;
       }
       
-      // Polite delay to RBI server (500ms between requests)
+      // Check for a valid record
+      if (data.record) {
+        allRecords.push(data.record);
+        appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
+        consecutiveErrors = 0;
+      } else if (data.error) {
+        // Expected: some Fridays have no report (e.g., holidays)
+        appendLog(`⚠️ Week offset ${offset} (${data.error})`, 'warn');
+        consecutiveErrors++;
+      } else {
+        appendLog(`⚠️ Week offset ${offset} returned empty record`, 'warn');
+        consecutiveErrors++;
+      }
+      
+      // Stop if we've hit too many errors in a row (likely no more weeks)
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        appendLog(`Stopping after ${consecutiveErrors} consecutive errors.`, 'warn');
+        break;
+      }
+      
+      offset++;
+      // Polite delay to RBI server
       await new Promise(r => setTimeout(r, 500));
+      
     } catch (err) {
-      appendLog(`✗ Request failed: ${err.message}`, 'err');
-      break;
+      appendLog(`✗ Request failed for offset ${offset}: ${err.message}`, 'err');
+      consecutiveErrors++;
+      offset++;
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) break;
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
   
@@ -496,7 +514,7 @@ async function startFetch() {
     setStatus('error');
   }
   
-  setProgress(1,1);
+  setProgress(1, 1);
   btn.disabled = false;
   btn.textContent = '↺ Refresh data';
 }
