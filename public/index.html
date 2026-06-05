@@ -315,12 +315,23 @@ async function startFetch() {
   let jobId = null;
 
   try {
-    // Start the background function
     const startRes = await fetch('/.netlify/functions/fetch-data-background', { method: 'POST' });
-    if (!startRes.ok) throw new Error(`Failed to start job: ${startRes.status}`);
-    const { jobId: id } = await startRes.json();
-    jobId = id;
-    appendLog(`Job started with ID: ${jobId}. Polling for status...`);
+    
+    // Check if response is OK and has content
+    if (!startRes.ok) {
+      const text = await startRes.text();
+      throw new Error(`HTTP ${startRes.status}: ${text.substring(0, 100)}`);
+    }
+    
+    const text = await startRes.text();
+    if (!text || text.trim() === '') {
+      throw new Error('Empty response from background function');
+    }
+    
+    const data = JSON.parse(text);
+    jobId = data.jobId;
+    if (!jobId) throw new Error('No jobId returned');
+    appendLog(`Job started with ID: ${jobId}. Polling...`);
   } catch (err) {
     appendLog(`✗ Could not start job: ${err.message}`, 'err');
     setStatus('error');
@@ -328,26 +339,22 @@ async function startFetch() {
     return;
   }
 
-  // Polling loop
+  // Polling loop (same as before, but include the safe JSON parsing)
   let completed = false;
   let attempts = 0;
-  const MAX_ATTEMPTS = 180; // 3 minutes at 1s intervals (more than enough)
+  const MAX_ATTEMPTS = 180;
   
   while (!completed && attempts < MAX_ATTEMPTS) {
     await new Promise(r => setTimeout(r, 1000));
     attempts++;
-    setProgress(0, 0); // indeterminate progress during polling
+    setProgress(0, 0);
     try {
       const statusRes = await fetch(`/.netlify/functions/fetch-data-status?jobId=${jobId}`);
       if (!statusRes.ok) continue;
-      const statusData = await statusRes.json();
       
-      // Update logs progressively (if any new logs)
-      if (statusData.logs && statusData.logs.length) {
-        // only show last few lines for brevity, but we can show all
-        // we'll clear and re-append? For simplicity, just append new ones.
-        // Better: store previous log length
-      }
+      const statusText = await statusRes.text();
+      if (!statusText) continue;
+      const statusData = JSON.parse(statusText);
       
       if (statusData.status === 'completed') {
         records = statusData.records || [];
@@ -355,17 +362,14 @@ async function startFetch() {
           updateUI();
           appendLog(`✅ Job complete! Fetched ${records.length} weeks.`, 'ok');
           setStatus('done');
-          // update footer
           const latest = records[records.length-1];
           if (latest && statusData.lastFridayUrl) {
-            const footerLink = document.getElementById('footer-last-week');
-            const footerLabel = document.getElementById('footer-last-week-label');
-            footerLink.href = statusData.lastFridayUrl;
+            document.getElementById('footer-last-week').href = statusData.lastFridayUrl;
             const dateObj = new Date(latest.date);
-            footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+            document.getElementById('footer-last-week-label').textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
           }
         } else {
-          appendLog('⚠️ Job completed but no records found.', 'warn');
+          appendLog('⚠️ Job completed but no records.', 'warn');
           setStatus('error');
         }
         completed = true;
@@ -375,17 +379,16 @@ async function startFetch() {
         setStatus('error');
         completed = true;
         break;
-      } else {
-        // still running
-        if (attempts % 5 === 0) appendLog(`Still processing... (${attempts}s)`, 'warn');
+      } else if (attempts % 5 === 0) {
+        appendLog(`Still processing... (${attempts}s)`, 'warn');
       }
     } catch (err) {
-      appendLog(`Error polling status: ${err.message}`, 'err');
+      // silent polling errors
     }
   }
   
   if (!completed) {
-    appendLog('Polling timeout – job may still be running, but dashboard not updated.', 'err');
+    appendLog('Polling timeout – job may still be running.', 'err');
     setStatus('error');
   }
   
