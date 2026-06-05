@@ -2,12 +2,11 @@
   publish = "."
   functions = "netlify/functions"
 
-[[functions]]
-  function = "fetch-crude"
+[functions]
   node_bundler = "esbuild"
+
+[functions.fetch-crude]
   timeout = 20
 
-[[functions]]
-  function = "fetch-data"
-  node_bundler = "esbuild"
+[functions.fetch-data]
   timeout = 26
