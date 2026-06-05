@@ -1,13 +1,10 @@
-const { getStore } = require("@netlify/blobs");
-
-// Import the scraper – wrap in try/catch in case the file is missing
+// Import the scraper – wrap in try/catch
 let scrapeAllWeeks;
 try {
   const scraper = require("./common/scraper");
   scrapeAllWeeks = scraper.scrapeAllWeeks;
 } catch (err) {
   console.error("Failed to load scraper:", err);
-  // Provide a dummy function that returns an error result
   scrapeAllWeeks = async () => ({
     records: [],
     logs: ["Scraper module not found. Check file path: netlify/functions/common/scraper.js"],
@@ -17,14 +14,13 @@ try {
 }
 
 exports.handler = async (event) => {
-  // Generate a unique job ID
   const jobId = Date.now() + "-" + Math.random().toString(36).substring(2, 8);
   
   try {
-    const store = getStore("rbi-dashboard-jobs");
+    // Netlify's global store (available in production)
+    const store = Netlify.store;
     
-    // Store initial status
-    await store.set(jobId, JSON.stringify({
+    await store.set(`job-${jobId}`, JSON.stringify({
       status: "running",
       records: [],
       logs: [],
@@ -33,20 +29,20 @@ exports.handler = async (event) => {
       updatedAt: new Date().toISOString()
     }));
 
-    // Kick off async processing (don't await – background)
+    // Kick off async processing (background)
     (async () => {
       try {
         console.log(`Job ${jobId}: Starting scrape...`);
         const result = await scrapeAllWeeks();
         console.log(`Job ${jobId}: Scrape completed, ${result.records?.length || 0} records.`);
-        await store.set(jobId, JSON.stringify({
+        await store.set(`job-${jobId}`, JSON.stringify({
           status: "completed",
           ...result,
           updatedAt: new Date().toISOString()
         }));
       } catch (err) {
         console.error(`Job ${jobId} failed:`, err);
-        await store.set(jobId, JSON.stringify({
+        await store.set(`job-${jobId}`, JSON.stringify({
           status: "error",
           error: err.message,
           records: [],
@@ -56,7 +52,6 @@ exports.handler = async (event) => {
       }
     })();
 
-    // Return job ID immediately
     return {
       statusCode: 202,
       headers: { "Content-Type": "application/json" },
