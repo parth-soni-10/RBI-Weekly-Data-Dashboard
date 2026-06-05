@@ -1,638 +1,236 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RBI Weekly Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#f0fdf4;--surface:#fff;--s2:#dcfce7;--s3:#f0fdf4;
-  --border:#bbf7d0;--border2:#86efac;
-  --text:#14532d;--muted:#6b7280;--muted2:#9ca3af;
-  --accent:#16a34a;--dark:#14532d;
-  --up:#16a34a;--dn:#dc2626;
-  --grid:rgba(0,0,0,0.04);--r:10px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;min-height:100vh}
+const fetch = require("node-fetch");
+const XLSX = require("node-xlsx");
 
-/* NAV */
-header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2rem;
-  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-badge{width:32px;height:32px;background:var(--accent);border-radius:50%;display:flex;
-  align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
-.logo-text h1{font-size:13.5px;font-weight:600;color:var(--dark);line-height:1.2}
-.logo-text span{font-size:10.5px;color:var(--muted)}
-.nav-links{display:flex;align-items:center;gap:6px}
-.nav-link{padding:5px 11px;border-radius:6px;font-size:12px;font-weight:500;color:var(--muted);
-  text-decoration:none;transition:all .15s;border:1px solid transparent}
-.nav-link:hover{background:var(--s2);color:var(--dark);border-color:var(--border)}
-.nav-link.active{background:var(--accent);color:#fff}
-.status-pill{display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--border);
-  border-radius:20px;padding:4px 10px;font-size:11px;font-weight:500;color:var(--muted)}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
-.dot.running{background:var(--accent);animation:blink 1.2s infinite}
-.dot.done{background:var(--up)}.dot.error{background:var(--dn)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
-
-/* SECTIONS */
-.section{display:none;max-width:1160px;margin:0 auto;padding:1.75rem 2rem}
-.section.active{display:block}
-
-/* FETCH PANEL */
-.fetch-panel{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
-  padding:1.4rem 1.5rem;margin-bottom:1.5rem}
-.panel-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.85rem}
-.prog-track{height:5px;background:var(--s2);border-radius:3px;overflow:hidden;margin-bottom:5px}
-.prog-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .35s ease}
-.prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
-  font-family:'DM Mono',monospace;margin-bottom:.85rem}
-#log-box{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.6rem 1rem;
-  height:140px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:11px;line-height:1.9;color:var(--muted)}
-#log-box .ok{color:var(--up);font-weight:500}
-#log-box .err{color:var(--dn)}
-#log-box .warn{color:#d97706}
-.btn{display:inline-flex;align-items:center;gap:7px;margin-top:.85rem;padding:.5rem 1.2rem;
-  background:var(--accent);color:#fff;border:none;border-radius:7px;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;
-  transition:background .15s,transform .1s}
-.btn:hover{background:var(--dark)}.btn:active{transform:scale(.98)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-
-/* METRICS */
-#metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
-  gap:10px;margin-bottom:1.5rem;opacity:0;transition:opacity .4s}
-#metrics.show{opacity:1}
-.mc{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:.9rem 1.05rem}
-.mc-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
-.mc-val{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--dark);line-height:1.1}
-.mc-sub{font-size:10px;color:var(--muted);margin-top:3px}
-.mc-delta{font-size:11px;margin-top:5px;font-family:'DM Mono',monospace}
-.up{color:var(--up)}.dn{color:var(--dn)}
-
-/* CHARTS */
-#charts{display:flex;flex-direction:column;gap:1.25rem;opacity:0;transition:opacity .4s}
-#charts.show{opacity:1}
-.chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1.2rem 1.4rem}
-.chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.85rem}
-.chart-title{font-size:13px;font-weight:600;color:var(--dark)}
-.chart-note{font-size:11px;color:var(--muted);margin-top:2px}
-.tab-row{display:flex;gap:3px;background:var(--s2);border-radius:6px;padding:3px;width:fit-content;margin-bottom:.85rem}
-.tab{padding:4px 11px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;
-  border:none;background:none;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .12s}
-.tab.on{background:var(--accent);color:#fff}
-.chart-wrap{position:relative}
-
-/* EMPTY */
-#empty{text-align:center;padding:3rem 2rem;color:var(--muted)}
-#empty h2{font-size:17px;font-weight:600;color:var(--dark);margin-bottom:7px}
-#empty p{font-size:13px;line-height:1.65;max-width:360px;margin:0 auto 1.5rem}
-
-/* TABLE SECTION */
-.tbl-intro{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
-  padding:1.2rem 1.4rem;margin-bottom:1.25rem}
-.tbl-intro p{font-size:12.5px;color:var(--muted);line-height:1.7}
-.tbl-intro strong{color:var(--dark)}
-
-.tbl-wrap{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden}
-.tbl-header{padding:.9rem 1.4rem;border-bottom:1.5px solid var(--border);display:flex;
-  align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.tbl-header h2{font-size:13px;font-weight:600;color:var(--dark)}
-.tbl-header span{font-size:11px;color:var(--muted)}
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-thead th{
-  background:var(--s2);padding:.65rem 1rem;text-align:left;
-  font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.06em;border-bottom:1.5px solid var(--border);white-space:nowrap;
-}
-thead th:not(:first-child){text-align:right}
-tbody tr{border-bottom:1px solid #f0fdf4;transition:background .1s}
-tbody tr:hover{background:#f0fdf4}
-tbody tr:last-child{border-bottom:none}
-td{padding:.6rem 1rem;color:var(--dark);font-family:'DM Mono',monospace;font-size:12px}
-td:not(:first-child){text-align:right}
-td.date-cell{font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);
-  font-family:'DM Mono',monospace}
-td.latest-row{background:rgba(220,252,231,0.4)}
-.delta-cell{font-size:11px}
-.cell-group{display:flex;flex-direction:column;gap:1px}
-.cell-main{font-size:12px}
-.cell-delta{font-size:10px;color:var(--muted)}
-.cell-delta.up{color:var(--up)}.cell-delta.dn{color:var(--dn)}
-.tbl-empty{text-align:center;padding:3rem;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px}
-.col-group-header{background:#f8fffe;padding:.4rem 1rem;font-size:10px;font-weight:600;
-  color:var(--accent);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
-
-/* FOOTER */
-footer{max-width:1160px;margin:1.5rem auto 0;padding:1.4rem 2rem 2.5rem;border-top:1.5px solid var(--border)}
-footer h3{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem}
-.src-links{display:flex;flex-direction:column;gap:7px;margin-bottom:1rem}
-.src-link{display:inline-flex;align-items:center;gap:7px;width:fit-content;
-  font-size:12px;color:var(--accent);text-decoration:none;font-weight:500}
-.src-link:hover{color:var(--dark);text-decoration:underline}
-.src-link svg{width:12px;height:12px;flex-shrink:0}
-.src-link.last-week{border:1px solid var(--border);background:var(--s2);
-  border-radius:6px;padding:4px 10px;font-size:11px}
-footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
-
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-
-@media(max-width:780px){
-  .section,footer{padding:1rem}
-  header{padding:.75rem 1rem}
-  .nav-link span{display:none}
-  table{font-size:11px}
-  td,thead th{padding:.55rem .7rem}
-}
-</style>
-</head>
-<body>
-
-<header>
-  <div class="logo">
-    <div class="logo-badge">₹</div>
-    <div class="logo-text">
-      <h1>RBI Weekly Dashboard</h1>
-      <span>Forex · Rupee · Gold · Markets · 2026</span>
-    </div>
-  </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <nav class="nav-links">
-      <a class="nav-link active" href="#" onclick="showSection('dashboard',this)">Dashboard</a>
-      <a class="nav-link" href="#" onclick="showSection('table',this)">5-Week Table</a>
-    </nav>
-    <div class="status-pill">
-      <div class="dot" id="status-dot"></div>
-      <span id="status-text">Idle</span>
-    </div>
-  </div>
-</header>
-
-<!-- ═══ DASHBOARD ═════════════════════════════════════════════ -->
-<div class="section active" id="sec-dashboard">
-<main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
-
-  <div class="fetch-panel">
-    <div class="panel-label">Data fetch — RBI Weekly Statistical Supplement</div>
-    <div class="prog-track"><div class="prog-fill" id="prog-bar"></div></div>
-    <div class="prog-row"><span id="prog-label">Ready</span><span id="prog-pct">0%</span></div>
-    <div id="log-box"></div>
-    <button class="btn" id="start-btn" onclick="startFetch()">▶ Fetch data</button>
-  </div>
-
-  <div id="empty">
-    <h2>No data yet</h2>
-    <p>Click "Fetch data" to pull all RBI Weekly Statistical Supplement reports since Jan 1, 2026. Takes ~30–60 s.</p>
-  </div>
-
-  <div id="metrics">
-    <div class="mc"><div class="mc-label">Forex reserves</div><div class="mc-val" id="m-res-usd">—</div>
-      <div class="mc-sub">USD million (latest)</div><div class="mc-delta" id="d-res-usd"></div></div>
-    <div class="mc"><div class="mc-label">Reserves INR</div><div class="mc-val" id="m-res-inr">—</div>
-      <div class="mc-sub">₹ crore (latest)</div><div class="mc-delta" id="d-res-inr"></div></div>
-    <div class="mc"><div class="mc-label">Gold</div><div class="mc-val" id="m-gold-usd">—</div>
-      <div class="mc-sub">USD million (latest)</div><div class="mc-delta" id="d-gold-usd"></div></div>
-    <div class="mc"><div class="mc-label">Gold tonnes</div><div class="mc-val" id="m-gold-t">—</div>
-      <div class="mc-sub">metric tonnes (latest)</div><div class="mc-delta" id="d-gold-t"></div></div>
-    <div class="mc"><div class="mc-label">USD / INR</div><div class="mc-val" id="m-usd-inr">—</div>
-      <div class="mc-sub">spot rate (latest Friday)</div><div class="mc-delta" id="d-usd-inr"></div></div>
-    <div class="mc"><div class="mc-label">EUR / INR</div><div class="mc-val" id="m-eur-inr">—</div>
-      <div class="mc-sub">spot rate (latest Friday)</div><div class="mc-delta" id="d-eur-inr"></div></div>
-    <div class="mc"><div class="mc-label">Nifty 50</div><div class="mc-val" id="m-nifty">—</div>
-      <div class="mc-sub">Friday close (latest)</div><div class="mc-delta" id="d-nifty"></div></div>
-    <div class="mc"><div class="mc-label">Sensex</div><div class="mc-val" id="m-sensex">—</div>
-      <div class="mc-sub">Friday close (latest)</div><div class="mc-delta" id="d-sensex"></div></div>
-  </div>
-
-  <div id="charts">
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div><div class="chart-title">Foreign exchange reserves — weekly change</div>
-          <div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div>
-      </div>
-      <div class="tab-row">
-        <button class="tab on" onclick="sw(this,'res','usd')">USD mn</button>
-        <button class="tab" onclick="sw(this,'res','inr')">INR cr</button>
-      </div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cRes"></canvas></div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div><div class="chart-title">Gold reserves — weekly change</div>
-          <div class="chart-note">Week-on-week Δ</div></div>
-      </div>
-      <div class="tab-row">
-        <button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button>
-        <button class="tab" onclick="sw(this,'gold','inr')">INR cr</button>
-        <button class="tab" onclick="sw(this,'gold','tons')">Tonnes</button>
-      </div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cGold"></canvas></div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div><div class="chart-title">Rupee spot rate — Friday close</div>
-          <div class="chart-note">INR per unit of foreign currency · higher = weaker rupee</div></div>
-      </div>
-      <div class="tab-row">
-        <button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button>
-        <button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button>
-        <button class="tab" onclick="sw(this,'fx','both')">Both</button>
-      </div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cFx"></canvas></div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div><div class="chart-title">Nifty 50 &amp; Sensex — Friday close</div>
-          <div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div>
-      </div>
-      <div class="tab-row">
-        <button class="tab on" onclick="sw(this,'idx','nifty')">Nifty 50</button>
-        <button class="tab" onclick="sw(this,'idx','sensex')">Sensex</button>
-        <button class="tab" onclick="sw(this,'idx','both')">Both (%)</button>
-      </div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cIdx"></canvas></div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div><div class="chart-title">Nifty 50 &amp; Sensex — weekly change</div>
-          <div class="chart-note">Week-on-week Δ in index points · green = gain, red = loss</div></div>
-      </div>
-      <div class="tab-row">
-        <button class="tab on" onclick="sw(this,'idxd','nifty')">Nifty 50</button>
-        <button class="tab" onclick="sw(this,'idxd','sensex')">Sensex</button>
-      </div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cIdxDelta"></canvas></div>
-    </div>
-  </div>
-
-</main>
-</div>
-
-<!-- ═══ TABLE ═════════════════════════════════════════════════ -->
-<div class="section" id="sec-table">
-<main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
-
-  <div class="tbl-intro">
-    <p><strong>Most recent 5 weeks</strong> of RBI Weekly Statistical Supplement data.
-    All values from the <strong>Friday closing / reporting date</strong>.
-    Δ = change vs. the previous week.
-    <strong>Forex reserves</strong> in USD million &amp; ₹ crore.
-    <strong>Gold</strong> in USD million, ₹ crore, and metric tonnes.
-    <strong>Rupee spot rate</strong> per USD and EUR (higher = rupee weaker).
-    <strong>Nifty 50</strong> and <strong>Sensex</strong> Friday closing prices from Yahoo Finance.
-    </p>
-  </div>
-
-  <div class="tbl-wrap" id="tbl-wrap">
-    <div class="tbl-header">
-      <h2>Weekly summary — last 5 Fridays</h2>
-      <span id="tbl-updated"></span>
-    </div>
-    <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
-    <div id="tbl-container" style="overflow-x:auto;display:none">
-      <table id="data-table">
-        <thead>
-          <tr>
-            <th rowspan="2">Date (Friday)</th>
-            <th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Forex Reserves</th>
-            <th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Gold Holdings</th>
-            <th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Rupee Spot Rate</th>
-            <th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Equity Markets</th>
-           </tr>
-          <tr>
-            <th style="border-left:1px solid var(--border)">USD mn</th>
-            <th>INR cr</th>
-            <th style="border-left:1px solid var(--border)">USD mn</th>
-            <th>INR cr</th>
-            <th>Tonnes</th>
-            <th style="border-left:1px solid var(--border)">USD/INR</th>
-            <th>EUR/INR</th>
-            <th style="border-left:1px solid var(--border)">Nifty 50</th>
-            <th>Sensex</th>
-           </tr>
-        </thead>
-        <tbody id="tbl-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- equity detail table -->
-  <div class="tbl-wrap" id="eq-tbl-wrap" style="margin-top:1.25rem">
-    <div class="tbl-header">
-      <h2>Nifty 50 &amp; Sensex — weekly detail</h2>
-      <span id="eq-tbl-updated"></span>
-    </div>
-    <div id="eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
-    <div id="eq-tbl-container" style="overflow-x:auto;display:none">
-      <table>
-        <thead>
-          <tr>
-            <th rowspan="2">Date (Friday)</th>
-            <th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Nifty 50</th>
-            <th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Sensex</th>
-           </tr>
-          <tr>
-            <th style="border-left:1px solid var(--border)">Close</th>
-            <th>Δ Points</th>
-            <th>Δ %</th>
-            <th>YTD %</th>
-            <th style="border-left:1px solid var(--border)">Close</th>
-            <th>Δ Points</th>
-            <th>Δ %</th>
-            <th>YTD %</th>
-           </tr>
-        </thead>
-        <tbody id="eq-tbl-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-</main>
-</div>
-
-<!-- FOOTER (always visible) -->
-<footer>
-  <h3>Data sources</h3>
-  <div class="src-links">
-    <a class="src-link last-week" id="footer-last-week" href="https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=5/29/2026" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
-      <span id="footer-last-week-label">RBI WSS — Latest available Friday (May 29, 2026)</span>
-    </a>
-    <a class="src-link" href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
-      RBI Weekly Statistical Supplement — Full index
-    </a>
-    <a class="src-link" href="https://www.rbi.org.in/Scripts/WSSView.aspx?TYPE=Basic" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
-      RBI WSS — Basic series (all tables)
-    </a>
-    <a class="src-link" href="https://finance.yahoo.com/quote/%5ENSEI/" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
-      Yahoo Finance — Nifty 50 (^NSEI) &amp; Sensex (^BSESN)
-    </a>
-  </div>
-  <p>Forex reserves, gold, and rupee spot rates scraped from RBI WSS Excel files — one report per Friday.
-     Equity data from Yahoo Finance public chart API. No API keys required.</p>
-</footer>
-
-<script>
-// ─── state ────────────────────────────────────────────────────
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty'};
-
-// ─── nav ──────────────────────────────────────────────────────
-function showSection(name, el) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-'+name).classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active'));
-  if(el) el.classList.add('active');
-  return false;
+function getAllFridaysUntilToday() {
+  const start = new Date("2026-01-01");
+  const end = new Date();
+  const fridays = [];
+  const day = start.getDay();
+  const daysAhead = day <= 5 ? 5 - day : 12 - day;
+  const cur = new Date(start);
+  cur.setDate(cur.getDate() + (daysAhead === 0 ? 7 : daysAhead));
+  while (cur <= end) {
+    fridays.push(new Date(cur));
+    cur.setDate(cur.getDate() + 7);
+  }
+  return fridays;
 }
 
-// ─── helpers ──────────────────────────────────────────────────
-const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
-const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
-const diff = arr => arr.map((v,i)=>i===0?null:(v!=null&&arr[i-1]!=null?v-arr[i-1]:null));
-function setStatus(s){
-  document.getElementById('status-dot').className='dot '+s;
-  document.getElementById('status-text').textContent=s==='running'?'Fetching…':s==='done'?'Complete':s==='error'?'Error':'Idle';
+function fmtDate(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
-function setProgress(done,total){
-  const p=total?Math.round(done/total*100):0;
-  document.getElementById('prog-bar').style.width=p+'%';
-  document.getElementById('prog-label').textContent=total>1?`${done} / ${total} weeks`:done===1?'Done':'Waiting…';
-  document.getElementById('prog-pct').textContent=p+'%';
-}
-function appendLog(msg, cls=''){
-  const box=document.getElementById('log-box');
-  const d=document.createElement('div');
-  if(cls) d.className=cls;
-  else if(msg.includes('✓')) d.className='ok';
-  else if(msg.includes('✗')) d.className='err';
-  else if(msg.includes('⚠')) d.className='warn';
-  d.textContent=msg; box.appendChild(d); box.scrollTop=box.scrollHeight;
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
 }
 
-// ─── FETCH (SEQUENTIAL, ONE WEEK AT A TIME) ───────────────────
-async function startFetch() {
-  const btn = document.getElementById('start-btn');
-  btn.disabled = true;
-  setStatus('running');
-  appendLog('Starting sequential fetch (one week at a time)...');
-  
-  let allRecords = [];
-  let totalWeeks = 0;
-  
-  // First, get total number of weeks
+// Short timeouts to stay under 10s total
+const FETCH_TIMEOUT = 6000;      // 6 seconds per fetch
+const EXCEL_TIMEOUT = 5000;      // 5 seconds per Excel download
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch('/.netlify/functions/fetch-data?weekOffset=0');
-    const data = await res.json();
-    totalWeeks = data.totalWeeks || 0;
-    if (totalWeeks === 0) throw new Error('Could not determine total weeks');
-    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each...`);
-  } catch(e) {
-    appendLog(`Error getting total weeks: ${e.message}`, 'err');
-    btn.disabled = false;
-    setStatus('error');
-    return;
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeout);
+    return res;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
   }
-  
-  for (let offset = 0; offset < totalWeeks; offset++) {
-    setProgress(offset, totalWeeks);
-    appendLog(`Fetching week ${offset+1}/${totalWeeks} (offset ${offset})...`);
-    
-    try {
-      const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
-      if (!res.ok) {
-        if (res.status === 404) break;
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
-      const data = await res.json();
-      if (data.error) {
-        appendLog(`⚠️ Week ${offset+1} error: ${data.error}`, 'warn');
-      } else if (data.record) {
-        allRecords.push(data.record);
-        appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr??'N/A'}`);
-      }
-      
-      // Polite delay to RBI server (500ms between requests)
-      await new Promise(r => setTimeout(r, 500));
-    } catch (err) {
-      appendLog(`✗ Request failed: ${err.message}`, 'err');
-      break;
-    }
-  }
-  
-  if (allRecords.length > 0) {
-    records = allRecords.sort((a,b) => a.date.localeCompare(b.date));
-    updateUI();
-    appendLog(`✅ Complete! Fetched ${records.length} weeks.`);
-    setStatus('done');
-    
-    // Update footer with latest Friday link
-    const latest = records[records.length-1];
-    if (latest) {
-      const [y,m,d] = latest.date.split('-');
-      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d)}/${y}`;
-      const footerLink = document.getElementById('footer-last-week');
-      const footerLabel = document.getElementById('footer-last-week-label');
-      footerLink.href = lastFridayUrl;
-      const dateObj = new Date(latest.date);
-      footerLabel.textContent = `RBI WSS — Latest available Friday (${dateObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
-    }
-  } else {
-    appendLog('❌ No records were fetched.', 'err');
-    setStatus('error');
-  }
-  
-  setProgress(1,1);
-  btn.disabled = false;
-  btn.textContent = '↺ Refresh data';
 }
 
-// ─── update all UI ────────────────────────────────────────────
-function updateUI(){
-  if(!records.length) return;
-  document.getElementById('empty').style.display='none';
-  document.getElementById('metrics').classList.add('show');
-  document.getElementById('charts').classList.add('show');
-  records.sort((a,b)=>a.date.localeCompare(b.date));
-  const L=records[records.length-1], P=records.length>1?records[records.length-2]:null;
-  const set=(id,val,did,dval,dec=0)=>{
-    document.getElementById(id).textContent=fmt(val,dec)+(id==='m-gold-t'&&val?'t':'');
-    if(did) document.getElementById(did).innerHTML=fmtD(dval,dec);
+async function getRbiPageHtml(d) {
+  const url = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtDate(d)}`;
+  const res = await fetchWithTimeout(url, {
+    headers: { "User-Agent": "Mozilla/5.0" }
+  }, FETCH_TIMEOUT);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
+function findExcelUrls(html) {
+  const urls = {};
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let m;
+  while ((m = trRegex.exec(html)) !== null) {
+    const cell = m[1];
+    const hrefM = cell.match(/href="([^"]+\.xlsx)"/i);
+    if (!hrefM) continue;
+    let href = hrefM[1];
+    if (!href.startsWith("http")) href = "https://www.rbi.org.in" + href;
+    const text = cell.replace(/<[^>]+>/g, " ").toLowerCase();
+    if (text.includes("foreign exchange reserves")) urls.reserves = urls.reserves || href;
+    if (text.includes("foreign exchange market") || text.includes("exchange rate") || text.includes("spot rate"))
+      urls.spot = urls.spot || href;
+  }
+  return urls;
+}
+
+async function downloadXlsx(url) {
+  const res = await fetchWithTimeout(url, {
+    headers: { "User-Agent": "Mozilla/5.0" }
+  }, EXCEL_TIMEOUT);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+function parseReservesExcel(buf) {
+  const sheets = XLSX.parse(buf);
+  const r = { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null, gold_tons: null };
+  if (!sheets.length) return r;
+  for (const row of sheets[0].data) {
+    const t = row.map(c => String(c ?? '')).join(' ').toLowerCase();
+    const nums = () => row.map(c => parseFloat(c)).filter(n => !isNaN(n));
+    if ((t.includes('total reserves') || t.includes('total foreign exchange reserves')) && r.total_usd === null) {
+      const n = nums(); if (n[0]) r.total_usd = n[0]; if (n[1]) r.total_inr = n[1];
+    }
+    if (t.includes('gold') && !t.includes('total') && r.gold_usd === null) {
+      const n = nums(); if (n[0]) r.gold_usd = n[0]; if (n[1]) r.gold_inr = n[1]; if (n[2]) r.gold_tons = n[2];
+    }
+    if (t.includes('gold') && (t.includes('tonnes') || t.includes('metric') || t.includes('tons')) && r.gold_tons === null) {
+      const n = nums(); if (n[0]) r.gold_tons = n[0];
+    }
+  }
+  return r;
+}
+
+function parseSpotRateExcel(buf) {
+  const sheets = XLSX.parse(buf);
+  const r = { usd_inr: null, eur_inr: null };
+  if (!sheets.length) return r;
+  for (const row of sheets[0].data) {
+    const t = row.map(c => String(c ?? '')).join(' ').toLowerCase();
+    const nums = () => row.map(c => parseFloat(c)).filter(n => !isNaN(n) && n > 10 && n < 300);
+    if ((t.includes('us dollar') || t.includes('usd') || t.includes('dollar')) && !t.includes('euro') && r.usd_inr === null) {
+      const n = nums(); if (n[0]) r.usd_inr = n[0];
+    }
+    if ((t.includes('euro') || t.includes('eur')) && r.eur_inr === null) {
+      const n = nums(); if (n[0]) r.eur_inr = n[0];
+    }
+    if (r.usd_inr && r.eur_inr) break;
+  }
+  return r;
+}
+
+// Yahoo – with very short timeout and non‑critical
+async function getYahooValue(symbol, targetDate) {
+  const start = new Date(targetDate);
+  start.setDate(start.getDate() - 3);
+  const end = new Date(targetDate);
+  end.setDate(end.getDate() + 3);
+  const from = Math.floor(start.getTime() / 1000);
+  const to = Math.floor(end.getTime() / 1000);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${from}&period2=${to}&interval=1d&events=history`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" }
+    }, 4000); // 4 sec max
+    if (!res.ok) return null;
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+    const ts = result.timestamp || [], closes = result.indicators?.quote?.[0]?.close || [];
+    const targetMs = targetDate.getTime();
+    let bestIdx = -1, bestDiff = Infinity;
+    ts.forEach((t, i) => {
+      const diff = Math.abs(t * 1000 - targetMs);
+      if (diff < bestDiff && closes[i] != null) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    });
+    return bestIdx !== -1 ? closes[bestIdx] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function processOneFriday(friday) {
+  const iso = isoDate(friday);
+  let html;
+  try {
+    html = await getRbiPageHtml(friday);
+  } catch (e) {
+    return { iso, error: `page: ${e.message}` };
+  }
+
+  const urls = findExcelUrls(html);
+  if (!urls.reserves) {
+    return { iso, error: 'no reserves Excel link' };
+  }
+
+  // Download both Excels in parallel, but don't let one failure stop the other
+  const [resBuf, spotBuf] = await Promise.all([
+    downloadXlsx(urls.reserves).catch(e => null),
+    urls.spot ? downloadXlsx(urls.spot).catch(() => null) : Promise.resolve(null),
+  ]);
+
+  if (!resBuf) {
+    return { iso, error: 'reserves Excel download failed' };
+  }
+
+  const res = parseReservesExcel(resBuf);
+  const spot = spotBuf ? parseSpotRateExcel(spotBuf) : { usd_inr: null, eur_inr: null };
+
+  if (res.total_usd == null) {
+    return { iso, error: 'parse failed' };
+  }
+
+  // Yahoo is optional – don't fail if it times out
+  const nifty = await getYahooValue("^NSEI", friday).catch(() => null);
+  const sensex = await getYahooValue("^BSESN", friday).catch(() => null);
+
+  return {
+    iso,
+    record: {
+      date: iso,
+      total_usd: res.total_usd,
+      total_inr: res.total_inr,
+      gold_usd: res.gold_usd,
+      gold_inr: res.gold_inr,
+      gold_tons: res.gold_tons,
+      usd_inr: spot.usd_inr,
+      eur_inr: spot.eur_inr,
+      nifty: nifty,
+      sensex: sensex,
+    }
   };
-  set('m-res-usd', L.total_usd,'d-res-usd', P?L.total_usd-P.total_usd:null);
-  set('m-res-inr', L.total_inr,'d-res-inr', P?L.total_inr-P.total_inr:null);
-  set('m-gold-usd',L.gold_usd, 'd-gold-usd',P?L.gold_usd-P.gold_usd:null);
-  set('m-gold-t',  L.gold_tons,'d-gold-t',  P&&L.gold_tons!=null&&P.gold_tons!=null?+(L.gold_tons-P.gold_tons).toFixed(2):null,2);
-  set('m-usd-inr', L.usd_inr,  'd-usd-inr', P?+(L.usd_inr-P.usd_inr).toFixed(2):null,2);
-  set('m-eur-inr', L.eur_inr,  'd-eur-inr', P?+(L.eur_inr-P.eur_inr).toFixed(2):null,2);
-  set('m-nifty',   L.nifty,    'd-nifty',   P?+(L.nifty-P.nifty).toFixed(1):null,1);
-  set('m-sensex',  L.sensex,   'd-sensex',  P?+(L.sensex-P.sensex).toFixed(1):null,1);
-  rebuildCharts();
-  rebuildTable();
 }
 
-// ─── TABLE ────────────────────────────────────────────────────
-function rebuildTable(){
-  const last5 = records.slice(-5);
-  if(!last5.length) return;
-  document.getElementById('tbl-empty').style.display='none';
-  document.getElementById('tbl-container').style.display='block';
-  const updated=document.getElementById('tbl-updated');
-  updated.textContent=`Data through ${last5[last5.length-1].date}`;
+exports.handler = async (event) => {
+  try {
+    const query = event.queryStringParameters || {};
+    let weekOffset = parseInt(query.weekOffset);
+    if (isNaN(weekOffset)) weekOffset = 0;
 
-  const body=document.getElementById('tbl-body');
-  body.innerHTML='';
-
-  last5.forEach((row,i)=>{
-    const prev=i>0?last5[i-1]:null;
-    const isLatest=(i===last5.length-1);
-    const tr=document.createElement('tr');
-    if(isLatest) tr.style.background='rgba(220,252,231,0.4)';
-
-    function cell(val,prevVal,dec=0,suffix=''){
-      const d=prev&&prevVal!=null&&val!=null?val-prevVal:null;
-      const dFmt=d!=null?`<span class="cell-delta ${d>=0?'up':'dn'}">${d>=0?'+':''}${fmt(d,dec)}</span>`:'';
-      return `<td><div class="cell-group"><div class="cell-main">${fmt(val,dec)}${suffix}</div>${dFmt}</div></td>`;
+    const allFridays = getAllFridaysUntilToday();
+    if (weekOffset >= allFridays.length) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "No more weeks", done: true })
+      };
     }
 
-    // date cell — link to RBI page for that date
-    const [y,m,d2] = row.date.split('-');
-    const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${parseInt(m)}/${parseInt(d2)}/${y}`;
-    tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:500">${row.date}</a>${isLatest?' <span style="font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
-      + cell(row.total_usd, prev?.total_usd)
-      + cell(row.total_inr, prev?.total_inr)
-      + cell(row.gold_usd,  prev?.gold_usd)
-      + cell(row.gold_inr,  prev?.gold_inr)
-      + cell(row.gold_tons, prev?.gold_tons, 2, 't')
-      + cell(row.usd_inr,   prev?.usd_inr, 2)
-      + cell(row.eur_inr,   prev?.eur_inr, 2)
-      + cell(row.nifty,     prev?.nifty, 1)
-      + cell(row.sensex,    prev?.sensex, 1);
-    body.appendChild(tr);
-  });
-}
+    const targetFriday = allFridays[allFridays.length - 1 - weekOffset];
+    const result = await processOneFriday(targetFriday);
 
-// ─── CHARTS ───────────────────────────────────────────────────
-const G='#16a34a',R='#dc2626',BLUE='#2563eb',AMB='#d97706';
-const gridC='rgba(0,0,0,0.04)',tickC='#9ca3af';
-const labels=()=>records.map(r=>r.date.slice(5));
-const barColors=arr=>arr.map(v=>v===null?'transparent':v>=0?G:R);
-
-const ttOpts=(label)=>({
-  backgroundColor:'#14532d',titleColor:'#dcfce7',bodyColor:'#bbf7d0',borderColor:'#16a34a',borderWidth:1,
-  callbacks:{label:ctx=>`${label}: ${ctx.parsed.y!=null?ctx.parsed.y.toLocaleString('en-IN',{maximumFractionDigits:2}):'N/A'}`}
-});
-const axOpts=(fmt)=>({
-  x:{ticks:{color:tickC,font:{size:10.5},maxRotation:45,autoSkip:true,maxTicksLimit:12},grid:{color:gridC}},
-  y:{ticks:{color:tickC,font:{size:10.5},callback:fmt},grid:{color:gridC}}
-});
-
-function mkBar(id,diffs,label){
-  if(charts[id]) charts[id].destroy();
-  charts[id]=new Chart(document.getElementById(id),{type:'bar',
-    data:{labels:labels(),datasets:[{label,data:diffs,backgroundColor:barColors(diffs),borderRadius:3,borderSkipped:false}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:ttOpts(label)},
-      scales:axOpts(v=>v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0))}});
-}
-
-function mkLine(id,datasets,yFmt){
-  if(charts[id]) charts[id].destroy();
-  charts[id]=new Chart(document.getElementById(id),{type:'line',data:{labels:labels(),datasets},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:datasets.length>1,labels:{color:tickC,font:{size:11},boxWidth:12}},
-        tooltip:{backgroundColor:'#14532d',titleColor:'#dcfce7',bodyColor:'#bbf7d0',borderColor:G,borderWidth:1}},
-      scales:axOpts(yFmt||(v=>v.toFixed(2)))}});
-}
-
-function ds(data,color,label,dash=[]){
-  return{label,data,borderColor:color,backgroundColor:color+'18',fill:true,tension:.35,
-    pointRadius:3,pointBackgroundColor:color,borderWidth:2,borderDash:dash};
-}
-
-function rebuildCharts(){
-  const resRaw=records.map(r=>modes.res==='usd'?r.total_usd:r.total_inr);
-  mkBar('cRes',diff(resRaw),modes.res==='usd'?'Δ USD mn':'Δ INR cr');
-
-  const goldRaw=records.map(r=>modes.gold==='usd'?r.gold_usd:modes.gold==='inr'?r.gold_inr:r.gold_tons);
-  mkBar('cGold',diff(goldRaw),modes.gold==='usd'?'Δ Gold USD mn':modes.gold==='inr'?'Δ Gold INR cr':'Δ Gold Tonnes');
-
-  const usdD=records.map(r=>r.usd_inr), eurD=records.map(r=>r.eur_inr);
-  if(modes.fx==='usd')       mkLine('cFx',[ds(usdD,G,'USD/INR')],v=>v.toFixed(2));
-  else if(modes.fx==='eur')  mkLine('cFx',[ds(eurD,BLUE,'EUR/INR')],v=>v.toFixed(2));
-  else                       mkLine('cFx',[ds(usdD,G,'USD/INR'),ds(eurD,BLUE,'EUR/INR',[5,3])],v=>v.toFixed(2));
-
-  const nifD=records.map(r=>r.nifty), senD=records.map(r=>r.sensex);
-  if(modes.idx==='nifty')        mkLine('cIdx',[ds(nifD,G,'Nifty 50')],v=>(v/1000).toFixed(1)+'k');
-  else if(modes.idx==='sensex')  mkLine('cIdx',[ds(senD,AMB,'Sensex')],v=>(v/1000).toFixed(1)+'k');
-  else {
-    const n0=nifD.find(v=>v!=null), s0=senD.find(v=>v!=null);
-    const nN=nifD.map(v=>v!=null&&n0?+((v-n0)/n0*100).toFixed(2):null);
-    const sN=senD.map(v=>v!=null&&s0?+((v-s0)/s0*100).toFixed(2):null);
-    mkLine('cIdx',[ds(nN,G,'Nifty 50 (%)'),ds(sN,AMB,'Sensex (%)',[5,3])],v=>v.toFixed(1)+'%');
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        done: false,
+        record: result.record || null,
+        error: result.error || null,
+        weekIndex: weekOffset,
+        totalWeeks: allFridays.length
+      })
+    };
+  } catch (err) {
+    console.error("Fatal error in handler:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message, stack: err.stack })
+    };
   }
-}
-
-function sw(el,group,mode){
-  modes[group]=mode;
-  el.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
-  if(records.length) rebuildCharts();
-}
-</script>
-</body>
-</html>
+};
