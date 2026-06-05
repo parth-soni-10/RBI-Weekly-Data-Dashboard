@@ -316,7 +316,7 @@ async function startFetch() {
   let offset = 0;
   let totalWeeks = 0;
   
-  // First, get the total number of weeks (from the first call)
+  // First, get the total number of weeks
   try {
     const res = await fetch('/.netlify/functions/fetch-data?weekOffset=0');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -344,7 +344,7 @@ async function startFetch() {
       
       const data = await res.json();
       if (data.error) {
-        appendLog(`⚠️ Week ${offset+1} (offset ${offset}): ${data.error}`, 'warn');
+        appendLog(`⚠️ Week ${offset+1}: ${data.error}`, 'warn');
       } else if (data.record) {
         allRecords.push(data.record);
         appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
@@ -355,7 +355,6 @@ async function startFetch() {
       appendLog(`✗ Request failed for week ${offset+1}: ${err.message}`, 'err');
     }
     
-    // Polite delay to avoid overwhelming the server
     await new Promise(r => setTimeout(r, 500));
   }
   
@@ -365,7 +364,6 @@ async function startFetch() {
     appendLog(`✅ Complete! Fetched ${records.length} weeks.`);
     setStatus('done');
     
-    // Update footer with the latest week's RBI link
     const latest = records[records.length-1];
     if (latest) {
       const [y,m,d] = latest.date.split('-');
