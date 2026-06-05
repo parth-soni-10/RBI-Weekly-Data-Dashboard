@@ -407,7 +407,7 @@ async function startFetch() {
   setProgress(0,1);
   appendLog('Calling /.netlify/functions/fetch-data …');
   try {
-    const res = await fetch('/.netlify/functions/fetch-data');
+    const res = await fetch('/.netlify/functions/fetch-data-background');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     (data.logs||[]).forEach(m=>appendLog(m));
