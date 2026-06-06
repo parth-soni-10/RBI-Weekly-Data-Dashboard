@@ -161,6 +161,8 @@ async function fetchAllPpac() {
 
   const rows = [];
   // fetch all FY × report types in parallel batches
+  // reportBy: 1=Quantity, 2=Value INR, 3=Value USD
+  // Also try reportBy=4 or "country" for country-wise breakdown (PPAC sometimes has this)
   const tasks = [];
   for (const fy of FISCAL_YEARS) {
     for (const rby of ["1", "2", "3"]) {
@@ -215,12 +217,44 @@ function daysInMonth(y, m) {
 }
 
 // ─── TANKERMAP ────────────────────────────────────────────────
+// For each port, try multiple slug variants — TankerMap slug names are not
+// always predictable (e.g. "kochi" not "kochi-oil", "ennore" not "chennai-oil")
+const PORT_SLUG_VARIANTS = {
+  "jamnagar-oil":      ["jamnagar-oil", "jamnagar", "sikka-oil", "sikka"],
+  "vadinar-oil":       ["vadinar-oil", "vadinar"],
+  "mumbai-oil":        ["mumbai-oil", "mumbai", "nhava-sheva", "jnpt"],
+  "paradip-oil":       ["paradip-oil", "paradip", "paradeep-oil", "paradeep"],
+  "mangalore-oil":     ["mangalore-oil", "mangalore", "nmpt", "new-mangalore"],
+  "chennai-oil":       ["chennai-oil", "ennore", "ennore-port", "kamarajar", "chennai"],
+  "haldia-oil":        ["haldia-oil", "haldia", "kolkata-oil", "kolkata"],
+  "kochi-oil":         ["kochi-oil", "kochi", "cochin-oil", "cochin"],
+  "visakhapatnam-oil": ["visakhapatnam-oil", "visakhapatnam", "vizag-oil", "vizag"],
+  "kandla-oil":        ["kandla-oil", "kandla", "deendayal-oil", "deendayal"],
+  "kakinada-oil":      ["kakinada-oil", "kakinada"],
+  "tuticorin-oil":     ["tuticorin-oil", "tuticorin", "voc-port", "thoothukudi"],
+};
+
+async function tryPortSlug(slug) {
+  const variants = PORT_SLUG_VARIANTS[slug] || [slug];
+  for (const v of variants) {
+    try {
+      const res  = await get(`${TANKERMAP}/api/ports/${v}`, 8000);
+      const data = await res.json();
+      // Verify it returned something useful
+      if (data && (data.arrivals || data.in_port || data.expected)) {
+        return { data, resolvedSlug: v };
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 async function fetchPortArrivals() {
   const results = await Promise.allSettled(
     INDIA_PORTS.map(async (port) => {
-      const res  = await get(`${TANKERMAP}/api/ports/${port.slug}`, 10000);
-      const data = await res.json();
-      return { ...data, port_info: port };
+      const hit = await tryPortSlug(port.slug);
+      if (!hit) return { port_info: port, arrivals: [], departures: [], in_port: [], expected: [] };
+      return { ...hit.data, port_info: port, resolvedSlug: hit.resolvedSlug };
     })
   );
 
@@ -300,6 +334,44 @@ async function fetchMarketData() {
   return out;
 }
 
+// ─── ORIGIN FROM COORDINATES ─────────────────────────────────
+// Infer vessel origin region from current lat/lon position.
+// Crude export regions with bounding boxes [lat_min, lat_max, lon_min, lon_max]
+const ORIGIN_REGIONS = [
+  { name: "Persian Gulf",       box: [22,   30,  48,  60]  },
+  { name: "Iraq / Basra",       box: [28,   31,  47,  49]  },
+  { name: "Saudi Arabia",       box: [14,   32,  36,  56]  },
+  { name: "UAE / Abu Dhabi",    box: [22,   27,  51,  56]  },
+  { name: "Kuwait",             box: [28,   30,  47,  49]  },
+  { name: "Iran",               box: [24,   38,  44,  64]  },
+  { name: "Russia / Novorossiysk", box: [42, 48, 36,  40]  },
+  { name: "Russia / Baltic",    box: [54,   60,  18,  30]  },
+  { name: "West Africa",        box: [-10,  10,  -5,  15]  },
+  { name: "Nigeria",            box: [3,     7,   3,   9]  },
+  { name: "Angola",             box: [-18, -4,   8,  16]  },
+  { name: "North Sea",          box: [51,   63,  -5,  10]  },
+  { name: "US Gulf",            box: [24,   31, -98, -85]  },
+  { name: "Venezuela",          box: [8,    13, -73, -60]  },
+  { name: "East Africa",        box: [-15,  15,  40,  52]  },
+  { name: "Red Sea",            box: [12,   30,  32,  45]  },
+  { name: "Mediterranean",      box: [30,   46,  -6,  37]  },
+];
+
+function originFromLatLon(lat, lon) {
+  if (lat == null || lon == null) return "";
+  // Most specific regions first (smaller boxes)
+  const ordered = [...ORIGIN_REGIONS].sort((a, b) => {
+    const areaA = (a.box[1]-a.box[0]) * (a.box[3]-a.box[2]);
+    const areaB = (b.box[1]-b.box[0]) * (b.box[3]-b.box[2]);
+    return areaA - areaB;
+  });
+  for (const r of ordered) {
+    const [latMin, latMax, lonMin, lonMax] = r.box;
+    if (lat >= latMin && lat <= latMax && lon >= lonMin && lon <= lonMax) return r.name;
+  }
+  return "";
+}
+
 // ─── VESSEL HELPERS ───────────────────────────────────────────
 function classifyVessel(dwt) {
   for (const [cls, lo, hi] of VESSEL_CLASSES) {
@@ -315,19 +387,25 @@ function filterIndiaBound(vessels) {
       const dest = String(v.destination || "").toLowerCase();
       return INDIA_KEYWORDS.some(kw => dest.includes(kw));
     })
-    .map(v => ({
-      name:         v.name         || "",
-      imo:          v.imo          || "",
-      mmsi:         v.mmsi         || "",
-      dwt:          v.deadweight   || 0,
-      vessel_class: classifyVessel(v.deadweight || 0),
-      destination:  v.destination  || "",
-      origin:       v.last_port    || v.departure_port || v.origin || "",
-      eta:          v.eta          || v.estimated_arrival || null,
-      speed_knots:  v.speed_knots  || 0,
-      nav_status:   v.nav_status   || "",
-      barrels_est:  Math.round((v.deadweight || 0) * 0.9 * 7.33),
-    }));
+    .map(v => {
+      // Origin: try explicit fields first, then infer from coordinates
+      const explicitOrigin = v.last_port || v.departure_port || v.origin
+        || v.from_port || v.previous_port || v.port_from || "";
+      const coordOrigin = explicitOrigin
+        ? "" : originFromLatLon(v.lat || v.latitude, v.lon || v.longitude);
+      return {
+        name:         v.name         || "",
+        imo:          v.imo          || "",
+        mmsi:         v.mmsi         || "",
+        dwt:          v.deadweight   || 0,
+        vessel_class: classifyVessel(v.deadweight || 0),
+        destination:  v.destination  || "",
+        origin:       explicitOrigin || coordOrigin,
+        speed_knots:  v.speed_knots  || 0,
+        nav_status:   v.nav_status   || "",
+        barrels_est:  Math.round((v.deadweight || 0) * 0.9 * 7.33),
+      };
+    });
 }
 
 // ─── DAILY ESTIMATES ─────────────────────────────────────────
@@ -447,96 +525,116 @@ async function fetchYahooPrice(symbol) {
   } catch (_) { return { price: null, date: null }; }
 }
 
-// ─── STRAIT TRAFFIC (IMF PortWatch ArcGIS + TankerMap fallback) ──────────────
-// Primary: IMF PortWatch public ArcGIS FeatureServer — Daily_Ports_Data
-// port_name field values include "Suez Canal" and "Strait of Hormuz"
-// Returns last 90 days of daily vessel/transit counts.
+// ─── STRAIT TRAFFIC (IMF PortWatch Daily_Chokepoints_Data) ──────────────────
+// Confirmed field names from open-source PortWatch users:
+//   portname  — exact names: "Suez Canal", "Strait of Hormuz"
+//   date      — epoch ms (esriFieldTypeDate)
+//   n_total   — total vessel transits per day
+//   n_tanker  — tanker transits
+//   capacity_tanker — tanker capacity (DWT)
+//   n_container, n_dry_bulk, n_general_cargo, n_roro
+//
+// IMPORTANT: Uses Daily_Chokepoints_Data endpoint, NOT Daily_Ports_Data.
+// Chokepoints dataset is ~3800 records total (small, fast).
 async function fetchStraitTraffic() {
-  const ARCGIS_BASE = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0/query";
-  const straits = [
-    { key: "suez",    label: "Suez Canal",         port_names: ["Suez Canal", "suez"] },
-    { key: "hormuz",  label: "Strait of Hormuz",   port_names: ["Strait of Hormuz", "Hormuz"] },
-  ];
+  // Correct endpoint: Daily_CHOKEPOINTS_Data (not ports)
+  const CHOKEPOINTS_URL = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query";
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 90);
-  const cutoffMs = cutoff.getTime();
+  const cutoffEpoch = cutoff.getTime();
+
+  const STRAITS = [
+    { key: "suez",   label: "Suez Canal",         portname: "Suez Canal"       },
+    { key: "hormuz", label: "Strait of Hormuz",    portname: "Strait of Hormuz" },
+  ];
 
   const results = {};
 
-  await Promise.all(straits.map(async (strait) => {
-    const whereClause = strait.port_names
-      .map(n => `port_name LIKE '%${n}%'`)
-      .join(" OR ");
-
-    const url = ARCGIS_BASE
-      + `?where=${encodeURIComponent(`(${whereClause}) AND date >= timestamp '${cutoff.toISOString().slice(0,10)} 00:00:00'`)}`
-      + `&outFields=date,port_name,vessel_count,tanker_count,oil_tanker_count,crude_tanker_count,total_transit`
-      + `&orderByFields=date+ASC`
-      + `&resultRecordCount=200`
-      + `&f=json`;
-
+  await Promise.all(STRAITS.map(async (strait) => {
+    // ── Attempt 1: IMF PortWatch — exact portname match ──────────────────────
     try {
+      const where = encodeURIComponent(`portname='${strait.portname}' AND date>=${cutoffEpoch}`);
+      const url   = `${CHOKEPOINTS_URL}?where=${where}`
+        + `&outFields=portname,date,n_total,n_tanker,capacity_tanker,n_container,n_dry_bulk`
+        + `&orderByFields=date+ASC&resultRecordCount=200&f=json`;
+
       const res  = await get(url, 12000);
       const json = await res.json();
-      const features = (json.features || []).map(f => {
-        const a = f.attributes || {};
-        // date may be epoch ms or ISO string
-        let ds = a.date;
-        if (typeof ds === "number") {
-          ds = new Date(ds).toISOString().slice(0, 10);
-        } else if (ds && ds.length > 10) {
-          ds = ds.slice(0, 10);
-        }
+      if (json.error) throw new Error(`ArcGIS: ${json.error.message || JSON.stringify(json.error)}`);
+
+      const raw = json.features || [];
+      if (raw.length === 0) throw new Error(`portname='${strait.portname}' returned 0 rows`);
+
+      const data = raw.map(f => {
+        const a  = f.attributes || {};
+        const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
         return {
-          date:               ds,
-          port_name:          a.port_name         || strait.label,
-          vessel_count:       a.vessel_count       || a.total_transit || null,
-          tanker_count:       a.tanker_count       || null,
-          oil_tanker_count:   a.oil_tanker_count   || null,
-          crude_tanker_count: a.crude_tanker_count || null,
+          date:         ds,
+          vessel_count: a.n_total   ?? null,
+          tanker_count: a.n_tanker  ?? null,
+          tanker_cap:   a.capacity_tanker ?? null,
+          container:    a.n_container ?? null,
+          dry_bulk:     a.n_dry_bulk  ?? null,
         };
       }).filter(r => r.date);
 
-      // Deduplicate by date — sum if multiple port_name rows match same date
-      const byDate = {};
-      for (const r of features) {
-        if (!byDate[r.date]) {
-          byDate[r.date] = { ...r };
-        } else {
-          byDate[r.date].vessel_count       = (byDate[r.date].vessel_count || 0)       + (r.vessel_count || 0);
-          byDate[r.date].tanker_count       = (byDate[r.date].tanker_count || 0)       + (r.tanker_count || 0);
-          byDate[r.date].oil_tanker_count   = (byDate[r.date].oil_tanker_count || 0)   + (r.oil_tanker_count || 0);
-          byDate[r.date].crude_tanker_count = (byDate[r.date].crude_tanker_count || 0) + (r.crude_tanker_count || 0);
-        }
-      }
+      results[strait.key] = { label: strait.label, source: "IMF PortWatch", data };
+      return;
+    } catch (e1) {
+      // ── Attempt 2: LIKE match (looser) ────────────────────────────────────
+      try {
+        const keyword = strait.portname.split(" ")[0]; // "Suez" or "Strait"
+        const where2  = encodeURIComponent(`portname LIKE '%${keyword}%' AND date>=${cutoffEpoch}`);
+        const url2    = `${CHOKEPOINTS_URL}?where=${where2}`
+          + `&outFields=portname,date,n_total,n_tanker&orderByFields=date+ASC&resultRecordCount=200&f=json`;
+        const res2    = await get(url2, 12000);
+        const json2   = await res2.json();
+        const raw2    = json2.features || [];
+        if (raw2.length === 0) throw new Error("LIKE query: 0 rows");
 
-      results[strait.key] = {
-        label:  strait.label,
-        source: "IMF PortWatch (ArcGIS)",
-        data:   Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)),
-      };
-    } catch (e) {
-      // Fallback: try TankerMap analytics endpoint
+        const data2 = raw2.map(f => {
+          const a  = f.attributes || {};
+          const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
+          return { date: ds, vessel_count: a.n_total ?? null, tanker_count: a.n_tanker ?? null };
+        }).filter(r => r.date);
+
+        results[strait.key] = { label: strait.label, source: "IMF PortWatch", data: data2 };
+        return;
+      } catch (_e2) {}
+
+      // ── Attempt 3: TankerMap analytics endpoint ───────────────────────────
       try {
         const slug = strait.key === "suez" ? "suez-canal" : "strait-of-hormuz";
-        const res2  = await get(`${TANKERMAP}/api/straits/${slug}?period=3M`, 10000);
-        const json2 = await res2.json();
-        const bars  = json2.bars || json2.data || [];
-        results[strait.key] = {
-          label:  strait.label,
-          source: "TankerMap",
-          data:   bars.map(b => ({
-            date:               b.time || b.date || "",
-            vessel_count:       b.total || b.vessels || null,
-            tanker_count:       b.tankers || null,
-            oil_tanker_count:   b.oil_tankers || null,
-            crude_tanker_count: b.crude_tankers || null,
-          })).filter(r => r.date),
-        };
-      } catch (_) {
-        results[strait.key] = { label: strait.label, source: null, data: [], error: e.message };
-      }
+        for (const ep of [
+          `${TANKERMAP}/api/straits/${slug}`,
+          `${TANKERMAP}/api/chokepoints/${slug}`,
+          `${TANKERMAP}/analytics/straits/${slug}`,
+        ]) {
+          try {
+            const r = await get(ep, 10000);
+            const j = await r.json();
+            const bars = j.bars || j.data || j.daily || j.transits || [];
+            if (!bars.length) continue;
+            results[strait.key] = {
+              label: strait.label, source: "TankerMap",
+              data: bars.map(b => ({
+                date:         b.time || b.date || b.t || "",
+                vessel_count: b.n_total || b.total || b.count || null,
+                tanker_count: b.n_tanker || b.tankers || null,
+              })).filter(r => r.date),
+            };
+            return;
+          } catch (_) {}
+        }
+        throw new Error("TankerMap: no data from any endpoint");
+      } catch (_e3) {}
+
+      // All sources failed — return empty with error logged
+      results[strait.key] = {
+        label: strait.label, source: null, data: [],
+        error: e1.message,
+      };
     }
   }));
 
