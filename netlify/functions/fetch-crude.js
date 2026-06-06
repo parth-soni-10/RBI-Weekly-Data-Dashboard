@@ -7,11 +7,18 @@ const PPAC_AJAX     = PPAC_BASE + "/AjaxController/getImportExportsJson";
 const TANKERMAP     = "https://tankermap.com";
 
 const INDIA_PORTS = [
-  { slug: "jamnagar-oil",  name: "Jamnagar / Sikka" },
-  { slug: "vadinar-oil",   name: "Vadinar"           },
-  { slug: "mumbai-oil",    name: "Mumbai / JNPT"     },
-  { slug: "paradip-oil",   name: "Paradip"           },
-  { slug: "mangalore-oil", name: "Mangalore"         },
+  { slug: "jamnagar-oil",      name: "Jamnagar / Sikka"    },
+  { slug: "vadinar-oil",       name: "Vadinar"              },
+  { slug: "mumbai-oil",        name: "Mumbai / JNPT"        },
+  { slug: "paradip-oil",       name: "Paradip"              },
+  { slug: "mangalore-oil",     name: "Mangalore / NMPT"     },
+  { slug: "chennai-oil",       name: "Chennai / Ennore"     },
+  { slug: "haldia-oil",        name: "Haldia / Kolkata"     },
+  { slug: "kochi-oil",         name: "Kochi / Cochin"       },
+  { slug: "visakhapatnam-oil", name: "Visakhapatnam"        },
+  { slug: "kandla-oil",        name: "Kandla / Deendayal"   },
+  { slug: "kakinada-oil",      name: "Kakinada"             },
+  { slug: "tuticorin-oil",     name: "Tuticorin / VOC Port" },
 ];
 
 const VESSEL_CLASSES = [
@@ -25,9 +32,10 @@ const VESSEL_CLASSES = [
 
 const INDIA_KEYWORDS = [
   "sikka","jamnagar","mumbai","bombay","paradip","vadinar",
-  "mangalore","chennai","kandla","haldia","kochi",
-  "visakhapatnam","tuticorin","india","jnip","kakinada",
-  "mormugao","goa",
+  "mangalore","chennai","kandla","haldia","kochi","cochin",
+  "visakhapatnam","vizag","tuticorin","india","jnip","kakinada",
+  "mormugao","goa","ennore","kolkata","nhava sheva","deendayal",
+  "nmpt","voc port","dahej","okha","hazira","mundra",
 ];
 
 const MONTH_KEYS = [
@@ -314,6 +322,8 @@ function filterIndiaBound(vessels) {
       dwt:          v.deadweight   || 0,
       vessel_class: classifyVessel(v.deadweight || 0),
       destination:  v.destination  || "",
+      origin:       v.last_port    || v.departure_port || v.origin || "",
+      eta:          v.eta          || v.estimated_arrival || null,
       speed_knots:  v.speed_knots  || 0,
       nav_status:   v.nav_status   || "",
       barrels_est:  Math.round((v.deadweight || 0) * 0.9 * 7.33),
@@ -422,11 +432,115 @@ async function fetchYahooPrice(symbol) {
     const json   = await res.json();
     const result = json?.chart?.result?.[0];
     const closes = result?.indicators?.quote?.[0]?.close || [];
+    const timestamps = result?.timestamp || [];
     for (let i = closes.length - 1; i >= 0; i--) {
-      if (closes[i] != null) return +closes[i].toFixed(2);
+      if (closes[i] != null) {
+        const price = +closes[i].toFixed(2);
+        // Convert unix timestamp to YYYY-MM-DD
+        const date = timestamps[i]
+          ? new Date(timestamps[i] * 1000).toISOString().slice(0, 10)
+          : null;
+        return { price, date };
+      }
     }
-    return null;
-  } catch (_) { return null; }
+    return { price: null, date: null };
+  } catch (_) { return { price: null, date: null }; }
+}
+
+// ─── STRAIT TRAFFIC (IMF PortWatch ArcGIS + TankerMap fallback) ──────────────
+// Primary: IMF PortWatch public ArcGIS FeatureServer — Daily_Ports_Data
+// port_name field values include "Suez Canal" and "Strait of Hormuz"
+// Returns last 90 days of daily vessel/transit counts.
+async function fetchStraitTraffic() {
+  const ARCGIS_BASE = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0/query";
+  const straits = [
+    { key: "suez",    label: "Suez Canal",         port_names: ["Suez Canal", "suez"] },
+    { key: "hormuz",  label: "Strait of Hormuz",   port_names: ["Strait of Hormuz", "Hormuz"] },
+  ];
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const cutoffMs = cutoff.getTime();
+
+  const results = {};
+
+  await Promise.all(straits.map(async (strait) => {
+    const whereClause = strait.port_names
+      .map(n => `port_name LIKE '%${n}%'`)
+      .join(" OR ");
+
+    const url = ARCGIS_BASE
+      + `?where=${encodeURIComponent(`(${whereClause}) AND date >= timestamp '${cutoff.toISOString().slice(0,10)} 00:00:00'`)}`
+      + `&outFields=date,port_name,vessel_count,tanker_count,oil_tanker_count,crude_tanker_count,total_transit`
+      + `&orderByFields=date+ASC`
+      + `&resultRecordCount=200`
+      + `&f=json`;
+
+    try {
+      const res  = await get(url, 12000);
+      const json = await res.json();
+      const features = (json.features || []).map(f => {
+        const a = f.attributes || {};
+        // date may be epoch ms or ISO string
+        let ds = a.date;
+        if (typeof ds === "number") {
+          ds = new Date(ds).toISOString().slice(0, 10);
+        } else if (ds && ds.length > 10) {
+          ds = ds.slice(0, 10);
+        }
+        return {
+          date:               ds,
+          port_name:          a.port_name         || strait.label,
+          vessel_count:       a.vessel_count       || a.total_transit || null,
+          tanker_count:       a.tanker_count       || null,
+          oil_tanker_count:   a.oil_tanker_count   || null,
+          crude_tanker_count: a.crude_tanker_count || null,
+        };
+      }).filter(r => r.date);
+
+      // Deduplicate by date — sum if multiple port_name rows match same date
+      const byDate = {};
+      for (const r of features) {
+        if (!byDate[r.date]) {
+          byDate[r.date] = { ...r };
+        } else {
+          byDate[r.date].vessel_count       = (byDate[r.date].vessel_count || 0)       + (r.vessel_count || 0);
+          byDate[r.date].tanker_count       = (byDate[r.date].tanker_count || 0)       + (r.tanker_count || 0);
+          byDate[r.date].oil_tanker_count   = (byDate[r.date].oil_tanker_count || 0)   + (r.oil_tanker_count || 0);
+          byDate[r.date].crude_tanker_count = (byDate[r.date].crude_tanker_count || 0) + (r.crude_tanker_count || 0);
+        }
+      }
+
+      results[strait.key] = {
+        label:  strait.label,
+        source: "IMF PortWatch (ArcGIS)",
+        data:   Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)),
+      };
+    } catch (e) {
+      // Fallback: try TankerMap analytics endpoint
+      try {
+        const slug = strait.key === "suez" ? "suez-canal" : "strait-of-hormuz";
+        const res2  = await get(`${TANKERMAP}/api/straits/${slug}?period=3M`, 10000);
+        const json2 = await res2.json();
+        const bars  = json2.bars || json2.data || [];
+        results[strait.key] = {
+          label:  strait.label,
+          source: "TankerMap",
+          data:   bars.map(b => ({
+            date:               b.time || b.date || "",
+            vessel_count:       b.total || b.vessels || null,
+            tanker_count:       b.tankers || null,
+            oil_tanker_count:   b.oil_tankers || null,
+            crude_tanker_count: b.crude_tankers || null,
+          })).filter(r => r.date),
+        };
+      } catch (_) {
+        results[strait.key] = { label: strait.label, source: null, data: [], error: e.message };
+      }
+    }
+  }));
+
+  return results;
 }
 
 // ─── HANDLER ─────────────────────────────────────────────────
@@ -446,16 +560,20 @@ exports.handler = async (event) => {
   try {
     if (action === "prices") {
       // Fast path: just live Brent + WTI from Yahoo
-      const [brent, wti] = await Promise.all([
+      const [brentRes, wtiRes] = await Promise.all([
         fetchYahooPrice("BZ=F"),
         fetchYahooPrice("CL=F"),
       ]);
-      if (brent === null && wti === null) {
+      if (brentRes.price === null && wtiRes.price === null) {
         return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Yahoo Finance unavailable" }) };
       }
       return {
         statusCode: 200, headers: CORS,
-        body: JSON.stringify({ brent, wti, fetched_at: new Date().toISOString() }),
+        body: JSON.stringify({
+          brent: brentRes.price, brent_date: brentRes.date,
+          wti:   wtiRes.price,   wti_date:   wtiRes.date,
+          fetched_at: new Date().toISOString(),
+        }),
       };
     }
 
@@ -465,8 +583,9 @@ exports.handler = async (event) => {
       { portSummaries, arrivalsByDate },
       liveVessels,
       marketData,
-      brentLive,
-      wtiLive,
+      brentRes,
+      wtiRes,
+      straitTraffic,
     ] = await Promise.all([
       fetchAllPpac(),
       fetchPortArrivals(),
@@ -474,7 +593,13 @@ exports.handler = async (event) => {
       fetchMarketData(),
       fetchYahooPrice("BZ=F"),
       fetchYahooPrice("CL=F"),
+      fetchStraitTraffic(),
     ]);
+
+    const brentLive = brentRes.price;
+    const brentDate = brentRes.date;
+    const wtiLive   = wtiRes.price;
+    const wtiDate   = wtiRes.date;
 
     const monthlyBarrels = ppacToMonthlyBarrels(ppacData);
     const indiaBound     = filterIndiaBound(liveVessels);
@@ -499,13 +624,14 @@ exports.handler = async (event) => {
 
     const payload = {
       fetched_at:       new Date().toISOString(),
-      live_prices:      { brent: brentLive, wti: wtiLive },
+      live_prices:      { brent: brentLive, brent_date: brentDate, wti: wtiLive, wti_date: wtiDate },
       daily_estimates:  dailyEstimates,
       port_summaries:   portSummaries,
       india_bound_tankers: indiaBound,
       ppac_monthly_barrels: monthlyBarrels,
       ppac_raw:         ppacData,
       quality_metrics:  quality,
+      strait_traffic:   straitTraffic,
     };
 
     return {

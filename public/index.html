@@ -249,11 +249,11 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
         <div id="crude-latest-tankers" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
       </div>
       <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
-        <div style="font-size:10px;color:#6b7280;">Brent (live)</div>
+        <div style="font-size:10px;color:#6b7280;" id="crude-brent-label">Brent (live)</div>
         <div id="crude-brent-live" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
       </div>
       <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
-        <div style="font-size:10px;color:#6b7280;">WTI (live)</div>
+        <div style="font-size:10px;color:#6b7280;" id="crude-wti-label">WTI (live)</div>
         <div id="crude-wti-live" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
       </div>
     </div>
@@ -342,6 +342,28 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     </div>
   </div>
 
+  <!-- Strait Traffic Charts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-title">Suez Canal — Daily Transit Traffic</div>
+          <div class="chart-note" id="suez-source-note">Vessel &amp; crude tanker transits · 90-day rolling · IMF PortWatch</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="suezTraffic"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-title">Strait of Hormuz — Daily Transit Traffic</div>
+          <div class="chart-note" id="hormuz-source-note">Vessel &amp; crude tanker transits · 90-day rolling · IMF PortWatch</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="hormuzTraffic"></canvas></div>
+    </div>
+  </div>
+
   <!-- Port summary and tankers -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
     <div class="tbl-wrap">
@@ -353,7 +375,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div class="tbl-wrap">
       <div class="tbl-header"><h2>Live India-Bound Crude Tankers</h2></div>
       <div class="scroll" style="max-height:300px; overflow-y:auto;">
-        <table id="crude-tankers-table"><thead><tr><th>Vessel</th><th>Class</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Barrels Est.</th><th>Dest</th></tr></thead><tbody id="crude-tankers-body"></tbody></table>
+        <table id="crude-tankers-table"><thead><tr><th>Vessel</th><th>Class</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Barrels Est.</th><th>Origin</th><th>Dest</th><th>ETA</th></tr></thead><tbody id="crude-tankers-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -730,13 +752,14 @@ async function loadCrudeData() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     crudeData = {
-      daily:      data.daily_estimates        || [],
-      ports:      data.port_summaries         || {},
-      tankers:    data.india_bound_tankers     || [],
-      monthly:    data.ppac_monthly_barrels    || {},
-      quality:    data.quality_metrics         || {},
-      prices:     data.live_prices             || {},
-      fetched_at: data.fetched_at              || new Date().toISOString(),
+      daily:         data.daily_estimates        || [],
+      ports:         data.port_summaries         || {},
+      tankers:       data.india_bound_tankers     || [],
+      monthly:       data.ppac_monthly_barrels    || {},
+      quality:       data.quality_metrics         || {},
+      prices:        data.live_prices             || {},
+      straits:       data.strait_traffic          || {},
+      fetched_at:    data.fetched_at              || new Date().toISOString(),
     };
     setCrudeStatus('done');
   } catch (e) {
@@ -791,10 +814,14 @@ async function renderCrudeHighlights() {
   }
 
   // Live Brent / WTI on highlights bar
-  const brentEl = document.getElementById('crude-brent-live');
-  const wtiEl   = document.getElementById('crude-wti-live');
+  const brentEl    = document.getElementById('crude-brent-live');
+  const wtiEl      = document.getElementById('crude-wti-live');
+  const brentLblEl = document.getElementById('crude-brent-label');
+  const wtiLblEl   = document.getElementById('crude-wti-label');
   if (brentEl) brentEl.textContent = prices.brent != null ? '$' + prices.brent.toFixed(2) : '—';
   if (wtiEl)   wtiEl.textContent   = prices.wti   != null ? '$' + prices.wti.toFixed(2)   : '—';
+  if (brentLblEl && prices.brent_date) brentLblEl.textContent = 'Brent (' + prices.brent_date + ')';
+  if (wtiLblEl   && prices.wti_date)   wtiLblEl.textContent   = 'WTI ('   + prices.wti_date   + ')';
 }
 
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
@@ -825,8 +852,8 @@ async function renderCrudeSection() {
       kpiDiv.innerHTML = [
         latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${latest.date} · ${latest.methodology}</div></div>` : '',
         avg    ? `<div class="mc"><div class="mc-label">Avg BPD (window)</div><div class="mc-val">${avg.toLocaleString()}</div><div class="mc-sub">${daily.length} days</div></div>` : '',
-        `<div class="mc"><div class="mc-label">Brent (live)</div><div class="mc-val">${prices.brent != null ? '$'+prices.brent.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance</div></div>`,
-        `<div class="mc"><div class="mc-label">WTI (live)</div><div class="mc-val">${prices.wti != null ? '$'+prices.wti.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance</div></div>`,
+        `<div class="mc"><div class="mc-label">Brent (${prices.brent_date || 'live'})</div><div class="mc-val">${prices.brent != null ? '$'+prices.brent.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance · BZ=F</div></div>`,
+        `<div class="mc"><div class="mc-label">WTI (${prices.wti_date || 'live'})</div><div class="mc-val">${prices.wti != null ? '$'+prices.wti.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance · CL=F</div></div>`,
         totalArr ? `<div class="mc"><div class="mc-label">Tanker Arrivals</div><div class="mc-val">${totalArr.toLocaleString()}</div><div class="mc-sub">in window</div></div>` : '',
         indiaBound ? `<div class="mc"><div class="mc-label">India-Bound Now</div><div class="mc-val">${indiaBound}</div><div class="mc-sub">AIS tracked</div></div>` : '',
       ].filter(Boolean).join('');
@@ -932,6 +959,50 @@ async function renderCrudeSection() {
     }
   }
 
+  // ── Strait traffic charts ─────────────────────────────────
+  const straits = c.straits || {};
+  ['suez', 'hormuz'].forEach(key => {
+    const strait     = straits[key];
+    const canvasId   = key === 'suez' ? 'suezTraffic' : 'hormuzTraffic';
+    const noteId     = key === 'suez' ? 'suez-source-note' : 'hormuz-source-note';
+    const canvas     = document.getElementById(canvasId);
+    const noteEl     = document.getElementById(noteId);
+    if (!canvas) return;
+
+    if (!strait || !strait.data || !strait.data.length) {
+      canvas.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#6b7280;font-size:12px;">No strait traffic data available from IMF PortWatch / TankerMap.</div>';
+      return;
+    }
+
+    if (noteEl && strait.source) {
+      noteEl.textContent = `Vessel & crude tanker transits · 90-day rolling · ${strait.source}`;
+    }
+
+    const labels      = strait.data.map(d => d.date ? d.date.slice(5) : '');
+    const vessels     = strait.data.map(d => d.vessel_count       || null);
+    const oilTankers  = strait.data.map(d => d.oil_tanker_count   || d.tanker_count || null);
+    const crudeTank   = strait.data.map(d => d.crude_tanker_count || null);
+
+    const datasets = [
+      { label: 'Total Vessels',   data: vessels,    borderColor: '#2563eb', pointRadius: 0, borderWidth: 1.5, fill: false, spanGaps: true },
+      { label: 'Oil Tankers',     data: oilTankers, borderColor: '#d97706', pointRadius: 0, borderWidth: 2,   fill: false, spanGaps: true },
+    ];
+    if (crudeTank.some(v => v != null)) {
+      datasets.push({ label: 'Crude Tankers', data: crudeTank, borderColor: '#16a34a', pointRadius: 0, borderWidth: 2, fill: false, spanGaps: true });
+    }
+
+    if (crudeCharts[canvasId]) crudeCharts[canvasId].destroy();
+    crudeCharts[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { font: { size: 10 } } } },
+        scales: { y: { ticks: { font: { size: 10 } }, title: { display: true, text: 'Vessels / day', font: { size: 10 } } } }
+      }
+    });
+  });
+
   // ── Daily table ───────────────────────────────────────────
   const dailyBody = document.getElementById('crude-daily-body');
   if (dailyBody) {
@@ -980,16 +1051,26 @@ async function renderCrudeSection() {
   const tankersBody = document.getElementById('crude-tankers-body');
   if (tankersBody) {
     if (!c.tankers.length) {
-      tankersBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;">No India-bound crude tankers detected in live AIS feed.</td></tr>';
+      tankersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;">No India-bound crude tankers detected in live AIS feed.</td></tr>';
     } else {
       tankersBody.innerHTML = '';
       c.tankers.forEach(v => {
+        // Format ETA: ISO string → readable date, or show '—'
+        let etaStr = '—';
+        if (v.eta) {
+          try {
+            const d = new Date(v.eta);
+            if (!isNaN(d)) etaStr = d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+          } catch(_) { etaStr = v.eta; }
+        }
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${v.name || '—'}</td>`
           + `<td>${v.vessel_class || v.class || '—'}</td>`
           + `<td class="num">${(v.dwt||0).toLocaleString()}</td>`
           + `<td class="num">${(v.barrels_est||0).toLocaleString()}</td>`
-          + `<td>${v.destination || v.dest || '—'}</td>`;
+          + `<td>${v.origin || '—'}</td>`
+          + `<td>${v.destination || v.dest || '—'}</td>`
+          + `<td>${etaStr}</td>`;
         tankersBody.appendChild(tr);
       });
     }
@@ -1025,10 +1106,14 @@ showSection = function(name, el) {
     if (res.ok) {
       const data = await res.json();
       if (!data.error) {
-        const brentEl = document.getElementById('crude-brent-live');
-        const wtiEl   = document.getElementById('crude-wti-live');
+        const brentEl     = document.getElementById('crude-brent-live');
+        const wtiEl       = document.getElementById('crude-wti-live');
+        const brentLblEl  = document.getElementById('crude-brent-label');
+        const wtiLblEl    = document.getElementById('crude-wti-label');
         if (brentEl && data.brent != null) brentEl.textContent = '$' + data.brent.toFixed(2);
         if (wtiEl   && data.wti   != null) wtiEl.textContent   = '$' + data.wti.toFixed(2);
+        if (brentLblEl && data.brent_date) brentLblEl.textContent = 'Brent (' + data.brent_date + ')';
+        if (wtiLblEl   && data.wti_date)   wtiLblEl.textContent   = 'WTI ('   + data.wti_date   + ')';
       }
     }
   } catch(_) {}

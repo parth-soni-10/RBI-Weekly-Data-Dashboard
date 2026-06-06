@@ -6,7 +6,7 @@
   node_bundler = "esbuild"
 
 [functions.fetch-crude]
-  timeout = 20
+  timeout = 26
 
 [functions.fetch-data]
   timeout = 26
