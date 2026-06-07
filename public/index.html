@@ -248,16 +248,8 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
         <div style="font-size:10px;color:#6b7280;">Latest Tanker Arrivals</div>
         <div id="crude-latest-tankers" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
       </div>
-      <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
-        <div style="font-size:10px;color:#6b7280;">Brent (USD/bbl)</div>
-        <div id="crude-brent-live" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
-      </div>
-      <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
-        <div style="font-size:10px;color:#6b7280;">WTI (USD/bbl)</div>
-        <div id="crude-wti-live" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
-      </div>
     </div>
-    <div style="font-size:11px;color:#6b7280;margin-top:6px;">Live data: PPAC + TankerMap AIS + Yahoo Finance (BZ=F, CL=F). See Crude Oil Imports tab for full charts/tables.</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:6px;">Live data: PPAC + TankerMap AIS. See Crude Oil Imports tab for full charts/tables.</div>
   </div>
 </main>
 </div>
@@ -829,12 +821,137 @@ async function renderCrudeHighlights() {
     document.getElementById('crude-avg-bpd').textContent        = '—';
     document.getElementById('crude-latest-tankers').textContent = '—';
   }
+}
 
-  // Live Brent / WTI on highlights bar
-  const brentEl = document.getElementById('crude-brent-live');
-  const wtiEl   = document.getElementById('crude-wti-live');
-  if (brentEl) brentEl.textContent = prices.brent != null ? '$' + prices.brent.toFixed(2) : '—';
-  if (wtiEl)   wtiEl.textContent   = prices.wti   != null ? '$' + prices.wti.toFixed(2)   : '—';
+// ─── STRAIT CHARTS — CLIENT-SIDE ARCGIS FETCH ────────────────
+// ArcGIS public FeatureServices have CORS enabled, so we fetch directly
+// from the browser. Confirmed fields: portname, date (epoch ms), n_total, n_tanker
+// Endpoint: Daily_Chokepoints_Data (NOT Daily_Ports_Data)
+let straitDataCache = null;
+let straitFetching  = false;
+
+async function fetchStraitDataClient() {
+  if (straitDataCache) return straitDataCache;
+  if (straitFetching) {
+    await new Promise(r => { const iv = setInterval(() => { if (!straitFetching) { clearInterval(iv); r(); } }, 200); });
+    return straitDataCache;
+  }
+  straitFetching = true;
+
+  const BASE = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query';
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 120);
+  const cutoffMs = cutoff.getTime();
+
+  const STRAITS = [
+    { key: 'suez',   portname: 'Suez Canal'       },
+    { key: 'hormuz', portname: 'Strait of Hormuz'  },
+  ];
+
+  const results = {};
+  await Promise.all(STRAITS.map(async s => {
+    // ArcGIS date fields store epoch ms as numbers — compare numerically
+    const where = `portname='${s.portname}' AND date>=${cutoffMs}`;
+    const url = BASE
+      + '?where=' + encodeURIComponent(where)
+      + '&outFields=portname,date,n_total,n_tanker,n_container,n_dry_bulk,capacity_tanker'
+      + '&orderByFields=date+ASC&resultRecordCount=200&f=json';
+    try {
+      const res  = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+      const features = json.features || [];
+      if (!features.length) throw new Error('0 rows returned for ' + s.portname);
+      results[s.key] = features.map(f => {
+        const a  = f.attributes || {};
+        const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
+        return {
+          date:    ds,
+          total:   a.n_total   ?? null,
+          tankers: a.n_tanker  ?? null,
+          containers: a.n_container ?? null,
+          bulk:    a.n_dry_bulk ?? null,
+        };
+      }).filter(r => r.date);
+    } catch (e) {
+      results[s.key] = { error: e.message, data: [] };
+    }
+  }));
+
+  straitDataCache = results;
+  straitFetching  = false;
+  return results;
+}
+
+function drawStraitChart(canvasId, noteId, label, rows) {
+  const canvas = document.getElementById(canvasId);
+  const noteEl = document.getElementById(noteId);
+  if (!canvas) return;
+
+  if (!rows || !rows.length) {
+    canvas.closest('.chart-wrap').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#6b7280;font-size:11px;">No data</div>';
+    return;
+  }
+
+  if (noteEl) noteEl.textContent = `Daily vessel transits · ${rows[0].date} → ${rows[rows.length-1].date} · IMF PortWatch`;
+
+  const labels  = rows.map(r => r.date.slice(5));
+  const totals  = rows.map(r => r.total);
+  const tankers = rows.map(r => r.tankers);
+
+  const hasTotal   = totals.some(v => v != null);
+  const hasTankers = tankers.some(v => v != null);
+
+  const datasets = [];
+  if (hasTotal)   datasets.push({ label: 'Total Vessels', data: totals,  borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true,  pointRadius: 0, borderWidth: 1.5, spanGaps: true });
+  if (hasTankers) datasets.push({ label: 'Tankers',       data: tankers, borderColor: '#d97706', fill: false, pointRadius: 0, borderWidth: 2, spanGaps: true });
+
+  if (crudeCharts[canvasId]) crudeCharts[canvasId].destroy();
+  crudeCharts[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } },
+        y: { ticks: { font: { size: 10 } }, title: { display: true, text: 'Vessels/day', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+async function renderStraitCharts() {
+  // Show loading state
+  ['suezTraffic', 'hormuzTraffic'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c) c.closest('.chart-wrap').style.position = 'relative';
+  });
+  document.getElementById('suez-source-note').textContent  = '⏳ Loading IMF PortWatch data…';
+  document.getElementById('hormuz-source-note').textContent = '⏳ Loading IMF PortWatch data…';
+
+  let data;
+  try {
+    data = await fetchStraitDataClient();
+  } catch(e) {
+    ['suez-source-note','hormuz-source-note'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = 'Failed to load: ' + e.message;
+    });
+    return;
+  }
+
+  const suezRows   = Array.isArray(data.suez)   ? data.suez   : (data.suez?.data   || []);
+  const hormuzRows = Array.isArray(data.hormuz)  ? data.hormuz : (data.hormuz?.data || []);
+
+  drawStraitChart('suezTraffic',   'suez-source-note',   'Suez Canal',         suezRows);
+  drawStraitChart('hormuzTraffic', 'hormuz-source-note', 'Strait of Hormuz',   hormuzRows);
+
+  // Log errors to console for debugging
+  if (data.suez?.error)   console.warn('Suez ArcGIS error:', data.suez.error);
+  if (data.hormuz?.error) console.warn('Hormuz ArcGIS error:', data.hormuz.error);
 }
 
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
@@ -865,8 +982,6 @@ async function renderCrudeSection() {
       kpiDiv.innerHTML = [
         latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${latest.date} · ${latest.methodology}</div></div>` : '',
         avg    ? `<div class="mc"><div class="mc-label">Avg BPD (window)</div><div class="mc-val">${avg.toLocaleString()}</div><div class="mc-sub">${daily.length} days</div></div>` : '',
-        `<div class="mc"><div class="mc-label">Brent (USD/bbl)</div><div class="mc-val">${prices.brent != null ? '$'+prices.brent.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance · BZ=F</div></div>`,
-        `<div class="mc"><div class="mc-label">WTI (USD/bbl)</div><div class="mc-val">${prices.wti != null ? '$'+prices.wti.toFixed(2) : '—'}</div><div class="mc-sub">Yahoo Finance · CL=F</div></div>`,
         totalArr ? `<div class="mc"><div class="mc-label">Tanker Arrivals</div><div class="mc-val">${totalArr.toLocaleString()}</div><div class="mc-sub">in window</div></div>` : '',
         indiaBound ? `<div class="mc"><div class="mc-label">India-Bound Now</div><div class="mc-val">${indiaBound}</div><div class="mc-sub">AIS tracked</div></div>` : '',
       ].filter(Boolean).join('');
@@ -972,53 +1087,10 @@ async function renderCrudeSection() {
     }
   }
 
-  // ── Strait traffic charts ─────────────────────────────────
-  const straits = c.straits || {};
-  ['suez', 'hormuz'].forEach(key => {
-    const strait   = straits[key];
-    const canvasId = key === 'suez' ? 'suezTraffic' : 'hormuzTraffic';
-    const noteId   = key === 'suez' ? 'suez-source-note' : 'hormuz-source-note';
-    const canvas   = document.getElementById(canvasId);
-    const noteEl   = document.getElementById(noteId);
-    if (!canvas) return;
-
-    if (!strait || !strait.data || !strait.data.length) {
-      // Show error detail if available
-      const errMsg = strait && strait.error ? `Error: ${strait.error}` : 'No data returned from IMF PortWatch (Daily_Chokepoints_Data) or TankerMap.';
-      canvas.closest('.chart-wrap').innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#6b7280;font-size:11px;padding:1rem;text-align:center;">${errMsg}</div>`;
-      return;
-    }
-
-    if (noteEl && strait.source) {
-      noteEl.textContent = `Vessel & tanker transits · 90-day rolling · ${strait.source}`;
-    }
-
-    const labels      = strait.data.map(d => d.date ? d.date.slice(5) : '');
-    // Field names from IMF PortWatch chokepoints: vessel_count (n_total), tanker_count (n_tanker)
-    const vessels     = strait.data.map(d => d.vessel_count  ?? null);
-    const tankers     = strait.data.map(d => d.tanker_count  ?? null);
-
-    const datasets = [
-      { label: 'Total Vessels', data: vessels, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)',
-        fill: true, pointRadius: 0, borderWidth: 1.5, spanGaps: true },
-      { label: 'Tankers',       data: tankers, borderColor: '#d97706', pointRadius: 0,
-        borderWidth: 2, fill: false, spanGaps: true },
-    ];
-
-    if (crudeCharts[canvasId]) crudeCharts[canvasId].destroy();
-    crudeCharts[canvasId] = new Chart(canvas, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { font: { size: 10 } } } },
-        scales: {
-          x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } },
-          y: { ticks: { font: { size: 10 } }, title: { display: true, text: 'Vessels/day', font: { size: 10 } } }
-        }
-      }
-    });
-  });
+  // ── Strait traffic charts (async, client-side fetch from ArcGIS) ────────
+  // ArcGIS public FeatureServices support CORS — fetch directly from browser.
+  // Runs independently so it doesn't block the rest of renderCrudeSection.
+  renderStraitCharts().catch(() => {});
 
   // ── Daily table ───────────────────────────────────────────
   const dailyBody = document.getElementById('crude-daily-body');
@@ -1113,21 +1185,9 @@ showSection = function(name, el) {
   if (name === 'crude') renderCrudeSection().catch(()=>{});
 };
 
-// Kick off price fetch immediately so highlights are ready fast
-(async () => {
-  try {
-    const res = await fetch('/.netlify/functions/fetch-crude?action=prices');
-    if (res.ok) {
-      const data = await res.json();
-      if (!data.error) {
-        const brentEl = document.getElementById('crude-brent-live');
-        const wtiEl   = document.getElementById('crude-wti-live');
-        if (brentEl && data.brent != null) brentEl.textContent = '$' + data.brent.toFixed(2);
-        if (wtiEl   && data.wti   != null) wtiEl.textContent   = '$' + data.wti.toFixed(2);
-      }
-    }
-  } catch(_) {}
-})();
+// Kick off strait charts immediately when crude tab loads
+// (renderStraitCharts is also called from renderCrudeSection)
+
 </script>
 </body>
 </html>

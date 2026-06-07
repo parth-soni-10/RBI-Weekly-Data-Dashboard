@@ -525,122 +525,6 @@ async function fetchYahooPrice(symbol) {
   } catch (_) { return { price: null, date: null }; }
 }
 
-// ─── STRAIT TRAFFIC (IMF PortWatch Daily_Chokepoints_Data) ──────────────────
-// Confirmed field names from open-source PortWatch users:
-//   portname  — exact names: "Suez Canal", "Strait of Hormuz"
-//   date      — epoch ms (esriFieldTypeDate)
-//   n_total   — total vessel transits per day
-//   n_tanker  — tanker transits
-//   capacity_tanker — tanker capacity (DWT)
-//   n_container, n_dry_bulk, n_general_cargo, n_roro
-//
-// IMPORTANT: Uses Daily_Chokepoints_Data endpoint, NOT Daily_Ports_Data.
-// Chokepoints dataset is ~3800 records total (small, fast).
-async function fetchStraitTraffic() {
-  // Correct endpoint: Daily_CHOKEPOINTS_Data (not ports)
-  const CHOKEPOINTS_URL = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query";
-
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
-  const cutoffEpoch = cutoff.getTime();
-
-  const STRAITS = [
-    { key: "suez",   label: "Suez Canal",         portname: "Suez Canal"       },
-    { key: "hormuz", label: "Strait of Hormuz",    portname: "Strait of Hormuz" },
-  ];
-
-  const results = {};
-
-  await Promise.all(STRAITS.map(async (strait) => {
-    // ── Attempt 1: IMF PortWatch — exact portname match ──────────────────────
-    try {
-      const where = encodeURIComponent(`portname='${strait.portname}' AND date>=${cutoffEpoch}`);
-      const url   = `${CHOKEPOINTS_URL}?where=${where}`
-        + `&outFields=portname,date,n_total,n_tanker,capacity_tanker,n_container,n_dry_bulk`
-        + `&orderByFields=date+ASC&resultRecordCount=200&f=json`;
-
-      const res  = await get(url, 12000);
-      const json = await res.json();
-      if (json.error) throw new Error(`ArcGIS: ${json.error.message || JSON.stringify(json.error)}`);
-
-      const raw = json.features || [];
-      if (raw.length === 0) throw new Error(`portname='${strait.portname}' returned 0 rows`);
-
-      const data = raw.map(f => {
-        const a  = f.attributes || {};
-        const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
-        return {
-          date:         ds,
-          vessel_count: a.n_total   ?? null,
-          tanker_count: a.n_tanker  ?? null,
-          tanker_cap:   a.capacity_tanker ?? null,
-          container:    a.n_container ?? null,
-          dry_bulk:     a.n_dry_bulk  ?? null,
-        };
-      }).filter(r => r.date);
-
-      results[strait.key] = { label: strait.label, source: "IMF PortWatch", data };
-      return;
-    } catch (e1) {
-      // ── Attempt 2: LIKE match (looser) ────────────────────────────────────
-      try {
-        const keyword = strait.portname.split(" ")[0]; // "Suez" or "Strait"
-        const where2  = encodeURIComponent(`portname LIKE '%${keyword}%' AND date>=${cutoffEpoch}`);
-        const url2    = `${CHOKEPOINTS_URL}?where=${where2}`
-          + `&outFields=portname,date,n_total,n_tanker&orderByFields=date+ASC&resultRecordCount=200&f=json`;
-        const res2    = await get(url2, 12000);
-        const json2   = await res2.json();
-        const raw2    = json2.features || [];
-        if (raw2.length === 0) throw new Error("LIKE query: 0 rows");
-
-        const data2 = raw2.map(f => {
-          const a  = f.attributes || {};
-          const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
-          return { date: ds, vessel_count: a.n_total ?? null, tanker_count: a.n_tanker ?? null };
-        }).filter(r => r.date);
-
-        results[strait.key] = { label: strait.label, source: "IMF PortWatch", data: data2 };
-        return;
-      } catch (_e2) {}
-
-      // ── Attempt 3: TankerMap analytics endpoint ───────────────────────────
-      try {
-        const slug = strait.key === "suez" ? "suez-canal" : "strait-of-hormuz";
-        for (const ep of [
-          `${TANKERMAP}/api/straits/${slug}`,
-          `${TANKERMAP}/api/chokepoints/${slug}`,
-          `${TANKERMAP}/analytics/straits/${slug}`,
-        ]) {
-          try {
-            const r = await get(ep, 10000);
-            const j = await r.json();
-            const bars = j.bars || j.data || j.daily || j.transits || [];
-            if (!bars.length) continue;
-            results[strait.key] = {
-              label: strait.label, source: "TankerMap",
-              data: bars.map(b => ({
-                date:         b.time || b.date || b.t || "",
-                vessel_count: b.n_total || b.total || b.count || null,
-                tanker_count: b.n_tanker || b.tankers || null,
-              })).filter(r => r.date),
-            };
-            return;
-          } catch (_) {}
-        }
-        throw new Error("TankerMap: no data from any endpoint");
-      } catch (_e3) {}
-
-      // All sources failed — return empty with error logged
-      results[strait.key] = {
-        label: strait.label, source: null, data: [],
-        error: e1.message,
-      };
-    }
-  }));
-
-  return results;
-}
-
 // ─── HANDLER ─────────────────────────────────────────────────
 exports.handler = async (event) => {
   const CORS = {
@@ -683,7 +567,6 @@ exports.handler = async (event) => {
       marketData,
       brentRes,
       wtiRes,
-      straitTraffic,
     ] = await Promise.all([
       fetchAllPpac(),
       fetchPortArrivals(),
@@ -691,7 +574,6 @@ exports.handler = async (event) => {
       fetchMarketData(),
       fetchYahooPrice("BZ=F"),
       fetchYahooPrice("CL=F"),
-      fetchStraitTraffic(),
     ]);
 
     const brentLive = brentRes.price;
@@ -729,7 +611,6 @@ exports.handler = async (event) => {
       ppac_monthly_barrels: monthlyBarrels,
       ppac_raw:         ppacData,
       quality_metrics:  quality,
-      strait_traffic:   straitTraffic,
     };
 
     return {
