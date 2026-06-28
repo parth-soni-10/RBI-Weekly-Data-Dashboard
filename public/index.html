@@ -334,28 +334,6 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     </div>
   </div>
 
-  <!-- Strait Traffic Charts -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div>
-          <div class="chart-title">Suez Canal — Daily Transit Traffic</div>
-          <div class="chart-note" id="suez-source-note">Vessel &amp; crude tanker transits · 90-day rolling · IMF PortWatch</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:220px"><canvas id="suezTraffic"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-hdr">
-        <div>
-          <div class="chart-title">Strait of Hormuz — Daily Transit Traffic</div>
-          <div class="chart-note" id="hormuz-source-note">Vessel &amp; crude tanker transits · 90-day rolling · IMF PortWatch</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:220px"><canvas id="hormuzTraffic"></canvas></div>
-    </div>
-  </div>
-
   <!-- Port summary and tankers -->
   <div style="margin-top:1rem;">
     <div class="tbl-wrap">
@@ -823,137 +801,6 @@ async function renderCrudeHighlights() {
   }
 }
 
-// ─── STRAIT CHARTS — CLIENT-SIDE ARCGIS FETCH ────────────────
-// ArcGIS public FeatureServices have CORS enabled, so we fetch directly
-// from the browser. Confirmed fields: portname, date (epoch ms), n_total, n_tanker
-// Endpoint: Daily_Chokepoints_Data (NOT Daily_Ports_Data)
-let straitDataCache = null;
-let straitFetching  = false;
-
-async function fetchStraitDataClient() {
-  if (straitDataCache) return straitDataCache;
-  if (straitFetching) {
-    await new Promise(r => { const iv = setInterval(() => { if (!straitFetching) { clearInterval(iv); r(); } }, 200); });
-    return straitDataCache;
-  }
-  straitFetching = true;
-
-  const BASE = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query';
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 120);
-  const cutoffMs = cutoff.getTime();
-
-  const STRAITS = [
-    { key: 'suez',   portname: 'Suez Canal'       },
-    { key: 'hormuz', portname: 'Strait of Hormuz'  },
-  ];
-
-  const results = {};
-  await Promise.all(STRAITS.map(async s => {
-    // ArcGIS date fields store epoch ms as numbers — compare numerically
-    const where = `portname='${s.portname}' AND date>=${cutoffMs}`;
-    const url = BASE
-      + '?where=' + encodeURIComponent(where)
-      + '&outFields=portname,date,n_total,n_tanker,n_container,n_dry_bulk,capacity_tanker'
-      + '&orderByFields=date+ASC&resultRecordCount=200&f=json';
-    try {
-      const res  = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-      const features = json.features || [];
-      if (!features.length) throw new Error('0 rows returned for ' + s.portname);
-      results[s.key] = features.map(f => {
-        const a  = f.attributes || {};
-        const ds = a.date != null ? new Date(a.date).toISOString().slice(0, 10) : null;
-        return {
-          date:    ds,
-          total:   a.n_total   ?? null,
-          tankers: a.n_tanker  ?? null,
-          containers: a.n_container ?? null,
-          bulk:    a.n_dry_bulk ?? null,
-        };
-      }).filter(r => r.date);
-    } catch (e) {
-      results[s.key] = { error: e.message, data: [] };
-    }
-  }));
-
-  straitDataCache = results;
-  straitFetching  = false;
-  return results;
-}
-
-function drawStraitChart(canvasId, noteId, label, rows) {
-  const canvas = document.getElementById(canvasId);
-  const noteEl = document.getElementById(noteId);
-  if (!canvas) return;
-
-  if (!rows || !rows.length) {
-    canvas.closest('.chart-wrap').innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#6b7280;font-size:11px;">No data</div>';
-    return;
-  }
-
-  if (noteEl) noteEl.textContent = `Daily vessel transits · ${rows[0].date} → ${rows[rows.length-1].date} · IMF PortWatch`;
-
-  const labels  = rows.map(r => r.date.slice(5));
-  const totals  = rows.map(r => r.total);
-  const tankers = rows.map(r => r.tankers);
-
-  const hasTotal   = totals.some(v => v != null);
-  const hasTankers = tankers.some(v => v != null);
-
-  const datasets = [];
-  if (hasTotal)   datasets.push({ label: 'Total Vessels', data: totals,  borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true,  pointRadius: 0, borderWidth: 1.5, spanGaps: true });
-  if (hasTankers) datasets.push({ label: 'Tankers',       data: tankers, borderColor: '#d97706', fill: false, pointRadius: 0, borderWidth: 2, spanGaps: true });
-
-  if (crudeCharts[canvasId]) crudeCharts[canvasId].destroy();
-  crudeCharts[canvasId] = new Chart(canvas, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: true, labels: { font: { size: 10 } } } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } },
-        y: { ticks: { font: { size: 10 } }, title: { display: true, text: 'Vessels/day', font: { size: 10 } } }
-      }
-    }
-  });
-}
-
-async function renderStraitCharts() {
-  // Show loading state
-  ['suezTraffic', 'hormuzTraffic'].forEach(id => {
-    const c = document.getElementById(id);
-    if (c) c.closest('.chart-wrap').style.position = 'relative';
-  });
-  document.getElementById('suez-source-note').textContent  = '⏳ Loading IMF PortWatch data…';
-  document.getElementById('hormuz-source-note').textContent = '⏳ Loading IMF PortWatch data…';
-
-  let data;
-  try {
-    data = await fetchStraitDataClient();
-  } catch(e) {
-    ['suez-source-note','hormuz-source-note'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = 'Failed to load: ' + e.message;
-    });
-    return;
-  }
-
-  const suezRows   = Array.isArray(data.suez)   ? data.suez   : (data.suez?.data   || []);
-  const hormuzRows = Array.isArray(data.hormuz)  ? data.hormuz : (data.hormuz?.data || []);
-
-  drawStraitChart('suezTraffic',   'suez-source-note',   'Suez Canal',         suezRows);
-  drawStraitChart('hormuzTraffic', 'hormuz-source-note', 'Strait of Hormuz',   hormuzRows);
-
-  // Log errors to console for debugging
-  if (data.suez?.error)   console.warn('Suez ArcGIS error:', data.suez.error);
-  if (data.hormuz?.error) console.warn('Hormuz ArcGIS error:', data.hormuz.error);
-}
-
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
 async function renderCrudeSection() {
   // show loading state immediately
@@ -1087,11 +934,6 @@ async function renderCrudeSection() {
     }
   }
 
-  // ── Strait traffic charts (async, client-side fetch from ArcGIS) ────────
-  // ArcGIS public FeatureServices support CORS — fetch directly from browser.
-  // Runs independently so it doesn't block the rest of renderCrudeSection.
-  renderStraitCharts().catch(() => {});
-
   // ── Daily table ───────────────────────────────────────────
   const dailyBody = document.getElementById('crude-daily-body');
   if (dailyBody) {
@@ -1185,8 +1027,7 @@ showSection = function(name, el) {
   if (name === 'crude') renderCrudeSection().catch(()=>{});
 };
 
-// Kick off strait charts immediately when crude tab loads
-// (renderStraitCharts is also called from renderCrudeSection)
+
 
 </script>
 </body>

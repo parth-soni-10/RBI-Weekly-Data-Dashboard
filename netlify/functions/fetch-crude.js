@@ -429,7 +429,12 @@ function buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels) {
 
   const sorted   = [...allDates].sort();
   const startD   = new Date(sorted[0]);
-  const endD     = new Date(sorted[sorted.length - 1]);
+  // Always extend to today so the table includes the current date
+  // even when tanker/price data hasn't caught up yet
+  const today    = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const lastData = new Date(sorted[sorted.length - 1]);
+  const endD     = lastData > today ? lastData : today;
 
   // monthly tanker DWT totals for reconciliation
   const monthDwt = {};
@@ -504,7 +509,7 @@ function buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels) {
 
 // ─── YAHOO FINANCE (Brent + WTI spot) ────────────────────────
 async function fetchYahooPrice(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=15d`;
   try {
     const res    = await get(url, 8000);
     const json   = await res.json();
