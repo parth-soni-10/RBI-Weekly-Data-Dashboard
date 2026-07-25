@@ -61,6 +61,21 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .btn:hover{background:var(--dark)}.btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
+/*download buttons injected by JS into chart-card headers and table headers*/
+.dl{padding:3px 9px;font-size:10.5px;background:var(--s2);border:1px solid var(--border);
+  border-radius:5px;cursor:pointer;color:var(--muted);font-family:'DM Sans';font-weight:500}
+.dl:hover{background:var(--surface);color:var(--dark)}
+.dl:active{transform:scale(.97)}
+.dl-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+
+/*weekly summary panel (top of dashboard) - mirrors .tbl-intro style*/
+.weekly-summary{background:var(--s3);border:1.5px solid var(--border);border-radius:var(--r);
+  padding:1.1rem 1.4rem;margin-bottom:1.25rem;display:none}
+.weekly-summary.show{display:block}
+.weekly-summary .panel-label{margin-bottom:.5rem}
+.weekly-summary p{font-size:13px;color:var(--dark);line-height:1.7;margin:0}
+.weekly-summary strong{font-weight:600}
+
 #metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
   gap:10px;margin-bottom:1.5rem;opacity:0;transition:opacity .4s}
 #metrics.show{opacity:1}
@@ -182,6 +197,16 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div id="log-box"></div>
     <button class="btn" id="start-btn" onclick="startFetch()">▶ Fetch data</button>
   </div>
+
+  <!-- Weekly summary panel — populated by JS after records are loaded -->
+  <div id="weekly-summary" class="weekly-summary">
+    <div class="panel-label">📰 This week at a glance</div>
+    <p id="weekly-summary-text">—</p>
+    <div class="dl-row" style="margin-top:.7rem">
+      <button class="dl" onclick="dlCSV('tab')">⤓ Download 10-week table (CSV)</button>
+    </div>
+  </div>
+
   <div id="empty">
     <h2>No data yet</h2>
     <p>Click "Fetch data" to pull all RBI Weekly Statistical Supplement reports since Jan 1, 2026. Takes ~30–60 s.</p>
@@ -230,6 +255,12 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
       <div class="tab-row"><button class="tab on" onclick="sw(this,'idxd','nifty')">Nifty 50</button><button class="tab" onclick="sw(this,'idxd','sensex')">Sensex</button></div>
       <div class="chart-wrap" style="height:230px"><canvas id="cIdxDelta"></canvas></div>
     </div>
+
+    <!-- Reserves decomposition chart — populated by rebuildDecomp() when decomposition fields are present -->
+    <div class="chart-card">
+      <div class="chart-hdr"><div><div class="chart-title">Reserves composition — latest snapshot</div><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cDecomp"></canvas></div>
+    </div>
   </div>
 
   <!-- Crude Oil Highlights on main page -->
@@ -248,8 +279,15 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
         <div style="font-size:10px;color:#6b7280;">Latest Tanker Arrivals</div>
         <div id="crude-latest-tankers" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
       </div>
+
+      <!-- Crude import bill card — populated by renderImportBill() once records + crude data are both loaded -->
+      <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
+        <div style="font-size:10px;color:#6b7280;">Est. India Crude Import Bill</div>
+        <div id="crude-bill" style="font-size:18px;font-weight:700;color:#14532d;">—</div>
+        <div id="crude-bill-sub" style="font-size:10px;color:#6b7280;margin-top:3px;">—</div>
+      </div>
     </div>
-    <div style="font-size:11px;color:#6b7280;margin-top:6px;">Live data: PPAC + TankerMap AIS. See Crude Oil Imports tab for full charts/tables.</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:6px;">Live data: PPAC + TankerMap AIS + Brent spot. See Crude Oil Imports tab for full charts/tables.</div>
   </div>
 </main>
 </div>
@@ -538,6 +576,7 @@ function updateUI(){
   set('m-nifty',   L.nifty,    'd-nifty',   P?+(L.nifty-P.nifty).toFixed(1):null,1);
   set('m-sensex',  L.sensex,   'd-sensex',  P?+(L.sensex-P.sensex).toFixed(1):null,1);
   rebuildCharts();
+  renderWeeklySummary();
   rebuildTable();
   rebuildEqTable();
   rebuildRupeeEqTable();
@@ -700,6 +739,7 @@ function rebuildCharts(){
   rebuildFx();
   rebuildIdxClose();
   rebuildIdxDelta();
+  rebuildDecomp();
 }
 
 function sw(el,group,mode){ 
@@ -799,6 +839,7 @@ async function renderCrudeHighlights() {
     document.getElementById('crude-avg-bpd').textContent        = '—';
     document.getElementById('crude-latest-tankers').textContent = '—';
   }
+  renderImportBill();
 }
 
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
@@ -1029,6 +1070,206 @@ showSection = function(name, el) {
 
 
 
+/* ==============================================================
+   NEW FEATURE HELPERS — weekly summary, decomposition chart, crude
+   import bill, downloads (CSV + PNG), permalink hash state.
+   Hooked into updateUI() / rebuildCharts() / renderCrudeHighlights().
+   ============================================================== */
+
+function renderWeeklySummary(){
+  if(!records.length) return;
+  const L = records[records.length-1];
+  const P = records.length>1 ? records[records.length-2] : null;
+  const dRes   = P ? (L.total_usd||0) - (P.total_usd||0) : null;
+  const dGold  = P ? (L.gold_usd||0)  - (P.gold_usd||0)  : null;
+  const dUsd   = (P && L.usd_inr && P.usd_inr) ? +(L.usd_inr - P.usd_inr).toFixed(2) : null;
+  const dNifty = (P && L.nifty && P.nifty)      ? +(L.nifty    - P.nifty).toFixed(1) : null;
+  let txt = `RBI WSS — <strong>as on ${L.date}</strong>: forex reserves <strong>${dRes==null?'recorded':(dRes>=0?'rose by':'fell by')} ${fmt(Math.abs(dRes||0))} USD mn</strong> to <strong>${fmt(L.total_usd)} USD mn</strong> (≈ ₹${fmt(L.total_inr||0)} cr).`;
+  txt += ` Gold holdings: <strong>${fmt(L.gold_usd)} USD mn</strong>` + (Math.abs(dGold||0) > 0.5 ? ` (${dGold>=0?'up':'down'} ${fmt(Math.abs(dGold))})` : ``) + `.`;
+  txt += ` USD/INR closed at <strong>${fmt(L.usd_inr,2)}</strong>` + (dUsd ? `, ${dUsd>0?'weakening':'strengthening'} by ${Math.abs(dUsd).toFixed(2)}.` : '.');
+  txt += ` Nifty 50: <strong>${fmt(L.nifty,1)}</strong>` + (dNifty != null ? ` (${dNifty>0?'+':''}${dNifty}).` : '.');
+  document.getElementById('weekly-summary-text').innerHTML = txt;
+  document.getElementById('weekly-summary').classList.add('show');
+}
+
+function rebuildDecomp(){
+  if(!records.length) return;
+  const L = records[records.length-1];
+  const total = L.total_usd;
+  // Honest labeling: only call something "FCA" if we actually parsed the row.
+  // If FCA / SDR / IMF weren't all parsed, show only what was parsed, OR label
+  // the derived remainder honestly so the doughnut never silently mislabels
+  // unknowns as a known category.
+  const hasFca = L.fca_usd        != null;
+  const hasSdr = L.sdr_usd         != null;
+  const hasImf = L.imf_reserve_usd != null;
+  let parts = [];
+  if(hasFca) parts.push({ label:'Foreign Currency Assets', value:L.fca_usd,         color:'#16a34a' });
+  if(hasSdr) parts.push({ label:'SDR',                     value:L.sdr_usd,         color:'#2563eb' });
+  if(hasImf) parts.push({ label:'IMF Reserve',             value:L.imf_reserve_usd, color:'#dc2626' });
+  if(L.gold_usd != null) parts.push({ label:'Gold', value:L.gold_usd, color:'#eab308' });
+  // Nothing parsed specifically but we still have total + gold.
+  if(!parts.length && total != null && L.gold_usd != null){
+    parts = [
+      { label:'Gold',                          value:L.gold_usd,                       color:'#eab308' },
+      { label:'Other (FCA + SDR + IMF)',       value:Math.max(0, total - L.gold_usd),  color:'#16a34a' },
+    ];
+  } else if(!hasFca && total != null && L.gold_usd != null){
+    // Partial decomposition: derive FCA and LABEL as derived so the viewer
+    // knows it's not from a fresh parse.
+    const known = (L.sdr_usd||0) + (L.imf_reserve_usd||0) + L.gold_usd;
+    if(total > known) parts.push({ label:'Foreign Currency Assets (derived)', value: total - known, color:'#16a34a' });
+  }
+  parts = parts.filter(p => p.value > 0);
+  if(!parts.length) return;
+  if(charts.cDecomp) charts.cDecomp.destroy();
+  charts.cDecomp = new Chart(document.getElementById('cDecomp'), {
+    type: 'doughnut',
+    data: { labels: parts.map(p=>p.label), datasets: [{ data: parts.map(p=>p.value), backgroundColor: parts.map(p=>p.color), borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: {
+        legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 11, color: '#14532d' } },
+        tooltip: { backgroundColor:'#14532d', titleColor:'#dcfce7', bodyColor:'#bbf7d0', borderColor:G, borderWidth:1, callbacks:{ label: ctx => `${ctx.label}: ${ctx.parsed.toLocaleString('en-IN')} USD mn` } }
+      }
+    }
+  });
+}
+
+function renderImportBill(){
+  if(!crudeData || !records.length) return;
+  const daily = filterCrudeToTimeline(crudeData.daily);
+  if(!daily.length) return;
+  const latest = daily[daily.length-1];
+  const L = records[records.length-1];
+  const usdInr = L ? L.usd_inr : null;
+  const brent  = crudeData.prices?.brent;
+  const bpd    = latest.barrels_per_day;
+  const el     = document.getElementById('crude-bill');
+  const sub    = document.getElementById('crude-bill-sub');
+  if(!el || !sub) return;
+  if(!bpd || !usdInr || !brent){
+    el.textContent = '—';
+    sub.textContent = 'awaiting data — fetch RBI + crude first';
+    return;
+  }
+  const billUsd   = bpd * 30 * brent;
+  const billInr   = billUsd * usdInr;
+  const billUsdBn = +(billUsd / 1e9).toFixed(2);
+  const billInrBn = +(billInr / 1e9).toFixed(1);
+  el.textContent = '$' + billUsdBn + 'B';
+  sub.textContent = `≈ ₹${billInrBn}B cr · ${Math.round(bpd/1000)}k BPD × $${brent.toFixed(0)} × ₹${usdInr.toFixed(2)}`;
+}
+
+function dlCSV(){
+  if(!records.length) return;
+  const last10 = records.slice(-10);
+  const header = 'date,total_usd,total_inr,gold_usd,gold_inr,gold_tonnes,fca_usd,fca_inr,sdr_usd,sdr_inr,imf_reserve_usd,usd_inr,eur_inr,nifty,sensex';
+  const rows = last10.map(r => [
+    r.date, r.total_usd||'', r.total_inr||'',
+    r.gold_usd||'', r.gold_inr||'', r.gold_tonnes||'',
+    r.fca_usd||'', r.fca_inr||'',
+    r.sdr_usd||'', r.sdr_inr||'',
+    r.imf_reserve_usd||'',
+    r.usd_inr||'', r.eur_inr||'',
+    r.nifty||'', r.sensex||''
+  ].join(','));
+  const csv = header + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rbi-10week-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function dlPNG(canvasId){
+  const c = charts[canvasId];
+  if(!c) return;
+  try {
+    const url = c.toBase64Image('image/png', 1.0);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = canvasId + '-' + new Date().toISOString().slice(0,10) + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch(e) { console.warn('PNG export failed:', canvasId, e); }
+}
+
+function injectDownloadButtons(){
+  document.querySelectorAll('.chart-card').forEach(card => {
+    const hdr    = card.querySelector('.chart-hdr');
+    const canvas = card.querySelector('canvas');
+    if(!hdr || !canvas) return;
+    if(hdr.querySelector('.dl-row')) return; // already injected
+    const row = document.createElement('div');
+    row.className = 'dl-row';
+    const b = document.createElement('button');
+    b.className = 'dl';
+    b.textContent = '⤓ PNG';
+    b.title = 'Download as PNG';
+    b.onclick = () => dlPNG(canvas.id);
+    row.appendChild(b);
+    hdr.appendChild(row);
+  });
+}
+
+function hashSave(){
+  try {
+    const tab = document.querySelector('.section.active')?.id?.replace('sec-','') || 'dashboard';
+    const parts = [];
+    for(const k in modes) parts.push(k + ':' + modes[k]);
+    const newHash = '#tab=' + tab + '&modes=' + parts.join(',');
+    if(location.hash !== newHash) history.replaceState(null, '', newHash);
+  } catch(_) {}
+}
+
+function hashLoad(){
+  const h = location.hash.replace(/^#/, '');
+  if(!h) return;
+  const params = {};
+  h.split('&').forEach(kv => { const [k,v] = kv.split('='); if(k && v) params[k] = v; });
+  if(params.tab){
+    const link = document.querySelector(`.nav-link[onclick*="'${params.tab}'"]`);
+    if(link) showSection(params.tab, link);
+  }
+  if(params.modes){
+    params.modes.split(',').forEach(kv => {
+      const [g, m] = kv.split(':');
+      if(g && m && modes[g] !== undefined){
+        modes[g] = m;
+        const all = document.querySelectorAll(`button.tab[onclick*="'${g}'"]`);
+        all.forEach(t => t.classList.remove('on'));
+        const target = Array.from(all).find(t => t.getAttribute('onclick').includes(`'${m}'`));
+        if(target) target.classList.add('on');
+      }
+    });
+    if(records.length) rebuildCharts();
+  }
+}
+
+// Wrap showSection and sw so they auto-update the permalink hash.
+// Function declarations are reassignable in JS, and the inline onclick="" handlers
+// reference showSection/sw via the global scope, so the rebinds below take effect.
+const _orig_showSection = showSection;
+showSection = function(name, el){
+  _orig_showSection(name, el);
+  hashSave();
+};
+const _orig_sw = sw;
+sw = function(el, group, mode){
+  _orig_sw(el, group, mode);
+  hashSave();
+};
+
+// Initial wiring on page load (mirrors existing IIFE-style patterns below)
+window.addEventListener('DOMContentLoaded', () => {
+  try { injectDownloadButtons(); } catch(_) {}
+  try { hashLoad(); }              catch(_) {}
+});
 </script>
 </body>
 </html>

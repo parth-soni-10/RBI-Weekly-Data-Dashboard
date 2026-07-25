@@ -1,0 +1,8 @@
+# Netlify redirects — clean public URLs → internal function paths.
+# Each line: from -> to, with optional status code (default 200/301).
+# The 200 status means "rewrite" — URL stays clean in browser bar.
+
+# Public JSON API
+/data/latest.json       /.netlify/functions/data-latest       200
+/data/forex-weekly.json /.netlify/functions/data-forex-weekly 200
+/data/crude-bpd.json    /.netlify/functions/data-crude-bpd    200

@@ -1,14 +1,19 @@
 const fetch = require("node-fetch");
 const XLSX  = require("node-xlsx");
 
-// NOTE: Crude oil import data (daily_import_estimates.json, india_bound_tankers.json etc.)
-// is loaded client-side in index.html from static india_crude_import_data/ folder (generated
-// by running the separate Python pipeline locally). No changes to this scraper for crude.
-// All RBI + yfinance logic here remains for 10-week as-on Friday records.
+// NOTE: Crude-oil import data is fetched LIVE by the dashboard from
+// /.netlify/functions/fetch-crude (PPAC + TankerMap AIS + Yahoo). No static
+// crude JSON dumps are needed at runtime. The india_crude_import_data/ folder
+// under public/ is reserved for any optional Python-pipeline output that may
+// be regenerated locally; that folder is gitignored. This function remains
+// focused on the 10-week as-on-Friday RBI + yfinance records.
 
 // ─── DATE HELPERS ────────────────────────────────────────────
-function getAllFridaysUntilToday() {
-  const start = new Date("2026-01-01");
+// Returns every Friday on or after `startISO` (defaults to Jan 1 of the current
+// calendar year) up to today. Used both by the dashboard handler and by the
+// public data-latest / data-forex-weekly endpoints.
+function getAllFridaysUntilToday(startISO) {
+  const start = startISO ? new Date(startISO) : new Date(`${new Date().getFullYear()}-01-01`);
   const end   = new Date();
   const fridays = [];
   // advance start to first Friday on or after Jan 1
@@ -107,8 +112,18 @@ function toNum(v) {
 // Strategy: same logic as the Python scraper (row keyword search, then first two
 // numerics in row order, but adjusted for actual table layout where INR Cr appears
 // before US$ Mn in the "As on" columns)
+//
+// Extended (decomposition): also extracts Foreign Currency Assets (FCA), Special
+// Drawing Rights (SDR), IMF Reserve Position, and Gold tonnes when those rows exist
+// in the Excel. Falls back gracefully — these fields stay null on older sheets.
 function parseReservesExcel(buf) {
-  const result = { total_usd: null, total_inr: null, gold_usd: null, gold_inr: null };
+  const result = {
+    total_usd: null, total_inr: null,
+    gold_usd: null, gold_inr: null, gold_tonnes: null,
+    fca_usd: null, fca_inr: null,
+    sdr_usd: null, sdr_inr: null,
+    imf_reserve_usd: null, imf_reserve_inr: null,
+  };
   let sheets;
   try { sheets = XLSX.parse(buf); } catch(e) { return result; }
 
@@ -173,6 +188,77 @@ function parseReservesExcel(buf) {
     }
 
     if (result.total_usd !== null && result.gold_usd !== null) break;
+  }
+
+  // ── Decomposition: FCA / SDR / IMF Reserve / Gold tonnes ───────────
+  // Adds fields without disturbing existing total + gold logic above.
+  // Each entry is null if the row / numerics aren't found in the sheet.
+  //
+  // RBI row layout: [Label ... | INR cr | USD mn] (INR cr is left of USD mn).
+  // When we read the right-to-left pair, the larger magnitude is USD mn
+  // (USD mn is ~50-100× INR cr for reserves) so we discriminate by size.
+  const decompFinders = [
+    { keys: ["fca_usd", "fca_inr"],                match: ["foreign currency assets", "currency assets"],           exclude: [] },
+    { keys: ["sdr_usd", "sdr_inr"],                match: ["special drawing rights", "special drawing right", "sdr"], exclude: [] },
+    { keys: ["imf_reserve_usd", "imf_reserve_inr"], match: ["reserve position", "reserve tranche", "imf"],          exclude: [] },
+  ];
+
+  for (const f of decompFinders) {
+    const candidates = []; // { rowIdx, sheetIdx, usd, inr }
+    outer: for (let si = 0; si < sheets.length; si++) {
+      const rows = sheets[si].data || [];
+      for (let j = 0; j < rows.length; j++) {
+        const text = rows[j].map(c => String(c || "")).join(" ").toLowerCase();
+        if (f.match.some(k => text.includes(k)) && f.exclude.every(k => !text.includes(k))) {
+          // Read left-to-right; collect every numeric in the row.
+          const nums = [];
+          for (let c = 0; c < rows[j].length; c++) {
+            const v = toNum(rows[j][c]);
+            if (!isNaN(v) && isFinite(v)) nums.push(v);
+          }
+          // Pick the LARGER one as USD mn, the smaller as INR cr.
+          // (Reserves: USD mn is ~50-100× larger than INR cr.)
+          if (nums.length >= 2) {
+            candidates.push({
+              sheetIdx: si, rowIdx: j,
+              usd: Math.max(nums[0], nums[1]),
+              inr: Math.min(nums[0], nums[1])
+            });
+          } else if (nums.length === 1) {
+            // Single-column report — assume USD mn.
+            candidates.push({ sheetIdx: si, rowIdx: j, usd: nums[0], inr: null });
+          }
+          break outer;
+        }
+      }
+    }
+    // Prefer the FIRST match in physical order. If multiple, prefer one whose
+    // usd/inr ratio looks like a real reserves split (~30-90 range).
+    if (candidates.length) {
+      const best = candidates.find(c => c.inr && (c.usd / c.inr > 20 && c.usd / c.inr < 200))
+                || candidates[0];
+      result[f.keys[0]] = best.usd;
+      result[f.keys[1]] = best.inr;
+    }
+  }
+
+  // ── Gold tonnes (best-effort) ──────────────────────────────────────
+  for (let si = 0; si < sheets.length; si++) {
+    const rows = sheets[si].data || [];
+    for (let j = 0; j < rows.length; j++) {
+      const text = rows[j].map(c => String(c || "")).join(" ").toLowerCase();
+      if ((text.includes("gold") && text.includes("tonne")) || text.includes("tonnes of gold") || text.includes("gold (mt)")) {
+        for (let c = rows[j].length - 1; c >= 0; c--) {
+          const v = toNum(rows[j][c]);
+          if (!isNaN(v) && isFinite(v) && v > 0 && v < 1000) {
+            result.gold_tonnes = v;
+            break;
+          }
+        }
+        if (result.gold_tonnes != null) break;
+      }
+    }
+    if (result.gold_tonnes != null) break;
   }
 
   return result;
@@ -296,9 +382,18 @@ async function processOneFriday(pubFriday) {
 }
 
 // ─── HANDLER ─────────────────────────────────────────────────
+// Accepts:
+//   ?weekOffset=N      default 0; sequential week-by-week fetch (legacy)
+//   ?startYear=YYYY    start year for the friday list (default = current year)
+// Public exports below so data-latest.js / data-forex-weekly.js can reuse the
+// underlying scrape without duplicating the parser.
+exports._getFridays    = getAllFridaysUntilToday;
+exports._processOne    = processOneFriday;
+
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
-  const allFridays = getAllFridaysUntilToday();
+  const startYear = parseInt(qs.startYear ?? new Date().getFullYear());
+  const allFridays = getAllFridaysUntilToday(`${startYear}-01-01`);
   const total = allFridays.length;
 
   // ?weekOffset=N  →  process allFridays[N] (0 = oldest, total-1 = newest)
