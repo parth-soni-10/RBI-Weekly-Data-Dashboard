@@ -10,3 +10,19 @@
 
 [functions.fetch-data]
   timeout = 26
+
+# Long-running data scrapers
+[functions.fetch-fii]
+  timeout = 20
+
+[functions.fetch-fx-intervention]
+  timeout = 20
+
+[functions.fetch-gsec]
+  timeout = 20
+
+[functions.fetch-tax]
+  timeout = 20
+
+[functions.fetch-reer]
+  timeout = 20

@@ -2,7 +2,16 @@
 # Each line: from -> to, with optional status code (default 200/301).
 # The 200 status means "rewrite" — URL stays clean in browser bar.
 
-# Public JSON API
+# Public JSON API \u2014 RBI + crude
 /data/latest.json       /.netlify/functions/data-latest       200
 /data/forex-weekly.json /.netlify/functions/data-forex-weekly 200
 /data/crude-bpd.json    /.netlify/functions/data-crude-bpd    200
+
+# Public JSON API \u2014 macro context
+/data/fii.json              /.netlify/functions/fetch-fii              200
+/data/fii-history.json      /.netlify/functions/fetch-fii-history      200
+/data/fx-intervention.json  /.netlify/functions/fetch-fx-intervention  200
+/data/gsec.json             /.netlify/functions/fetch-gsec             200
+/data/tax.json              /.netlify/functions/fetch-tax              200
+/data/reer.json             /.netlify/functions/fetch-reer             200
+

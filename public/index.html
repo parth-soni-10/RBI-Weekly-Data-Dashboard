@@ -76,6 +76,45 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .weekly-summary p{font-size:13px;color:var(--dark);line-height:1.7;margin:0}
 .weekly-summary strong{font-weight:600}
 
+/*hover-glossary — dotted underline + tooltip on metric labels that carry a data-glossary attribute*/
+[data-glossary]{ border-bottom:1px dotted var(--muted); cursor:help; position:relative; }
+[data-glossary]:hover::after{
+  content:attr(data-glossary); position:absolute; left:0; top:calc(100% + 6px);
+  background:var(--dark); color:#dcfce7; padding:8px 11px; border-radius:6px;
+  font-size:11.5px; font-weight:400; line-height:1.5; max-width:280px;
+  z-index:9999; box-shadow:0 2px 8px rgba(0,0,0,0.08); white-space:normal;
+  text-transform:none; letter-spacing:0;
+}
+
+/*metric-extra-row: Import Cover KPI + Volatility Gauge + Repo Rate, sits above the macro-context section*/
+.metric-extra-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px; margin:0 0 1.25rem 0; opacity:0; transition:opacity .4s }
+.metric-extra-row.show{ opacity:1 }
+.mex{ background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r);
+  padding:.85rem 1rem; }
+.mex-label{ font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.07em; margin-bottom:5px }
+.mex-val{ font-size:17px; font-weight:700; font-family:'DM Mono',monospace; color:var(--dark); line-height:1.1 }
+.mex-detail{ font-size:10.5px; color:var(--muted); margin-top:3px; font-family:'DM Mono',monospace }
+
+.vol-pill{ display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px;
+  font-weight:500; font-family:'DM Mono',monospace; margin-left:6px; }
+.vol-pill.low{ background:#dcfce7; color:#14532d }
+.vol-pill.med{ background:#fef3c7; color:#92400e }
+.vol-pill.high{ background:#fee2e2; color:#991b1b }
+
+/*macro context card grid — FII / G-Sec / Tax / REER / FX intervention*/
+.macro-context{ background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r);
+  padding:1.2rem 1.4rem; margin-bottom:1.25rem; }
+.macro-context h3{ font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:.85rem; font-family:'DM Sans'; font-weight:600; }
+.mc-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px }
+.mctx{ background:var(--s3); border:1px solid var(--border); border-radius:7px; padding:.7rem .85rem }
+.mctx-label{ font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.07em; margin-bottom:4px }
+.mctx-val{ font-size:17px; font-weight:700; font-family:'DM Mono',monospace; color:var(--dark); line-height:1.1 }
+.mctx-sub{ font-size:10px; color:var(--muted); margin-top:3px }
+
 #metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
   gap:10px;margin-bottom:1.5rem;opacity:0;transition:opacity .4s}
 #metrics.show{opacity:1}
@@ -150,8 +189,6 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-
-.scroll { overflow-y: auto; }
 
 @media(max-width:780px){
   .section,footer{padding:1rem}
@@ -229,6 +266,72 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div class="mc"><div class="mc-label">Sensex</div><div class="mc-val" id="m-sensex">—</div>
       <div class="mc-sub">Friday close (latest)</div><div class="mc-delta" id="d-sensex"></div></div>
   </div>
+  <!--Metric extra row: Import Cover + Volatility + RBI Repo Rate. Loaded from /data/gsec.json for repo, computed client-side for others -->
+  <div class="metric-extra-row" id="metric-extras">
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="Months of import cover = forex reserves (USD) ÷ monthly import bill (USD). RBI's comfort zone is around 9 months.">Import Cover</span></div>
+      <div id="import-cover" class="mex-val">—</div>
+      <div class="mex-detail" id="import-cover-detail">awaiting fetch</div>
+    </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="Annualized standard deviation of weekly USD/INR closes. Higher volatility = more hedging cost for importers.">USD/INR Volatility</span></div>
+      <div id="vol-20" class="mex-val">—</div>
+      <div class="mex-detail"><span id="vol-60">—</span> <span id="vol-pill" class="vol-pill low">—</span></div>
+    </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="RBI's policy repo rate, set by the Monetary Policy Committee (MPC). Last decision via the official RBI press release.">RBI Repo Rate</span></div>
+      <div id="repo-rate" class="mex-val">—</div>
+      <div class="mex-detail" id="repo-rate-detail">awaiting fetch-gsec.json</div>
+    </div>
+  </div>
+
+  <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from /data/*.json -->
+  <div class="macro-context">
+    <h3>Macroeconomic context — FII flows · G-Sec · Tax · REER · FX intervention</h3>
+    <div class="mc-grid">
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net equity flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Equity (today)</div>
+        <div id="fpi-equity" class="mctx-val">—</div>
+        <div class="mctx-sub" id="fpi-equity-sub">NSDL · ₹ cr</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net debt flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Debt (today)</div>
+        <div id="fpi-debt" class="mctx-val">—</div>
+        <div class="mctx-sub" id="fpi-debt-sub">NSDL · ₹ cr</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Year-to-date cumulative net flow across all FPI transactions (equity + debt), in INR crores, since 1 January of the current calendar year. Source: NSDL FII archive, summed in fetch-fii-history.js.">YTD FII Net (cum)</div>
+        <div id="fii-ytd" class="mctx-val">—</div>
+        <div class="mctx-sub" id="fii-ytd-sub">since 1 Jan · ₹ cr</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Year-to-date cumulative net Domestic Institutional Investor flow (mutual funds, insurance, pension funds), in INR crores, since 1 January. Positive means domestic institutions are absorbing supply that foreigners sell. Source: NSDL DII archive.">YTD DII Net (cum)</div>
+        <div id="dii-ytd" class="mctx-val">—</div>
+        <div class="mctx-sub" id="dii-ytd-sub">since 1 Jan · ₹ cr</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="India 10-Year Government Securities yield, percent per annum. Higher yield = lower bond price. Source: Yahoo Finance.">10Y G-Sec Yield</div>
+        <div id="gsec-yield" class="mctx-val">—</div>
+        <div class="mctx-sub" id="gsec-yield-sub">Yahoo · %</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="CBIC indirect tax receipts (GST + customs + excise) for the most recent month in INR crores. Falls during slowdowns; rises during consumption booms.">CBIC Tax (latest)</div>
+        <div id="cbic-gst" class="mctx-val">—</div>
+        <div class="mctx-sub" id="cbic-gst-sub">PIB · ₹ cr / mo</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Real Effective Exchange Rate versus a 36-country trading-partner basket. > 100 = real appreciation. < 100 = real depreciation. Source: RBI DBIE.">INR REER (36)</div>
+        <div id="inr-reer" class="mctx-val">—</div>
+        <div class="mctx-sub" id="inr-reer-sub">RBI DBIE · index</div>
+      </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="RBI Forward Position of the Rupee, USD bn. Net negative = RBI is selling USD forward; positive = buying. Closest public proxy for FX intervention.">RBI Fwd Position</div>
+        <div id="fx-fwd" class="mctx-val">—</div>
+        <div class="mctx-sub" id="fx-fwd-sub">RBI Bulletin · $ bn</div>
+      </div>
+    </div>
+  </div>
+
   <div id="charts">
     <div class="chart-card">
       <div class="chart-hdr"><div><div class="chart-title">Foreign exchange reserves — weekly change</div><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div></div>
@@ -242,7 +345,8 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><div class="chart-title">Rupee spot rate — Friday close</div><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations">⚑ Events</button></div>
+      <div id="events-last-note" style="font-size:10.5px;color:#6b7280;margin-top:-4px;margin-bottom:.5rem;font-family:'DM Mono',monospace;"></div>
       <div class="chart-wrap" style="height:230px"><canvas id="cFx"></canvas></div>
     </div>
     <div class="chart-card">
@@ -260,6 +364,12 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div class="chart-card">
       <div class="chart-hdr"><div><div class="chart-title">Reserves composition — latest snapshot</div><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
       <div class="chart-wrap" style="height:230px"><canvas id="cDecomp"></canvas></div>
+    </div>
+
+    <!-- FII + DII 6-month daily history -->
+    <div class="chart-card">
+      <div class="chart-hdr"><div><div class="chart-title">FII + DII net daily flows (₹ cr) — past 6 months</div><div class="chart-note">NSDL FPI + DII. Green = buying. Red = selling.</div></div></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cFiiHist"></canvas></div>
     </div>
   </div>
 
@@ -1269,6 +1379,324 @@ sw = function(el, group, mode){
 window.addEventListener('DOMContentLoaded', () => {
   try { injectDownloadButtons(); } catch(_) {}
   try { hashLoad(); }              catch(_) {}
+});
+/* ============================================================
+   PHASE-2 NEW FEATURES
+   Import Cover KPI · Volatility gauge · Macro context (NSDL FII,
+   G-Sec yield, REER, FX intervention, tax receipts) · EM Peer
+   overlay on FX chart · Event annotations (toggle).
+   ============================================================ */
+
+const MACRO_ENDPOINTS = {
+  fii:    '/data/fii.json',
+  fiih:   '/data/fii-history.json',
+  fxintv: '/data/fx-intervention.json',
+  gsec:   '/data/gsec.json',
+  tax:    '/data/tax.json',
+  reer:   '/data/reer.json',
+};
+let macroData  = {};
+let emPeerData = null;
+let eventsEnabled = false;
+let fiiHistChart = null;
+
+// Hard-coded macro events registry (Fed + RBI MPC + selected geopolitics).
+// The annotation plugin is not loaded — we mark eventsEnabled and surface a
+// footer count when "⚑ Events" tab is active; full vertical-line rendering
+// lands in a follow-up when chartjs-plugin-annotation is added to the bundle.
+const MACRO_EVENTS = [
+  { date:'2024-06-07', label:'RBI MPC: hold 6.50%' },
+  { date:'2024-08-08', label:'RBI MPC: hold 6.50%' },
+  { date:'2024-10-09', label:'RBI MPC: hold 6.50%' },
+  { date:'2024-12-06', label:'RBI MPC: hold 6.50%' },
+  { date:'2025-02-07', label:'RBI MPC: cut 25bps to 6.25%' },
+  { date:'2025-04-09', label:'RBI MPC: hold 6.25%' },
+  { date:'2025-06-06', label:'RBI MPC: cut to 6.00%' },
+  { date:'2025-08-06', label:'RBI MPC: cut 25bps to 5.75%' },
+  { date:'2025-10-01', label:'RBI MPC: hold 5.75%' },
+  { date:'2025-12-05', label:'RBI MPC: cut to 5.50%' },
+  { date:'2024-09-18', label:'Fed: 50bps cut' },
+  { date:'2024-11-07', label:'Fed: 25bps cut' },
+  { date:'2024-12-18', label:'Fed: 25bps cut' },
+  { date:'2025-03-19', label:'Fed: hold 4.25–4.50%' },
+];
+
+async function loadMacroData(){
+  const keys = Object.keys(MACRO_ENDPOINTS);
+  let settled;
+  try {
+    settled = await Promise.allSettled(
+      keys.map(k => fetch(MACRO_ENDPOINTS[k], { cache: 'default' })
+                          .then(r => r.ok ? r.json() : null)
+                          .catch(() => null))
+    );
+  } catch(_) { return; }
+  for (let i = 0; i < keys.length; i++) {
+    macroData[keys[i]] = settled[i].status === 'fulfilled' ? settled[i].value : null;
+  }
+  renderMacroCards();
+  const mex = document.getElementById('metric-extras');
+  if(mex) mex.classList.add('show');
+}
+
+function setMctxVal(id, val, sub){
+  const el = document.getElementById(id);
+  if(el) el.textContent = (val == null || val === '' ? '—' : val);
+  const subEl = document.getElementById(id + '-sub');
+  if(subEl && sub) subEl.textContent = sub;
+}
+
+function renderMacroCards(){
+  try {
+    const fii  = macroData.fii    || {};
+    const gsec = macroData.gsec   || {};
+    const tax  = macroData.tax    || {};
+    const reer = macroData.reer   || {};
+    const fx   = macroData.fxintv || {};
+
+    setMctxVal('fpi-equity', fii.equity_net_cr != null
+              ? (fii.equity_net_cr >= 0 ? '+' : '') + fii.equity_net_cr.toLocaleString('en-IN')
+              : null, fii.equity_net_cr != null ? 'NSDL · ₹ cr · net today' : 'unavailable');
+    setMctxVal('fpi-debt', fii.debt_net_cr != null
+              ? (fii.debt_net_cr >= 0 ? '+' : '') + fii.debt_net_cr.toLocaleString('en-IN')
+              : null, fii.debt_net_cr != null ? 'NSDL · ₹ cr · net today' : 'unavailable');
+
+    // FII + DII YTD aggregates from the 6-month history endpoint
+    const fiih = macroData.fiih || {};
+    const ytd  = fiih.ytd || {};
+    function fmtCr(n){
+      if(n == null || isNaN(n)) return null;
+      const sign = n >= 0 ? '+' : '−';
+      return sign + Math.round(Math.abs(n)).toLocaleString('en-IN');
+    }
+    const ytdFiiCombined = (ytd.fii_equity_cr != null && ytd.fii_debt_cr != null)
+      ? (ytd.fii_equity_cr + (ytd.fii_debt_cr || 0))
+      : (ytd.fii_equity_cr != null ? ytd.fii_equity_cr : null);
+    setMctxVal('fii-ytd',
+      fmtCr(ytdFiiCombined),
+      ytdFiiCombined != null ? 'FII equity+debt · since 1 Jan' : 'unavailable');
+    setMctxVal('dii-ytd',
+      fmtCr(ytd.dii_equity_cr),
+      ytd.dii_equity_cr != null ? 'NSDL DII · since 1 Jan' : 'unavailable');
+
+    // Render history chart from the same series
+    renderFiiHistoryChart();
+
+    setMctxVal('gsec-yield', gsec.gsec_10y_yield_pct != null ? gsec.gsec_10y_yield_pct.toFixed(2) + '%' : null,
+               gsec.source_yield || (gsec.gsec_10y_yield_pct ? 'Yahoo Finance' : 'unavailable'));
+
+    setMctxVal('cbic-gst', tax.gst_cr != null ? Math.round(tax.gst_cr).toLocaleString('en-IN') : null,
+               tax.source || (tax.status === 'unavailable' ? 'unavailable' : 'PIB · ₹ cr / mo'));
+
+    setMctxVal('inr-reer', reer.latest != null ? reer.latest.toFixed(1) : null,
+               reer.latest_date ? `${reer.source} · ${reer.latest_date}` : (reer.source || 'unavailable'));
+
+    setMctxVal('fx-fwd', fx.net_fwd != null
+              ? (fx.net_fwd >= 0 ? '+$' : '−$') + Math.abs(fx.net_fwd).toFixed(2) + 'B'
+              : null,
+              fx.source || 'RBI Bulletin · $ bn');
+
+    // Display last macro event in range as a subtle hint near the FX chart events-tab.
+    const lastEvt = MACRO_EVENTS.filter(e => e.date <= new Date().toISOString().slice(0,10)).slice(-1)[0];
+    if(lastEvt){
+      const note = document.getElementById('events-last-note');
+      if(note) note.textContent = `Last in registry: ${lastEvt.date} — ${lastEvt.label}`;
+    }
+
+    // Repo rate in the mex row
+    if (gsec.repo_rate_pct != null) {
+      document.getElementById('repo-rate').textContent = gsec.repo_rate_pct.toFixed(2) + '%';
+      document.getElementById('repo-rate-detail').textContent =
+        `last MPC: ${gsec.repo_rate_date || '—'} · stored in fetch-gsec.js`;
+    }
+  } catch (_) { /* never crash the page over a macro card */ }
+}
+
+// IMPORT COVER KPI: reserves (USD) ÷ monthly import bill (USD)
+function renderImportCover(){
+  if(!records.length) return;
+  const L = records[records.length-1];
+  const daily = (typeof crudeData !== 'undefined' && crudeData && crudeData.daily) ? filterCrudeToTimeline(crudeData.daily) : [];
+  if(!daily.length || L.total_usd == null) return;
+  const last = daily[daily.length-1];
+  const bpd = last.barrels_per_day || 0;
+  const brent = crudeData.prices && crudeData.prices.brent;
+  if(!bpd || !brent) return;
+  const monthlyImportUsd = bpd * 30 * brent; // crude-bill proxy
+  const months = L.total_usd / monthlyImportUsd;
+  document.getElementById('import-cover').textContent = months.toFixed(2) + ' mo';
+  document.getElementById('import-cover-detail').textContent =
+    `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e3).toFixed(2)}B/mo (crude proxy)`;
+}
+
+// VOLATILITY: weekly-stdev of USD/INR with 20/60-session window + annualized tier pill
+function renderVolatility(){
+  if(records.length < 4) return;
+  const usd = records.map(r => r.usd_inr).filter(v => v != null);
+  if(usd.length < 4) return;
+  function stdevN(n){
+    if(usd.length < n + 1) n = Math.max(1, usd.length - 1);
+    const slice = usd.slice(-n);
+    const mean = slice.reduce((a,b)=>a+b, 0) / slice.length;
+    const variance = slice.reduce((s,v)=>s + (v-mean)*(v-mean), 0) / slice.length;
+    return Math.sqrt(variance);
+  }
+  const sd  = stdevN(20);
+  const sd2 = usd.length >= 8 ? stdevN(Math.min(60, usd.length-1)) : null;
+  document.getElementById('vol-20').textContent = sd != null ? sd.toFixed(3) : '—';
+  document.getElementById('vol-60').textContent = sd2 != null ? '· 60D: ' + sd2.toFixed(3) : '';
+  if(sd != null && usd.length){
+    const ann = (sd / usd[usd.length - 1]) * Math.sqrt(52) * 100;
+    let tier='low',  label='Low';
+    if(ann > 6)  { tier='med';  label='Med';  }
+    if(ann > 12) { tier='high'; label='High'; }
+    const pill = document.getElementById('vol-pill');
+    if(pill){
+      pill.className = 'vol-pill ' + tier;
+      pill.textContent = label + ' · ' + ann.toFixed(1) + '% ann';
+    }
+  }
+}
+
+// EM Peer overlay — load 6mo indexed-to-100 from Yahoo for INR/BRL/IDR/CNY/ZAR
+async function loadEmPeers(){
+  if(emPeerData) return emPeerData;
+  const syms = [
+    { code:'INR', ticker:'INR=X' },
+    { code:'BRL', ticker:'BRL=X' },
+    { code:'IDR', ticker:'IDR=X' },
+    { code:'CNY', ticker:'CNY=X' },
+    { code:'ZAR', ticker:'ZAR=X' },
+  ];
+  const settled = await Promise.allSettled(syms.map(s =>
+    fetch('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(s.ticker) + '?interval=1d&range=6mo')
+      .then(r => r.ok ? r.json() : null).catch(() => null)));
+  emPeerData = syms.map((s, i) => {
+    const json = settled[i].value;
+    const r = json?.chart?.result?.[0];
+    const closes = (r?.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+    if(closes.length < 5) return null;
+    const base = closes[0];
+    return { code: s.code, points: closes.map(v => +(v/base*100).toFixed(2)), dates: (r?.timestamp||[]).map(t => new Date(t*1000).toISOString().slice(0,10)) };
+  }).filter(Boolean);
+  return emPeerData;
+}
+
+// Wrap rebuildFx to handle 'em' and 'events' modes
+const _origRebuildFx = rebuildFx;
+rebuildFx = async function(){
+  if(modes.fx === 'em'){
+    const data = await loadEmPeers();
+    if(!data || !data.length){ _origRebuildFx(); return; }
+    if(charts.cFx) charts.cFx.destroy();
+    charts.cFx = new Chart(document.getElementById('cFx'), {
+      type: 'line',
+      data: {
+        labels: data[0].dates,
+        datasets: data.map(p => ({
+          label: p.code + ' vs USD (indexed)',
+          data: p.points,
+          borderColor: p.code === 'INR' ? '#16a34a'
+                      : p.code === 'BRL' ? '#eab308'
+                      : p.code === 'CNY' ? '#dc2626'
+                      : p.code === 'IDR' ? '#2563eb' : '#7c3aed',
+          backgroundColor: 'transparent',
+          tension:.3, pointRadius:0, borderWidth:1.8,
+        }))
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{position:'top',labels:{font:{size:10.5},color:'#14532d'}}},
+        scales:{ y:{title:{display:true,text:'Indexed to 100'},ticks:{color:'#9ca3af'}}, x:{display:false} }
+      }
+    });
+    return;
+  }
+  _origRebuildFx();
+  if(modes.fx === 'events' && charts.cFx){
+    // Light-touch: surface a footer note that events are available. Real vertical
+    // line rendering lands when chartjs-plugin-annotation is added to the bundle.
+    const c = document.querySelector("#sec-dashboard .tab.tab.on[onclick*='events']");
+    if(c){
+      const note = charts.cFx.canvas.parentElement.querySelector('.events-note') || (() => {
+        const n = document.createElement('div');
+        n.className = 'events-note';
+        n.style.cssText = 'font-size:10.5px;color:#6b7280;margin-top:4px;font-family:DM Mono,monospace;';
+        charts.cFx.canvas.parentElement.appendChild(n);
+        return n;
+      })();
+      note.textContent = `${MACRO_EVENTS.length} macro events in registry. Click another tab to clear.`;
+    }
+  }
+};
+
+// Wrap updateUI to also paint the new mex rows
+const _origUpdateUI = updateUI;
+updateUI = function(){
+  _origUpdateUI();
+  renderImportCover();
+  renderVolatility();
+};
+
+// Wrap renderCrudeHighlights so import-bill + import-cover refresh together
+const _origRenderCrudeHighlights = renderCrudeHighlights;
+renderCrudeHighlights = async function(){
+  await _origRenderCrudeHighlights();
+  renderImportCover();
+};
+
+// Wrap sw() so 'events' tab toggles the flag AND fires a re-render to apply it
+const _origSw = sw;
+sw = function(el, group, mode){
+  _origSw(el, group, mode);
+  if(group === 'fx' && mode === 'events'){
+    eventsEnabled = !eventsEnabled;
+    rebuildFx();
+  }
+};
+
+// ─── FII + DII 6-month history chart ────────────────────────────────────────
+function renderFiiHistoryChart(){
+  const fiih = macroData.fiih;
+  if(!fiih || !fiih.series || !fiih.series.length) return;
+  const series = fiih.series.slice(-180); // ~6 months of trading days
+  const labels  = series.map(r => (r.date || '').slice(5));
+  const eq      = series.map(r => r.fii_equity_cr || 0);
+  const debt    = series.map(r => r.fii_debt_cr   || 0);
+  const dii     = series.map(r => r.dii_equity_cr || 0);
+  const ctxEl   = document.getElementById('cFiiHist');
+  if(!ctxEl) return;
+  if(fiiHistChart) fiiHistChart.destroy();
+  fiiHistChart = new Chart(ctxEl, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'FII Equity', data: eq,   backgroundColor:'#16a34a', borderRadius:2, borderSkipped:false, stack:'fii' },
+        { label:'FII Debt',   data: debt, backgroundColor:'#eab308', borderRadius:2, borderSkipped:false, stack:'fii' },
+        { label:'DII Equity', data: dii,  backgroundColor:'#2563eb', borderRadius:2, borderSkipped:false, stack:'fii' },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend: { position:'top', labels:{ font:{ size:10.5 }, color:'#14532d', boxWidth: 10 } },
+        tooltip: { backgroundColor:'#14532d', titleColor:'#dcfce7', bodyColor:'#bbf7d0',
+                   callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toLocaleString('en-IN')} ₹ cr` } }
+      },
+      scales: {
+        x: { ticks: { color:'#9ca3af', font:{size:9}, maxRotation:0, maxTicksLimit: 24 }, grid: { color:'rgba(0,0,0,0.04)' }, stacked: true },
+        y: { ticks: { color:'#9ca3af', font:{size:9.5}, callback: v => (v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0)) },
+             grid: { color:'rgba(0,0,0,0.04)' }, stacked: true }
+      }
+    }
+  });
+}
+
+// Auto-trigger macro + EM peer loads on page load (in parallel with user clicking Fetch)
+window.addEventListener('DOMContentLoaded', () => {
+  loadMacroData();
+  loadEmPeers();
 });
 </script>
 </body>
