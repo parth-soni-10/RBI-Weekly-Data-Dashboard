@@ -266,7 +266,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     <div class="mc"><div class="mc-label">Sensex</div><div class="mc-val" id="m-sensex">—</div>
       <div class="mc-sub">Friday close (latest)</div><div class="mc-delta" id="d-sensex"></div></div>
   </div>
-  <!--Metric extra row: Import Cover + Volatility + RBI Repo Rate. Loaded from /data/gsec.json for repo, computed client-side for others -->
+  <!--Metric extra row: Import Cover + Volatility + RBI Repo Rate. Repo rate comes from /.netlify/functions/fetch-gsec; the other two KPIs are computed client-side from records + crude data. -->
   <div class="metric-extra-row" id="metric-extras">
     <div class="mex">
       <div class="mex-label"><span data-glossary="Months of import cover = forex reserves (USD) ÷ monthly import bill (USD). RBI's comfort zone is around 9 months.">Import Cover</span></div>
@@ -285,7 +285,7 @@ footer p{font-size:11px;color:var(--muted);line-height:1.65;max-width:700px}
     </div>
   </div>
 
-  <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from /data/*.json -->
+  <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
   <div class="macro-context">
     <h3>Macroeconomic context — FII flows · G-Sec · Tax · REER · FX intervention</h3>
     <div class="mc-grid">
@@ -1182,7 +1182,7 @@ showSection = function(name, el) {
 
 /* ==============================================================
    NEW FEATURE HELPERS — weekly summary, decomposition chart, crude
-   import bill, downloads (CSV + PNG), permalink hash state.
+   import bill, CSV downloads, permalink hash state.
    Hooked into updateUI() / rebuildCharts() / renderCrudeHighlights().
    ============================================================== */
 
@@ -1295,38 +1295,6 @@ function dlCSV(){
   URL.revokeObjectURL(a.href);
 }
 
-function dlPNG(canvasId){
-  const c = charts[canvasId];
-  if(!c) return;
-  try {
-    const url = c.toBase64Image('image/png', 1.0);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = canvasId + '-' + new Date().toISOString().slice(0,10) + '.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch(e) { console.warn('PNG export failed:', canvasId, e); }
-}
-
-function injectDownloadButtons(){
-  document.querySelectorAll('.chart-card').forEach(card => {
-    const hdr    = card.querySelector('.chart-hdr');
-    const canvas = card.querySelector('canvas');
-    if(!hdr || !canvas) return;
-    if(hdr.querySelector('.dl-row')) return; // already injected
-    const row = document.createElement('div');
-    row.className = 'dl-row';
-    const b = document.createElement('button');
-    b.className = 'dl';
-    b.textContent = '⤓ PNG';
-    b.title = 'Download as PNG';
-    b.onclick = () => dlPNG(canvas.id);
-    row.appendChild(b);
-    hdr.appendChild(row);
-  });
-}
-
 function hashSave(){
   try {
     const tab = document.querySelector('.section.active')?.id?.replace('sec-','') || 'dashboard';
@@ -1377,8 +1345,7 @@ sw = function(el, group, mode){
 
 // Initial wiring on page load (mirrors existing IIFE-style patterns below)
 window.addEventListener('DOMContentLoaded', () => {
-  try { injectDownloadButtons(); } catch(_) {}
-  try { hashLoad(); }              catch(_) {}
+  try { hashLoad(); } catch(_) {}
 });
 /* ============================================================
    PHASE-2 NEW FEATURES
@@ -1387,13 +1354,17 @@ window.addEventListener('DOMContentLoaded', () => {
    overlay on FX chart · Event annotations (toggle).
    ============================================================ */
 
+// Macro context cards + 6-month FII/DII history chart load these from the
+// actual Netlify serverless functions. CORS-enabled; serve real data when
+// scraping succeeds, fall back to seeded values with a `status: static fallback`
+// flag when upstream pages can't be parsed.
 const MACRO_ENDPOINTS = {
-  fii:    '/data/fii.json',
-  fiih:   '/data/fii-history.json',
-  fxintv: '/data/fx-intervention.json',
-  gsec:   '/data/gsec.json',
-  tax:    '/data/tax.json',
-  reer:   '/data/reer.json',
+  fii:    '/.netlify/functions/fetch-fii',
+  fiih:   '/.netlify/functions/fetch-fii-history',
+  fxintv: '/.netlify/functions/fetch-fx-intervention',
+  gsec:   '/.netlify/functions/fetch-gsec',
+  tax:    '/.netlify/functions/fetch-tax',
+  reer:   '/.netlify/functions/fetch-reer',
 };
 let macroData  = {};
 let emPeerData = null;

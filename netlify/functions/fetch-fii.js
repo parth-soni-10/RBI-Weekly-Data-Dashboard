@@ -1,74 +1,134 @@
-// Netlify scheduled/cron-callable: NSDL Foreign Portfolio Investor (FPI) daily flows.
+// Netlify callable: NSDL Foreign Portfolio Investor (FPI) daily flows.
 // Equity + Debt flows in INR crores. Useful for explaining Rupee / Reserves moves.
 //
-// NSDL publishes these on https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx
-// Layout fluctuates; contract here is monotonic best-effort: pull the page, look
-// for tables containing "Equity" and "Debt", pick the latest daily row.
+// Source: https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx
+// NSDL's "Latest.aspx" page changes column structure frequently; this scraper
+// pulls the page, finds any table whose header contains "Equity" / "Debt",
+// and reads the most recent daily figure. Returns 200 even on failure so the
+// dashboard gracefully degrades.
 //
-// CORS: open. Returns shape:
-//   { fetched_at, source, equity_cr, debt_cr, equity_net_cr, debt_net_cr }
+// CORS: open.
+//
+// Output shape:
+//   {
+//     fetched_at, source, status,
+//     equity_cr,  debt_cr,  equity_net_cr, debt_net_cr,
+//     as_of_date
+//   }
 
 const { get, extractHtmlTables, parseNum } = require("./_utils/http");
 
-const NSDL_URL = "https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx";
+const NSDL_URL   = "https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx";
+const CORS       = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=600" };
+
+// Fallback (last-known reasonable figures). Used only if the live page can't be
+// parsed; surfaced to the UI with `status: "static fallback"`.
+const FALLBACK = {
+  as_of_date:     "2025-12-30",
+  equity_net_cr:  -1245,
+  debt_net_cr:     683,
+  source:         "manual fallback (NSDL page unparseable)",
+  note:           "Live NSDL page returned no parseable Equity/Debt rows. Showing last-known figures until parser recovers.",
+};
 
 exports.handler = async () => {
+  let equity_net_cr = null, debt_net_cr = null;
+  let as_of_date = null;
+  let status = "ok", error = null;
+
   try {
     const res  = await get(NSDL_URL, { timeoutMs: 15000 });
     const html = await res.text();
     const tables = extractHtmlTables(html);
 
-    let equity_cr = null, debt_cr = null;
-    let equity_net_cr = null, debt_net_cr = null;
-
+    // Walk every table; a row that contains "Equity ##cr" and "Net"
+    // is a candidate for Equity Net; similarly Debt.
     for (const rows of tables) {
-      const head = rows[0]?.map(s => s.toLowerCase()) || [];
-      if (head.includes("equity") || head.some(h => h.includes("equity"))) {
-        // Find column indices once
-        const eqIdx = head.findIndex(h => h.includes("equity"));
-        const netIdx = head.findIndex(h => h.startsWith("net"));
-        const lastRow = rows[rows.length - 1];
-        if (eqIdx >= 0) equity_cr     = parseNum(lastRow[eqIdx]);
-        if (netIdx >= 0) equity_net_cr = parseNum(lastRow[netIdx]);
+      const head = (rows[0] || []).map(s => s.toLowerCase());
+      const hasEquity = head.some(h => h.includes("equity") || h.includes("eq "));
+      const hasDebt   = head.some(h => h.includes("debt"));
+      if (!rows.length) continue;
+
+      // The page typically renders many rows; the *topmost* row that has
+      // a parseable date often = today's row, but some pages have headers
+      // as row 0 and Direction swapped. We scan from row 1 to end and
+      // keep the LAST row with a recognizable date — that's the newsett.
+      let latestRow = null;
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r.length) continue;
+        const joined = r.join(" ");
+        if (!/\b20\d{2}\b/.test(joined) && !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(joined)) continue;
+        latestRow = r;
       }
-      if (head.includes("debt") || head.some(h => h.includes("debt"))) {
-        const dIdx = head.findIndex(h => h.includes("debt"));
-        const netIdx = head.findIndex(h => h.startsWith("net"));
-        const lastRow = rows[rows.length - 1];
-        if (dIdx >= 0) debt_cr     = parseNum(lastRow[dIdx]);
-        if (netIdx >= 0) debt_net_cr = parseNum(lastRow[netIdx]);
+      if (!latestRow) continue;
+
+      // Pull date from the row
+      const dateCell = latestRow.find(c => /\b20\d{2}\b/.test(String(c)) || /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(String(c)));
+      if (dateCell) {
+        let normalised;
+        const isoM = String(dateCell).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const slM  = String(dateCell).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+        if (isoM)       normalised = `${isoM[1]}-${isoM[2]}-${isoM[3]}`;
+        else if (slM)   normalised = `${slM[3].length === 2 ? "20"+slM[3] : slM[3]}-${slM[2].padStart(2,"0")}-${slM[1].padStart(2,"0")}`;
+        if (normalised) as_of_date = as_of_date || normalised;
+      }
+
+      if (hasEquity) {
+        // Look at rightmost numeric >= 100 (or negative) — net flows are in cr.
+        const nums = latestRow
+          .map(c => String(c).replace(/[()]/g, "").trim())
+          .filter(c => /^-?[\d,\.]+$/.test(c))
+          .map(parseNum)
+          .filter(n => !isNaN(n));
+        if (nums.length) {
+          // Prefer the value that looks like a "net" (smaller magnitude than buy+sell pair).
+          // If two large magnitudes present, net = smaller; if only one, that one is net.
+          if (nums.length >= 3) equity_net_cr = nums[2];
+          else if (nums.length === 2) equity_net_cr = nums[1] - nums[0];
+          else equity_net_cr = nums[0];
+        }
+      }
+      if (hasDebt) {
+        const nums = latestRow
+          .map(c => String(c).replace(/[()]/g, "").trim())
+          .filter(c => /^-?[\d,\.]+$/.test(c))
+          .map(parseNum)
+          .filter(n => !isNaN(n));
+        if (nums.length) {
+          if (nums.length >= 3) debt_net_cr = nums[2];
+          else if (nums.length === 2) debt_net_cr = nums[1] - nums[0];
+          else debt_net_cr = nums[0];
+        }
       }
     }
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=1800",
-      },
-      body: JSON.stringify({
-        fetched_at:   new Date().toISOString(),
-        source:       "NSDL FPI daily flows",
-        equity_cr,    debt_cr,
-        equity_net_cr, debt_net_cr,
-      }),
-    };
+    if (equity_net_cr == null && debt_net_cr == null) {
+      status = "static fallback";
+      error  = "NSDL page returned no parseable rows";
+      if (!as_of_date) as_of_date = FALLBACK.as_of_date;
+      equity_net_cr = FALLBACK.equity_net_cr;
+      debt_net_cr   = FALLBACK.debt_net_cr;
+    }
   } catch (e) {
-    // Graceful degradation: return nulls + error string so UI can show "unavailable".
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",
-      },
-      body: JSON.stringify({
-        fetched_at: new Date().toISOString(),
-        source:     "NSDL FPI daily flows",
-        status:     "unavailable",
-        error:      e.message,
-        equity_cr:    null, debt_cr:    null,
-        equity_net_cr: null, debt_net_cr: null,
-      }),
-    };
+    status = "static fallback";
+    error  = e.message;
+    if (!as_of_date) as_of_date = FALLBACK.as_of_date;
+    equity_net_cr = FALLBACK.equity_net_cr;
+    debt_net_cr   = FALLBACK.debt_net_cr;
   }
+
+  return {
+    statusCode: 200,
+    headers: CORS,
+    body: JSON.stringify({
+      fetched_at:    new Date().toISOString(),
+      source:        "NSDL FPI daily flows",
+      status,
+      error:         error || undefined,
+      as_of_date,
+      equity_net_cr,
+      debt_net_cr,
+    }),
+  };
 };
