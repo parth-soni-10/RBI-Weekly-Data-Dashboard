@@ -17,6 +17,10 @@ const CORS = {
   "Content-Type":                  "application/json",
 };
 
+// Never cache failure responses — a transient RBI outage shouldn't keep serving
+// a cached error for 15 minutes after upstream recovers.
+const ERR_HEADERS = { ...CORS, "Cache-Control": "no-store" };
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: CORS, body: "" };
@@ -25,7 +29,7 @@ exports.handler = async (event) => {
   try {
     const fridays = _getFridays();
     if (!fridays.length) {
-      return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: "no fridays in range" }) };
+      return { statusCode: 404, headers: ERR_HEADERS, body: JSON.stringify({ status: "no_fridays", error: "no fridays in range - check the start year" }) };
     }
     // Walk backward through the most recent fridays until we get a successful
     // record. The most recent one may have an error (RBI not yet published,
@@ -41,14 +45,14 @@ exports.handler = async (event) => {
       // embed can branch on, separate from "RBI is offline entirely".
       return {
         statusCode: 503,
-        headers: CORS,
+        headers: ERR_HEADERS,
         body: JSON.stringify({
           fetched_at: new Date().toISOString(),
           source:     "RBI Weekly Statistical Supplement",
           status:     "no_recent_data",
           record:     null,
           iso:        null,
-          error:      "no record found in the most recent 6 fridays",
+          error:      "no record found in the most recent 6 fridays - try again later; RBI may not have published yet",
         }),
       };
     }
@@ -67,8 +71,8 @@ exports.handler = async (event) => {
   } catch (err) {
     return {
       statusCode: 500,
-      headers: CORS,
-      body: JSON.stringify({ error: err.message }),
+      headers: ERR_HEADERS,
+      body: JSON.stringify({ status: "error", error: "internal error - " + err.message + "; try again shortly" }),
     };
   }
 };

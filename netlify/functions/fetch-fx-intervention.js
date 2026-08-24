@@ -64,14 +64,14 @@ exports.handler = async () => {
 
     if (net_fwd == null) {
       status = "static fallback";
-      error  = "RBI Bulletin page returned no parseable Forward Position rows";
+      error  = "RBI Bulletin page returned no parseable Forward Position rows - showing last-known figures";
       net_fwd     = FALLBACK.net_fwd;
       forward_fwd = FALLBACK.forward_fwd;
       spot_fwd    = FALLBACK.spot_fwd;
     }
   } catch (e) {
     status = "static fallback";
-    error  = e.message;
+    error  = e.message + " - showing last-known figures";
     net_fwd     = FALLBACK.net_fwd;
     forward_fwd = FALLBACK.forward_fwd;
     spot_fwd    = FALLBACK.spot_fwd;

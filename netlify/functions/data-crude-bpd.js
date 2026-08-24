@@ -75,8 +75,16 @@ exports.handler = async (event) => {
     };
   } catch (err) {
     return {
-      statusCode: 200, headers: CORS, // intentionally 200 — embed handles missing prices
-      body: JSON.stringify({ fetched_at: new Date().toISOString(), error: err.message }),
+      statusCode: 200, headers: { ...CORS, "Cache-Control": "no-store" }, // intentionally 200 — embed handles missing prices
+      body: JSON.stringify({
+        fetched_at:  new Date().toISOString(),
+        source:      "Yahoo Finance (spot, USD/bbl)",
+        status:      "error",
+        error:       "price fetch failed - " + err.message + "; retry in a few minutes",
+        brent:       null, brent_date: null,
+        wti:         null, wti_date:   null,
+        urals:       null, urals_date: null,
+      }),
     };
   }
 };

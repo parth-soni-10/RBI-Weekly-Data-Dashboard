@@ -11,7 +11,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>India Forex Reserves — embed</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   body{margin:0;padding:14px 16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f0fdf4;color:#14532d}
@@ -25,9 +27,9 @@
 <body>
 <div class="hdr">India Forex Reserves</div>
 <div class="val" id="val">—</div>
-<div class="sub" id="sub">As of —</div>
-<div class="ch"><canvas id="c"></canvas></div>
-<div id="err" class="err" style="display:none"></div>
+<div class="sub" id="sub" aria-live="polite">As of —</div>
+<div class="ch"><canvas id="c" role="img" aria-label="India forex reserves composition in USD million"></canvas></div>
+<div id="err" class="err" style="display:none" aria-live="polite"></div>
 
 <script>
 (async () => {
@@ -62,7 +64,7 @@
     document.getElementById("val").textContent = "—";
     document.getElementById("sub").textContent = "Unavailable";
     const err = document.getElementById("err");
-    err.textContent = "Could not load latest data: " + e.message;
+    err.textContent = "Could not load latest data: " + e.message + " Please check back in a moment or refresh the page.";
     err.style.display = "block";
   }
 })();

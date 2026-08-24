@@ -65,13 +65,13 @@ exports.handler = async () => {
     }
     if (!series.length) {
       status = "static fallback";
-      error  = "DBIE page returned no parseable REER rows (JS-rendered SPA)";
+      error  = "DBIE page returned no parseable REER rows (JS-rendered SPA) - showing last-known series";
       series = buildFallbackReerSeries();
       source = `${source} (manual fallback)`;
     }
   } catch (e) {
     status = "static fallback";
-    error  = e.message;
+    error  = e.message + " - showing last-known series";
     series = buildFallbackReerSeries();
     source = `${source} (manual fallback)`;
   }

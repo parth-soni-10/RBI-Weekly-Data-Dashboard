@@ -1,5 +1,5 @@
 // Shared HTTP helper. Centralizing UA + timeouts so all scrapers behave the same.
-// Caches don't live here \u2014 Netlify Blobs are the recommended cache layer.
+// Caches don't live here — Netlify Blobs are the recommended cache layer.
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 const DEFAULT_TIMEOUT_MS = 12000;
 
@@ -25,6 +25,21 @@ async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer 
   }
 }
 
+// Decode the HTML entities real pages emit (nbsp is the critical one — a raw
+// non-breaking space breaks numeric parsing if left untouched).
+function decodeEntities(s) {
+  const safe = cp => { try { return String.fromCodePoint(cp); } catch (_) { return ""; } };
+  return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => safe(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => safe(parseInt(d, 10)));
+}
+
 // Disney-cheerio alternative: minimal HTML table extractor (no external dep).
 // Walks all <table> nodes, returns rows as arrays of trimmed cell strings.
 function extractHtmlTables(html) {
@@ -40,7 +55,7 @@ function extractHtmlTables(html) {
       const tdRe  = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
       let td;
       while ((td = tdRe.exec(tr[1])) !== null) {
-        cells.push(td[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+        cells.push(decodeEntities(td[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim());
       }
       if (cells.length) rows.push(cells);
     }
@@ -54,8 +69,8 @@ function parseNum(v) {
   if (v == null) return NaN;
   if (typeof v === "number") return v;
   const s = String(v).trim();
-  const cleaned = s.replace(/[, ]/g, "");
-  if (!/^-?\\d+(\\.\\d+)?$/.test(cleaned)) return NaN;
+  const cleaned = s.replace(/[\s,]/g, "");
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return NaN;
   const n = parseFloat(cleaned);
   return isNaN(n) ? NaN : n;
 }

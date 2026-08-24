@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f0fdf4">
 <title>RBI Weekly Dashboard</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,13 +15,15 @@
   --bg:#f0fdf4;--surface:#fff;--s2:#dcfce7;--s3:#f0fdf4;
   --border:#bbf7d0;--border2:#86efac;
   --text:#14532d;--muted:#6b7280;--muted2:#9ca3af;
-  --accent:#16a34a;--accent-strong:#14532d;--dark:#14532d;
-  --up:#16a34a;--dn:#dc2626;
+  --accent:#15803d;--accent-strong:#14532d;--dark:#14532d;
+  --up:#15803d;--dn:#dc2626;
   --grid:rgba(0,0,0,0.04);--r:14px;--r-filter:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh}
+.skip-link{position:absolute;left:-9999px;top:0;z-index:300;background:var(--accent);color:#fff;padding:8px 14px;border-radius:0 0 6px 0;font-size:13px;font-weight:600;font-family:'Inter',sans-serif}
+.skip-link:focus{left:0}
 
 header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2rem;
   display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
@@ -31,12 +35,12 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .nav-links{display:flex;align-items:center;gap:6px}
 .nav-link{height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:var(--r-filter);
   font-size:13px;line-height:16px;font-weight:500;color:var(--muted);
-  text-decoration:none;transition:all .15s;border:1px solid transparent;font-family:'Inter',sans-serif;
+  text-decoration:none;transition:background .15s,color .15s,border-color .15s;border:1px solid transparent;font-family:'Inter',sans-serif;
   letter-spacing:.1px}
 .nav-link:hover{background:var(--s2);color:var(--dark);border-color:var(--border)}
 .nav-link.active{background:var(--accent);color:#fff}
 .status-pill{height:28px;display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--border);
-  border-radius:var(--r-filter);padding:0 12px;font-size:13px;line-height:16px;font-weight:500;color:var(--muted);
+  border-radius:var(--r-filter);padding:0 12px;font-size:13px;line-height:16px;font-weight:500;color:#4b5563;
   font-family:'Inter',sans-serif}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
 .dot.running{background:var(--accent);animation:blink 1.2s infinite}
@@ -51,14 +55,14 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .panel-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
   margin-bottom:.85rem;font-family:'Inter',sans-serif;display:block}
 .prog-track{height:5px;background:var(--s2);border-radius:3px;overflow:hidden;margin-bottom:5px}
-.prog-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .35s ease}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transform-origin:left center;transform:scaleX(0);transition:transform .35s ease}
 .prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
   font-family:'DM Mono',monospace;margin-bottom:.85rem}
 #log-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem 1rem;
   height:140px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:11px;line-height:1.9;color:var(--muted)}
 #log-box .ok{color:var(--up);font-weight:500}
 #log-box .err{color:var(--dn)}
-#log-box .warn{color:#d97706}
+#log-box .warn{color:#b45309}
 .btn{height:28px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   margin-top:.85rem;padding:0 16px;
   background:var(--accent);color:#fff;border:none;border-radius:var(--r-filter);
@@ -76,6 +80,9 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .dl:hover{background:var(--surface);color:var(--dark)}
 .dl:active{transform:scale(.97)}
 .dl-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+html{-webkit-tap-highlight-color:transparent}
+.nav-link,.btn,.dl,.tab,.src-link{touch-action:manipulation}
+.nav-link:focus-visible,.btn:focus-visible,.dl:focus-visible,.tab:focus-visible,.src-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /*weekly summary panel (top of dashboard) - mirrors .tbl-intro style*/
 .weekly-summary{background:var(--s3);border:1.5px solid var(--border);border-radius:var(--r);
@@ -103,7 +110,7 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
   padding:1rem 16px; }
 .mex-label{ font-size:12px; line-height:16px; font-weight:500; color:var(--muted);
   letter-spacing:.1px; margin-bottom:5px; font-family:'Inter',sans-serif; }
-.mex-val{ font-size:18px; line-height:24px; font-weight:600; font-family:'Inter',sans-serif;
+.mex-val{ font-size:18px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; font-family:'Inter',sans-serif;
   color:var(--dark); letter-spacing:-.1px; }
 .mex-detail{ font-size:10.5px; color:var(--muted); margin-top:3px; font-family:'DM Mono',monospace }
 
@@ -122,7 +129,7 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .mctx{ background:var(--s3); border:1px solid var(--border); border-radius:var(--r); padding:1rem 16px }
 .mctx-label{ font-size:12px; line-height:16px; font-weight:500; color:var(--muted);
   letter-spacing:.1px; margin-bottom:4px; font-family:'Inter',sans-serif; }
-.mctx-val{ font-size:18px; line-height:24px; font-weight:600; font-family:'Inter',sans-serif;
+.mctx-val{ font-size:18px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; font-family:'Inter',sans-serif;
   color:var(--dark); letter-spacing:-.1px; }
 .mctx-sub{ font-size:11px; color:var(--muted); margin-top:3px; font-family:'Inter',sans-serif }
 
@@ -132,7 +139,7 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .mc{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1rem 16px}
 .mc-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
   margin-bottom:5px;font-family:'Inter',sans-serif}
-.mc-val{font-size:18px;line-height:24px;font-weight:600;font-family:'Inter',sans-serif;
+.mc-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;font-family:'Inter',sans-serif;
   color:var(--dark);letter-spacing:-.1px}
 .mc-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',sans-serif}
 .mc-delta{font-size:11px;margin-top:5px;font-family:'DM Mono',monospace;letter-spacing:-.1px;font-weight:500}
@@ -147,8 +154,9 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 .tab-row{display:flex;gap:4px;background:var(--s2);border-radius:var(--r-filter);padding:4px;width:fit-content;margin-bottom:.85rem}
 .tab{height:28px;padding:0 12px;display:inline-flex;align-items:center;border-radius:6px;
   font-size:13px;line-height:16px;font-weight:500;letter-spacing:.1px;cursor:pointer;
-  border:none;background:none;color:var(--muted);font-family:'Inter',sans-serif;transition:all .12s}
+  border:none;background:none;color:#4b5563;font-family:'Inter',sans-serif;transition:background .12s,color .12s}
 .tab.on{background:var(--accent);color:#fff}
+.tab:hover{background:var(--surface);color:var(--dark)}
 .chart-wrap{position:relative}
 
 #empty{text-align:center;padding:3rem 2rem;color:var(--muted);font-family:'Inter',sans-serif}
@@ -169,7 +177,7 @@ header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2r
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 thead th{
   background:var(--s2);padding:.75rem 16px;text-align:left;
-  font-size:12px;line-height:16px;font-weight:500;color:var(--muted);
+  font-size:12px;line-height:16px;font-weight:500;color:#4b5563;
   letter-spacing:.1px;border-bottom:1.5px solid var(--border);white-space:nowrap;
   font-family:'Inter',sans-serif;
 }
@@ -181,7 +189,6 @@ td{padding:.65rem 16px;color:var(--dark);font-family:'DM Mono',monospace;font-si
 td:not(:first-child){text-align:right}
 td.date-cell{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);
   letter-spacing:-.1px}
-td.latest-row{background:rgba(220,252,231,0.4)}
 .delta-cell{font-size:11px}
 .cell-group{display:flex;flex-direction:column;gap:1px}
 .cell-main{font-size:12px}
@@ -213,51 +220,59 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
   .nav-link span{display:none}
   table{font-size:11px}
   td,thead th{padding:.55rem .7rem}
-  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,
-  .tbl-intro,.tbl-wrap,.tbl-header,.col-group-header{padding-left:16px;padding-right:16px}
+  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,    .tbl-intro,.tbl-wrap,.tbl-header,.col-group-header{padding-left:16px;padding-right:16px}
+}
+
+/*design-taste: reduced-motion guard — blink, smooth scroll, and transitions collapse to static */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .dot.running{animation:none}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
 </style>
 </head>
 <body>
 
+<a class="skip-link" href="#main">Skip to content</a>
+
 <header>
   <div class="logo">
-    <div class="logo-badge">₹</div>
+    <div class="logo-badge" aria-hidden="true">₹</div>
     <div class="logo-text">
       <h1>RBI Weekly Dashboard</h1>
-      <span>Forex · Rupee · Gold · Markets · 2026</span>
+      <span>Forex, Rupee, Gold, Markets, 2026</span>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <nav class="nav-links">
-      <a class="nav-link active" href="#" onclick="showSection('dashboard',this)">Dashboard</a>
-      <a class="nav-link" href="#" onclick="showSection('table',this)">10-Week Table</a>
-      <a class="nav-link" href="#" onclick="showSection('crude',this)">Crude Oil Imports</a>
+      <a class="nav-link active" href="#sec-dashboard" onclick="return showSection('dashboard',this)">Dashboard</a>
+      <a class="nav-link" href="#sec-table" onclick="return showSection('table',this)">10-Week Table</a>
+      <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)">Crude Oil Imports</a>
     </nav>
     <div class="status-pill">
       <div class="dot" id="status-dot"></div>
-      <span id="status-text">Idle</span>
+      <span id="status-text" aria-live="polite">Idle</span>
     </div>
   </div>
 </header>
 
 <div class="section active" id="sec-dashboard">
-<main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
-  <div style="background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:#713f12;">
+<main id="main" style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
+  <div style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:var(--dark);">
     <strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.
   </div>
   <div class="fetch-panel">
-    <div class="panel-label">Data fetch — RBI Weekly Statistical Supplement</div>
+    <div class="panel-label">Data fetch: RBI Weekly Statistical Supplement</div>
     <div class="prog-track"><div class="prog-fill" id="prog-bar"></div></div>
     <div class="prog-row"><span id="prog-label">Ready</span><span id="prog-pct">0%</span></div>
-    <div id="log-box"></div>
+    <div id="log-box" aria-live="polite"></div>
     <button class="btn" id="start-btn" onclick="startFetch()">▶ Fetch data</button>
   </div>
 
   <!-- Weekly summary panel — populated by JS after records are loaded -->
   <div id="weekly-summary" class="weekly-summary">
-    <div class="panel-label">📰 This week at a glance</div>
-    <p id="weekly-summary-text">—</p>
+    <div class="panel-label">This week at a glance</div>
+    <p id="weekly-summary-text" aria-live="polite">—</p>
     <div class="dl-row" style="margin-top:.7rem">
       <button class="dl" onclick="dlCSV('tab')">⤓ Download 10-week table (CSV)</button>
     </div>
@@ -306,7 +321,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 
   <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
   <div class="macro-context">
-    <h3>Macroeconomic context — FII flows · G-Sec · Tax · REER · FX intervention</h3>
+    <h3>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention</h3>
     <div class="mc-grid">
       <div class="mctx">
         <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net equity flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Equity (today)</div>
@@ -353,48 +368,48 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 
   <div id="charts">
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Foreign exchange reserves — weekly change</div><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cRes"></canvas></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cRes" role="img" aria-label="Bar chart of weekly change in foreign exchange reserves"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Gold reserves — weekly change</div><div class="chart-note">Week-on-week Δ</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Gold reserves: weekly change</h3><div class="chart-note">Week-on-week Δ</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button><button class="tab" onclick="sw(this,'gold','inr')">INR cr</button></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cGold"></canvas></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cGold" role="img" aria-label="Bar chart of weekly change in gold reserves"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Rupee spot rate — Friday close</div><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations">⚑ Events</button></div>
       <div id="events-last-note" style="font-size:10.5px;color:#6b7280;margin-top:-4px;margin-bottom:.5rem;font-family:'DM Mono',monospace;"></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cFx"></canvas></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cFx" role="img" aria-label="Line chart of rupee spot rate"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Nifty 50 &amp; Sensex — Friday close</div><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'idx','nifty')">Nifty 50</button><button class="tab" onclick="sw(this,'idx','sensex')">Sensex</button><button class="tab" onclick="sw(this,'idx','both')">Both (%)</button></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cIdx"></canvas></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cIdx" role="img" aria-label="Line chart of Nifty 50 and Sensex closing prices"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Nifty 50 &amp; Sensex — weekly change</div><div class="chart-note">Week-on-week Δ in index points · green = gain, red = loss</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: weekly change</h3><div class="chart-note">Week-on-week Δ in index points · green = gain, red = loss</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'idxd','nifty')">Nifty 50</button><button class="tab" onclick="sw(this,'idxd','sensex')">Sensex</button></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cIdxDelta"></canvas></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cIdxDelta" role="img" aria-label="Bar chart of weekly change in Nifty 50 and Sensex"></canvas></div>
     </div>
 
     <!-- Reserves decomposition chart — populated by rebuildDecomp() when decomposition fields are present -->
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Reserves composition — latest snapshot</div><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
-      <div class="chart-wrap" style="height:230px"><canvas id="cDecomp"></canvas></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Reserves composition: latest snapshot</h3><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="cDecomp" role="img" aria-label="Doughnut chart of reserves composition"></canvas></div>
     </div>
 
     <!-- FII + DII 6-month daily history -->
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">FII + DII net daily flows (₹ cr) — past 6 months</div><div class="chart-note">NSDL FPI + DII. Green = buying. Red = selling.</div></div></div>
-      <div class="chart-wrap" style="height:240px"><canvas id="cFiiHist"></canvas></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
     </div>
   </div>
 
   <!-- Crude Oil Highlights on main page -->
   <div class="card" style="margin-top:1rem; background:#f0fdf4; border-color:#86efac;">
-    <div class="tbl-header"><h2 style="color:#14532d;">🛢️ India Crude Oil Imports — Highlights (last 10 weeks aligned)</h2></div>
+    <div class="tbl-header"><h2 style="color:#14532d;">India Crude Oil Imports: Highlights (last 10 weeks aligned)</h2></div>
     <div id="crude-highlights" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:8px;">
       <div style="background:white;padding:8px;border-radius:6px;border:1px solid #bbf7d0;">
         <div style="font-size:10px;color:#6b7280;">Latest BPD</div>
@@ -434,21 +449,21 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
     </p>
   </div>
   <div class="tbl-wrap" id="tbl-wrap">
-    <div class="tbl-header"><h2>Weekly summary — last 10 Fridays</h2><span id="tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Weekly summary: last 10 Fridays</h2><span id="tbl-updated"></span></div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" style="overflow-x:auto;display:none">
       <table id="data-table"><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Forex Reserves</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Gold Holdings</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Rupee Spot Rate</th><th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Equity Markets</th></tr><tr><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th style="border-left:1px solid var(--border)">USD mn</th><th>INR cr</th><th style="border-left:1px solid var(--border)">USD/INR</th><th>EUR/INR</th><th style="border-left:1px solid var(--border)">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
     </div>
   </div>
   <div class="tbl-wrap" id="eq-tbl-wrap" style="margin-top:1.25rem">
-    <div class="tbl-header"><h2>Nifty 50 &amp; Sensex — weekly detail</h2><span id="eq-tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Nifty 50 &amp; Sensex: weekly detail</h2><span id="eq-tbl-updated"></span></div>
     <div id="eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="eq-tbl-container" style="overflow-x:auto;display:none">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Nifty 50</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">Sensex</th></tr><tr><th style="border-left:1px solid var(--border)">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="eq-tbl-body"></tbody></table>
     </div>
   </div>
   <div class="tbl-wrap" id="rupee-eq-tbl-wrap" style="margin-top:1.25rem">
-    <div class="tbl-header"><h2>Rupee Spot Rate — up to latest available (10 weeks)</h2><span id="rupee-eq-tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Rupee Spot Rate: up to latest available (10 weeks)</h2><span id="rupee-eq-tbl-updated"></span></div>
     <div id="rupee-eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="rupee-eq-tbl-container" style="overflow-x:auto;display:none">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">USD/INR</th><th colspan="4" style="text-align:center;border-left:1px solid var(--border)">EUR/INR</th></tr><tr><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th><th>YTD %</th><th style="border-left:1px solid var(--border)">Close</th><th>Δ</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="rupee-eq-tbl-body"></tbody></table>
@@ -460,8 +475,8 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 <div class="section" id="sec-crude">
 <main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
   <div class="tbl-intro">
-    <p><strong>India Crude Oil Import Data</strong> — Live reconciled daily estimates: PPAC official monthly data (scraped live) + AIS tanker tracking via TankerMap + Brent/WTI spot prices from Yahoo Finance. All data fetched on demand, no static files required.</p>
-    <div id="crude-fetch-status" style="margin-top:6px;font-size:11px;font-family:'DM Mono',monospace;"></div>
+    <p><strong>India Crude Oil Import Data</strong> - Live reconciled daily estimates: PPAC official monthly data (scraped live) + AIS tanker tracking via TankerMap + Brent/WTI spot prices from Yahoo Finance. All data fetched on demand, no static files required.</p>
+    <div id="crude-fetch-status" aria-live="polite" style="margin-top:6px;font-size:11px;font-family:'DM Mono',monospace;"></div>
     <span id="crude-fetched-at" style="font-size:10px;color:var(--muted);display:block;margin-top:3px;"></span>
   </div>
 
@@ -470,25 +485,25 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 
   <!-- Daily BPD chart -->
   <div class="chart-card">
-    <div class="chart-hdr"><div><div class="chart-title">Daily Crude Import Estimates (Barrels per Day)</div><div class="chart-note">Reconciled from PPAC + Tanker arrivals</div></div></div>
-    <div class="chart-wrap" style="height:280px"><canvas id="crudeDaily"></canvas></div>
+    <div class="chart-hdr"><div><h3 class="chart-title">Daily Crude Import Estimates (Barrels per Day)</h3><div class="chart-note">Reconciled from PPAC + Tanker arrivals</div></div></div>
+    <div class="chart-wrap" style="height:280px"><canvas id="crudeDaily" role="img" aria-label="Line chart of daily crude import estimates in barrels per day"></canvas></div>
   </div>
 
   <!-- Crude Prices (standalone) -->
   <div class="chart-card" style="margin:1rem 0;">
-    <div class="chart-hdr"><div><div class="chart-title">Crude Prices (USD/barrel)</div></div></div>
-    <div class="chart-wrap" style="height:220px"><canvas id="crudePrices"></canvas></div>
+    <div class="chart-hdr"><div><h3 class="chart-title">Crude Prices (USD/barrel)</h3></div></div>
+    <div class="chart-wrap" style="height:220px"><canvas id="crudePrices" role="img" aria-label="Line chart of crude prices in US dollars per barrel"></canvas></div>
   </div>
 
   <!-- Port and Vessel -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">Port Arrivals (Crude Tankers)</div></div></div>
-      <div class="chart-wrap" style="height:220px"><canvas id="crudePorts"></canvas></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Port Arrivals (Crude Tankers)</h3></div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="crudePorts" role="img" aria-label="Bar chart of crude tanker arrivals by port"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><div class="chart-title">India-Bound by Vessel Class</div></div></div>
-      <div class="chart-wrap" style="height:220px"><canvas id="crudeVessels"></canvas></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">India-Bound by Vessel Class</h3></div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="crudeVessels" role="img" aria-label="Pie chart of India-bound tankers by vessel class"></canvas></div>
     </div>
   </div>
 
@@ -505,8 +520,8 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
   <div style="margin-top:1rem;">
     <div class="tbl-wrap">
       <div class="tbl-header">
-        <h2>Port Summary — All India Crude Terminals</h2>
-        <span style="font-size:11px;color:#6b7280;">12 monitored ports · TankerMap AIS · zeros = no activity or slug not matched</span>
+        <h2>Port Summary: All India Crude Terminals</h2>
+        <span style="font-size:11px;color:#6b7280;">12 monitored ports, TankerMap AIS, zeros = no activity or slug not matched</span>
       </div>
       <div style="overflow-x:auto;">
         <table id="crude-ports-table">
@@ -554,12 +569,12 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
   <h3>Data sources</h3>
   <div class="src-links">
     <a class="src-link last-week" id="footer-last-week" href="https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=5/29/2026" target="_blank" rel="noopener">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
-      <span id="footer-last-week-label">RBI WSS — Latest available Friday (May 29, 2026)</span>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>
+      <span id="footer-last-week-label">RBI WSS - Latest available Friday</span>
     </a>
-    <a class="src-link" href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>RBI Weekly Statistical Supplement — Full index</a>
+    <a class="src-link" href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5v5M14 2 8 8"/></svg>RBI Weekly Statistical Supplement - Full index</a>
   </div>
-  <p>Forex reserves, gold, and rupee spot rates scraped from RBI WSS Excel files — one report per Friday.
+  <p>Forex reserves, gold, and rupee spot rates scraped from RBI WSS Excel files: one report per Friday.
      Equity data from Yahoo Finance public chart API. No API keys required.</p>
 </footer>
 
@@ -581,6 +596,7 @@ function showSection(name, el) {
 
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
+const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!m||!d) return s; return new Date(y, m-1, d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); };
 const diff = arr => arr.map((v,i)=>i===0?null:(v!=null&&arr[i-1]!=null?v-arr[i-1]:null));
 function setStatus(s){
   document.getElementById('status-dot').className='dot '+s;
@@ -588,7 +604,7 @@ function setStatus(s){
 }
 function setProgress(done,total){
   const p=total?Math.round(done/total*100):0;
-  document.getElementById('prog-bar').style.width=p+'%';
+  document.getElementById('prog-bar').style.transform='scaleX('+(p/100)+')';
   document.getElementById('prog-label').textContent=total>1?`${done} / ${total} weeks`:done===1?'Done':'Waiting…';
   document.getElementById('prog-pct').textContent=p+'%';
 }
@@ -606,7 +622,7 @@ async function startFetch() {
   const btn = document.getElementById('start-btn');
   btn.disabled = true;
   setStatus('running');
-  appendLog('Starting sequential fetch (one week per request)...');
+  appendLog('Starting sequential fetch (one week per request)…');
   
   let allRecords = [];
   let offset = 0;
@@ -618,7 +634,7 @@ async function startFetch() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     totalWeeks = data.totalWeeks || 0;
-    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each...`);
+    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each…`);
   } catch (err) {
     appendLog(`Error getting total weeks: ${err.message}`, 'err');
     btn.disabled = false;
@@ -628,7 +644,7 @@ async function startFetch() {
   
   for (offset = 0; offset < totalWeeks; offset++) {
     setProgress(offset, totalWeeks);
-    appendLog(`Fetching week ${offset+1}/${totalWeeks}...`);
+    appendLog(`Fetching week ${offset+1}/${totalWeeks}…`);
     
     try {
       const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
@@ -663,7 +679,8 @@ async function startFetch() {
     const latest = records[records.length-1];
     if (latest) {
       // latest.date is the "as on" (previous) Friday; link and label should reflect publication Friday (as-on + 7 days)
-      const asOn = new Date(latest.date);
+      const [ay,am,ad] = latest.date.split('-').map(Number);
+      const asOn = new Date(ay, am-1, ad);
       const pub = new Date(asOn);
       pub.setDate(pub.getDate() + 7);
       const py = pub.getFullYear();
@@ -673,7 +690,7 @@ async function startFetch() {
       const footerLink = document.getElementById('footer-last-week');
       const footerLabel = document.getElementById('footer-last-week-label');
       footerLink.href = lastFridayUrl;
-      footerLabel.textContent = `RBI WSS — Latest available Friday (published ${pub.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+      footerLabel.textContent = `RBI WSS - Latest available Friday (published ${pub.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
     }
   } else {
     appendLog('❌ No records were fetched.', 'err');
@@ -716,7 +733,7 @@ function rebuildTable(){
   if(!last5.length) return;
   document.getElementById('tbl-empty').style.display='none';
   document.getElementById('tbl-container').style.display='block';
-  document.getElementById('tbl-updated').textContent=`Data through ${last5[last5.length-1].date}`;
+  document.getElementById('tbl-updated').textContent=`Data through ${fmtDate(last5[last5.length-1].date)}`;
   const body=document.getElementById('tbl-body');
   body.innerHTML='';
   last5.forEach((row,i)=>{
@@ -729,16 +746,16 @@ function rebuildTable(){
       const dFmt=d!=null?`<span class="cell-delta ${d>=0?'up':'dn'}">${d>=0?'+':''}${fmt(d,dec)}</span>`:'';
       return `<td><div class="cell-group"><div class="cell-main">${fmt(val,dec)}${suffix}</div>${dFmt}</div></td>`;
     }
-    const [y,m,d2] = row.date.split('-');
     // RBI link must use publication date (as-on date + 7 days, since report published Friday shows previous week's data)
-    const asOn = new Date(row.date);
+    const [ay,am,ad] = row.date.split('-').map(Number);
+    const asOn = new Date(ay, am-1, ad);
     const pub = new Date(asOn);
     pub.setDate(pub.getDate() + 7);
     const py = pub.getFullYear();
     const pm = pub.getMonth() + 1;
     const pd = pub.getDate();
     const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pm}/${pd}/${py}`;
-    tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:500">${row.date}</a>${isLatest?' <span style="font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
+    tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;          font-weight:500">${fmtDate(row.date)}</a>${isLatest?' <span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
       + cell(row.total_usd, prev?.total_usd)
       + cell(row.total_inr, prev?.total_inr)
       + cell(row.gold_usd,  prev?.gold_usd)
@@ -756,7 +773,7 @@ function rebuildEqTable(){
   if(!last5.length) return;
   document.getElementById('eq-tbl-empty').style.display='none';
   document.getElementById('eq-tbl-container').style.display='block';
-  document.getElementById('eq-tbl-updated').textContent=`Data through ${last5[last5.length-1].date}`;
+  document.getElementById('eq-tbl-updated').textContent=`Data through ${fmtDate(last5[last5.length-1].date)}`;
   const body=document.getElementById('eq-tbl-body');
   body.innerHTML='';
   const firstN = records[0] ? records[0].nifty : null;
@@ -773,7 +790,7 @@ function rebuildEqTable(){
     }
     const ytdN = firstN!=null && row.nifty!=null ? +((row.nifty - firstN)/firstN *100).toFixed(2) : null;
     const ytdS = firstS!=null && row.sensex!=null ? +((row.sensex - firstS)/firstS *100).toFixed(2) : null;
-    tr.innerHTML=`<td class=\"date-cell\">${row.date}${isLatest?' <span style=\"font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle\">latest</span>':''}</td>`
+    tr.innerHTML=`<td class=\"date-cell\">${fmtDate(row.date)}${isLatest?' <span style=\"font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle\">latest</span>':''}</td>`
       + cell(row.nifty, prev?.nifty,1)
       + cell(row.nifty!=null&&prev?.nifty!=null ? row.nifty-prev.nifty : null, null,1)
       + cell(row.nifty!=null&&prev?.nifty!=null ? +((row.nifty-prev.nifty)/prev.nifty*100).toFixed(2) : null, null,2,'%')
@@ -791,7 +808,7 @@ function rebuildRupeeEqTable(){
   if(!last5.length) return;
   document.getElementById('rupee-eq-tbl-empty').style.display='none';
   document.getElementById('rupee-eq-tbl-container').style.display='block';
-  document.getElementById('rupee-eq-tbl-updated').textContent=`Up to latest available (last record ${last5[last5.length-1].date})`;
+  document.getElementById('rupee-eq-tbl-updated').textContent=`Up to latest available (last record ${fmtDate(last5[last5.length-1].date)})`;
   const body=document.getElementById('rupee-eq-tbl-body');
   body.innerHTML='';
   const firstUsd = records[0] ? records[0].usd_inr : null;
@@ -808,7 +825,7 @@ function rebuildRupeeEqTable(){
     }
     const ytdUsd = firstUsd!=null && row.usd_inr!=null ? +((row.usd_inr - firstUsd)/firstUsd *100).toFixed(2) : null;
     const ytdEur = firstEur!=null && row.eur_inr!=null ? +((row.eur_inr - firstEur)/firstEur *100).toFixed(2) : null;
-    tr.innerHTML=`<td class="date-cell">${row.date}${isLatest?' <span style="font-size:9px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
+    tr.innerHTML=`<td class="date-cell">${fmtDate(row.date)}${isLatest?' <span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle">latest</span>':''}</td>`
       + cell(row.usd_inr, prev?.usd_inr,2)
       + cell(row.usd_inr!=null&&prev?.usd_inr!=null ? row.usd_inr-prev.usd_inr : null, null,2)
       + cell(row.usd_inr!=null&&prev?.usd_inr!=null ? +((row.usd_inr-prev.usd_inr)/prev.usd_inr*100).toFixed(2) : null, null,2,'%')
@@ -997,7 +1014,7 @@ async function renderCrudeSection() {
       const indiaBound = c.tankers.length;
 
       kpiDiv.innerHTML = [
-        latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${latest.date} · ${latest.methodology}</div></div>` : '',
+        latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${fmtDate(latest.date)} · ${latest.methodology}</div></div>` : '',
         avg    ? `<div class="mc"><div class="mc-label">Avg BPD (window)</div><div class="mc-val">${avg.toLocaleString()}</div><div class="mc-sub">${daily.length} days</div></div>` : '',
         totalArr ? `<div class="mc"><div class="mc-label">Tanker Arrivals</div><div class="mc-val">${totalArr.toLocaleString()}</div><div class="mc-sub">in window</div></div>` : '',
         indiaBound ? `<div class="mc"><div class="mc-label">India-Bound Now</div><div class="mc-val">${indiaBound}</div><div class="mc-sub">AIS tracked</div></div>` : '',
@@ -1115,7 +1132,7 @@ async function renderCrudeSection() {
       dailyBody.innerHTML = '';
       daily.slice(-10).forEach(d => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${d.date}</td>`
+        tr.innerHTML = `<td>${fmtDate(d.date)}</td>`
           + `<td class="num">${d.barrels_per_day ? d.barrels_per_day.toLocaleString() : '—'}</td>`
           + `<td class="num">${d.tanker_arrivals != null ? d.tanker_arrivals : '—'}</td>`
           + `<td class="num">${d.tanker_total_dwt ? d.tanker_total_dwt.toLocaleString() : '—'}</td>`
@@ -1193,8 +1210,9 @@ updateUI = function() {
 };
 
 showSection = function(name, el) {
-  _rbiShowSection(name, el);
+  const r = _rbiShowSection(name, el);
   if (name === 'crude') renderCrudeSection().catch(()=>{});
+  return r;
 };
 
 
@@ -1213,7 +1231,7 @@ function renderWeeklySummary(){
   const dGold  = P ? (L.gold_usd||0)  - (P.gold_usd||0)  : null;
   const dUsd   = (P && L.usd_inr && P.usd_inr) ? +(L.usd_inr - P.usd_inr).toFixed(2) : null;
   const dNifty = (P && L.nifty && P.nifty)      ? +(L.nifty    - P.nifty).toFixed(1) : null;
-  let txt = `RBI WSS — <strong>as on ${L.date}</strong>: forex reserves <strong>${dRes==null?'recorded':(dRes>=0?'rose by':'fell by')} ${fmt(Math.abs(dRes||0))} USD mn</strong> to <strong>${fmt(L.total_usd)} USD mn</strong> (≈ ₹${fmt(L.total_inr||0)} cr).`;
+  let txt = `RBI WSS - <strong>as on ${fmtDate(L.date)}</strong>: forex reserves <strong>${dRes==null?'recorded':(dRes>=0?'rose by':'fell by')} ${fmt(Math.abs(dRes||0))} USD mn</strong> to <strong>${fmt(L.total_usd)} USD mn</strong> (≈ ₹${fmt(L.total_inr||0)} cr).`;
   txt += ` Gold holdings: <strong>${fmt(L.gold_usd)} USD mn</strong>` + (Math.abs(dGold||0) > 0.5 ? ` (${dGold>=0?'up':'down'} ${fmt(Math.abs(dGold))})` : ``) + `.`;
   txt += ` USD/INR closed at <strong>${fmt(L.usd_inr,2)}</strong>` + (dUsd ? `, ${dUsd>0?'weakening':'strengthening'} by ${Math.abs(dUsd).toFixed(2)}.` : '.');
   txt += ` Nifty 50: <strong>${fmt(L.nifty,1)}</strong>` + (dNifty != null ? ` (${dNifty>0?'+':''}${dNifty}).` : '.');
@@ -1279,7 +1297,7 @@ function renderImportBill(){
   if(!el || !sub) return;
   if(!bpd || !usdInr || !brent){
     el.textContent = '—';
-    sub.textContent = 'awaiting data — fetch RBI + crude first';
+    sub.textContent = 'awaiting data - fetch RBI + crude first';
     return;
   }
   const billUsd   = bpd * 30 * brent;
@@ -1332,6 +1350,13 @@ function hashLoad(){
   if(params.tab){
     const link = document.querySelector(`.nav-link[onclick*="'${params.tab}'"]`);
     if(link) showSection(params.tab, link);
+  } else {
+    // Support plain #sec-* anchors (nav hrefs) for middle-click / Cmd+click deep links.
+    const m = h.match(/^sec-([a-z]+)$/);
+    if(m){
+      const link = document.querySelector(`.nav-link[onclick*="'${m[1]}'"]`);
+      if(link) showSection(m[1], link);
+    }
   }
   if(params.modes){
     params.modes.split(',').forEach(kv => {
@@ -1353,8 +1378,9 @@ function hashLoad(){
 // reference showSection/sw via the global scope, so the rebinds below take effect.
 const _orig_showSection = showSection;
 showSection = function(name, el){
-  _orig_showSection(name, el);
+  const r = _orig_showSection(name, el);
   hashSave();
+  return r;
 };
 const _orig_sw = sw;
 sw = function(el, group, mode){
@@ -1387,13 +1413,12 @@ const MACRO_ENDPOINTS = {
 };
 let macroData  = {};
 let emPeerData = null;
-let eventsEnabled = false;
 let fiiHistChart = null;
 
 // Hard-coded macro events registry (Fed + RBI MPC + selected geopolitics).
-// The annotation plugin is not loaded — we mark eventsEnabled and surface a
-// footer count when "⚑ Events" tab is active; full vertical-line rendering
-// lands in a follow-up when chartjs-plugin-annotation is added to the bundle.
+// The annotation plugin is not loaded: the "⚑ Events" tab surfaces a footer
+// count instead of vertical lines. Full rendering lands when
+// chartjs-plugin-annotation is added to the bundle.
 const MACRO_EVENTS = [
   { date:'2024-06-07', label:'RBI MPC: hold 6.50%' },
   { date:'2024-08-08', label:'RBI MPC: hold 6.50%' },
@@ -1444,12 +1469,19 @@ function renderMacroCards(){
     const reer = macroData.reer   || {};
     const fx   = macroData.fxintv || {};
 
+    // Honest labeling: when fetch-fii serves its curated fallback, say so in the
+    // sub-label instead of claiming "net today" with last-known figures.
+    const fiiSub = (fii.equity_net_cr != null || fii.debt_net_cr != null)
+      ? (fii.status === 'static fallback'
+          ? 'NSDL fallback · ' + (fii.as_of_date || 'last-known')
+          : 'NSDL · ₹ cr, net today')
+      : 'unavailable';
     setMctxVal('fpi-equity', fii.equity_net_cr != null
               ? (fii.equity_net_cr >= 0 ? '+' : '') + fii.equity_net_cr.toLocaleString('en-IN')
-              : null, fii.equity_net_cr != null ? 'NSDL · ₹ cr · net today' : 'unavailable');
+              : null, fiiSub);
     setMctxVal('fpi-debt', fii.debt_net_cr != null
               ? (fii.debt_net_cr >= 0 ? '+' : '') + fii.debt_net_cr.toLocaleString('en-IN')
-              : null, fii.debt_net_cr != null ? 'NSDL · ₹ cr · net today' : 'unavailable');
+              : null, fiiSub);
 
     // FII + DII YTD aggregates from the 6-month history endpoint
     const fiih = macroData.fiih || {};
@@ -1490,7 +1522,7 @@ function renderMacroCards(){
     const lastEvt = MACRO_EVENTS.filter(e => e.date <= new Date().toISOString().slice(0,10)).slice(-1)[0];
     if(lastEvt){
       const note = document.getElementById('events-last-note');
-      if(note) note.textContent = `Last in registry: ${lastEvt.date} — ${lastEvt.label}`;
+      if(note) note.textContent = `Last in registry: ${lastEvt.date} - ${lastEvt.label}`;
     }
 
     // Repo rate in the mex row
@@ -1640,7 +1672,6 @@ const _origSw = sw;
 sw = function(el, group, mode){
   _origSw(el, group, mode);
   if(group === 'fx' && mode === 'events'){
-    eventsEnabled = !eventsEnabled;
     rebuildFx();
   }
 };

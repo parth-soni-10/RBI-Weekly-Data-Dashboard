@@ -81,7 +81,7 @@ exports.handler = async () => {
           fetched_at: new Date().toISOString(),
           source:     "PIB press releases",
           status:     "static fallback",
-          error:      "no recent press release matched GST pattern",
+          error:      "no recent press release matched GST pattern - showing last-known totals",
           ...FALLBACK,
           month,
         }),
@@ -109,7 +109,7 @@ exports.handler = async () => {
         fetched_at: new Date().toISOString(),
         source:     "PIB press releases",
         status:     "static fallback",
-        error:      e.message,
+        error:      e.message + " - showing last-known totals",
         ...FALLBACK,
       }),
     };

@@ -20,7 +20,7 @@ function getAllFridaysUntilToday(startISO) {
   const dow = start.getDay(); // 0=Sun, 5=Fri
   const skip = dow <= 5 ? 5 - dow : 12 - dow;
   const cur = new Date(start);
-  cur.setDate(cur.getDate() + (skip === 0 ? 7 : skip));
+  cur.setDate(cur.getDate() + skip); // include the start date itself if it is already a Friday
   while (cur <= end) {
     fridays.push(new Date(cur));
     cur.setDate(cur.getDate() + 7);
@@ -338,12 +338,12 @@ async function processOneFriday(pubFriday) {
     const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(pubFriday)}`, 10000);
     html = await res.text();
   } catch(e) {
-    return { iso, error: `RBI page: ${e.message}` };
+    return { iso, error: `RBI page: ${e.message} - retry on next request` };
   }
 
   // 2. Find Excel links (now matches Python "Foreign Exchange Reserves" row logic primarily)
   const urls = findExcelUrls(html);
-  if (!urls.reserves) return { iso, error: "no reserves Excel link on page" };
+  if (!urls.reserves) return { iso, error: "no reserves Excel link on page - RBI may not have published this week; retry later" };
 
   // 3. Yahoo targets use the as-on Friday (previous week) for all.
   // Nifty and Sensex (and rupee) for the latest record will be the values at scrape time (up to latest available).
@@ -357,11 +357,11 @@ async function processOneFriday(pubFriday) {
     getYahooClose("EURINR=X", asOn),
   ]);
 
-  if (!resBuf) return { iso, error: "reserves Excel download failed" };
+  if (!resBuf) return { iso, error: "reserves Excel download failed - will retry on next request" };
 
   // 4. Parse
   const reserves = parseReservesExcel(resBuf);
-  if (reserves.total_usd == null) return { iso, error: "could not parse total_usd from Excel" };
+  if (reserves.total_usd == null) return { iso, error: "could not parse total_usd from Excel - retry on next request" };
 
   const spot = spotBuf ? parseSpotRateExcel(spotBuf) : { usd_inr: null, eur_inr: null };
 
@@ -392,7 +392,7 @@ exports._processOne    = processOneFriday;
 
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
-  const startYear = parseInt(qs.startYear ?? new Date().getFullYear());
+  const startYear = parseInt(qs.startYear ?? "") || new Date().getFullYear();
   const allFridays = getAllFridaysUntilToday(`${startYear}-01-01`);
   const total = allFridays.length;
 

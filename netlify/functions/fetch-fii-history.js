@@ -200,6 +200,9 @@ exports.handler = async () => {
       status,
       count: series.length,
       errors: errors.length ? errors : undefined,
+      error: status === "static fallback"
+        ? (errors.length ? errors.join("; ") : "all sources returned no parseable rows") + " - showing curated fallback series"
+        : undefined,
       series: recent.map(r => ({
         date: r.date,
         fii_equity_cr: r.fii_equity_cr,

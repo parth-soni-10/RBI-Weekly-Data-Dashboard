@@ -105,14 +105,14 @@ exports.handler = async () => {
 
     if (equity_net_cr == null && debt_net_cr == null) {
       status = "static fallback";
-      error  = "NSDL page returned no parseable rows";
+      error  = "NSDL page returned no parseable rows - showing last-known figures; auto-retry on next request";
       if (!as_of_date) as_of_date = FALLBACK.as_of_date;
       equity_net_cr = FALLBACK.equity_net_cr;
       debt_net_cr   = FALLBACK.debt_net_cr;
     }
   } catch (e) {
     status = "static fallback";
-    error  = e.message;
+    error  = e.message + " - showing last-known figures; auto-retry on next request";
     if (!as_of_date) as_of_date = FALLBACK.as_of_date;
     equity_net_cr = FALLBACK.equity_net_cr;
     debt_net_cr   = FALLBACK.debt_net_cr;

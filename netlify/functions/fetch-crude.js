@@ -552,7 +552,7 @@ exports.handler = async (event) => {
         fetchYahooPrice("CL=F"),
       ]);
       if (brentRes.price === null && wtiRes.price === null) {
-        return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Yahoo Finance unavailable" }) };
+        return { statusCode: 502, headers: CORS, body: JSON.stringify({ status: "error", error: "Yahoo Finance unavailable - retry in a few minutes" }) };
       }
       return {
         statusCode: 200, headers: CORS,
@@ -626,7 +626,7 @@ exports.handler = async (event) => {
   } catch (err) {
     return {
       statusCode: 500, headers: CORS,
-      body: JSON.stringify({ error: err.message }),
+      body: JSON.stringify({ status: "error", error: "crude fetch failed - " + err.message + "; retry shortly" }),
     };
   }
 };

@@ -16,7 +16,7 @@
 //     repo_rate_pct, repo_rate_date, repo_history, status
 //   }
 
-const { get, parseNum } = require("./_utils/http");
+const { get } = require("./_utils/http");
 
 const CORS = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=900" };
 

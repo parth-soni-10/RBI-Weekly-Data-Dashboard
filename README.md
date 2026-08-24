@@ -2,7 +2,7 @@
 
 A live dashboard that scrapes the Reserve Bank of India's **Weekly Statistical Supplement (WSS)** and displays foreign exchange reserves, gold holdings, rupee spot rates, and equity market data — all in one place.
 
-Built as a static site deployable on **Netlify**, with a serverless function handling all the data fetching.
+Built as a static site deployable on **Netlify**, with serverless functions handling all the data fetching.
 
 ---
 
@@ -12,7 +12,7 @@ Built as a static site deployable on **Netlify**, with a serverless function han
 |------|--------|------|
 | Total forex reserves | RBI WSS Excel | USD million & ₹ crore |
 | Gold holdings | RBI WSS Excel | USD million, ₹ crore, metric tonnes |
-| Rupee spot rate | RBI WSS Excel | INR per USD & INR per EUR |
+| Rupee spot rate | Yahoo Finance + RBI WSS Excel | INR per USD & INR per EUR |
 | Nifty 50 close | Yahoo Finance | Index points (Friday) |
 | Sensex close | Yahoo Finance | Index points (Friday) |
 
@@ -24,14 +24,28 @@ All data points correspond to **Friday closing / reporting dates**, starting fro
 
 ```
 rbi-dashboard/
-├── netlify.toml                  # Build config — publish dir + function dir
-├── package.json                  # Node dependencies for the serverless function
+├── netlify.toml                  # Build config — publish dir + function dir + timeouts
+├── package.json                  # Node dependencies for the serverless functions
 ├── README.md
 ├── netlify/
 │   └── functions/
-│       └── fetch-data.js         # Serverless scraper (runs on Netlify)
+│       ├── fetch-data.js         # RBI WSS scraper (weekly reserves/rates/indices)
+│       ├── fetch-crude.js        # Crude imports (PPAC + TankerMap AIS + Yahoo)
+│       ├── fetch-fii.js          # NSDL FPI daily flows
+│       ├── fetch-fii-history.js  # 6-month FII + DII series (NSDL + CDSL)
+│       ├── fetch-gsec.js         # 10Y G-Sec yield + repo rate history
+│       ├── fetch-tax.js          # CBIC indirect tax receipts
+│       ├── fetch-reer.js         # INR REER (36-country)
+│       ├── fetch-fx-intervention.js  # RBI Forward Position of the Rupee
+│       ├── data-latest.js        # Public JSON: latest week (/data/latest.json)
+│       ├── data-forex-weekly.js  # Public JSON: last N weeks
+│       ├── data-crude-bpd.js     # Public JSON: Brent/WTI/Urals snapshot
+│       └── _utils/http.js        # Shared fetch + HTML-table helpers
 └── public/
-    └── index.html                # Full dashboard — charts, metrics, 5-week table
+    ├── index.html                # Full dashboard — charts, metrics, tables, crude
+    ├── _redirects                # /data/*.json → serverless functions
+    └── embed/
+        └── forex-reserves.html   # Embeddable forex-reserves widget
 ```
 
 ---
@@ -44,33 +58,33 @@ rbi-dashboard/
 Browser clicks "Fetch data"
         │
         ▼
-POST /.netlify/functions/fetch-data
+GET /.netlify/functions/fetch-data?weekOffset=N  (one week per request, sequential)
         │
-        ├─→ Yahoo Finance API (Nifty + Sensex, both in parallel)
+        ├─→ RBI WSS page (HTML) — find Excel links
         │
-        └─→ For each Friday since Jan 1 2026 (batches of 4, concurrent):
-                │
-                ├─→ RBI WSS page (HTML) — find Excel links
-                │
-                └─→ Download both Excel files in parallel:
-                        ├─ Foreign Exchange Reserves.xlsx → reserves + gold
-                        └─ Foreign Exchange Market.xlsx   → USD/INR, EUR/INR spot rates
+        └─→ Download both Excel files in parallel:
+                ├─ Foreign Exchange Reserves.xlsx → reserves + gold
+                └─ Foreign Exchange Market.xlsx   → USD/INR, EUR/INR spot rates
+            + Yahoo Finance (Nifty, Sensex, USD/INR, EUR/INR) in parallel
         │
         ▼
-Returns JSON { records, logs, lastFridayUrl }
+Returns JSON { record, error, iso, weekIndex, totalWeeks }
         │
         ▼
-Frontend renders charts + metric cards + 5-week table
+Frontend renders charts + metric cards + tables + weekly summary
 ```
 
 ### Frontend
 
 - Single `index.html` — no build step, no framework
-- Two tabs: **Dashboard** (charts + metric cards) and **5-Week Table**
+- Three tabs: **Dashboard** (charts + metric cards + macro context), **10-Week Table**, and **Crude Oil Imports**
 - All charts built with [Chart.js 4](https://www.chartjs.org/)
-- Charts are tabbed: switch between USD/INR, gold series, both indices, etc.
-- 5-week table shows every column with week-on-week Δ and direct links to each Friday's RBI report page
+- Charts are tabbed: switch between USD/INR, gold series, both indices, EM peers, events, etc.
+- Macro context row: FPI equity/debt, YTD FII/DII, 10Y G-Sec yield, CBIC tax, REER, RBI Forward Position (loaded async from the macro functions)
+- 10-week table shows every column with week-on-week Δ and direct links to each Friday's RBI report page
+- Crude Oil Imports tab: live BPD estimates, prices, port arrivals, tankers (fetch-crude)
 - Footer link to the latest fetched Friday auto-updates after each fetch
+- Embeddable forex-reserves widget at `public/embed/forex-reserves.html`
 
 ---
 
@@ -101,11 +115,7 @@ netlify deploy --prod
 
 ### ⚠️ Function timeout
 
-Netlify free tier has a **10-second default** function timeout. The scraper needs up to ~40 seconds for a full year of Fridays.
-
-**Fix:** Netlify dashboard → Site settings → Functions → set timeout to **26 seconds** (max on free tier).
-
-If 26s is still tight: the parallel batch size is set to 4 in `fetch-data.js` — you can increase it to 6–8, but be mindful of rate-limiting from RBI's server.
+The scraper can need ~30+ seconds for a full year of Fridays. Timeouts are pre-configured in `netlify.toml` (26s for `fetch-data` / `fetch-crude` / `fetch-fii-history`, 20s for the other macro scrapers). If you remove that config, Netlify's default 10s limit will time the long runs out.
 
 ---
 
@@ -142,7 +152,7 @@ Then open `http://localhost:8888` — the function runs at `/.netlify/functions/
 | Library | How loaded | Purpose |
 |---------|-----------|---------|
 | Chart.js 4.4.1 | CDN (cdnjs) | Bar + line charts |
-| DM Sans / DM Mono | Google Fonts | Typography |
+| Inter / DM Mono | Google Fonts | Typography |
 
 No build tooling, no bundler, no npm for the frontend.
 
@@ -168,4 +178,4 @@ No API keys are required. The Yahoo Finance chart API endpoint used (`/v8/financ
 - **Spot rate table** — RBI labels this table differently across years ("Foreign Exchange Market", "Exchange Rate", "Spot Rate"). The scraper tries all three keywords.
 - **Gold tonnes** — parsed from either a dedicated "metric tonnes" row or as the third numeric value in the gold row, whichever is found first.
 - **Nifty/Sensex date alignment** — Yahoo returns weekly bars whose timestamps don't always land exactly on Friday. The scraper snaps each timestamp to the nearest Friday before building the date→value map.
-- **Data is fetched fresh on every button click** — there is no caching between sessions. Results are held in browser memory only.
+- **Data is fetched fresh on every button click** — results are held in browser memory. The public JSON endpoints (`/data/*.json`) are cache-enabled server-side (`Cache-Control` headers) so embeds don't burn a function invocation on every load.
