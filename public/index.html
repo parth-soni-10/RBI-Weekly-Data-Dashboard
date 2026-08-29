@@ -399,6 +399,15 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
   .nav-link:hover,.tab:hover:not(.on),.dl:hover,.src-link:hover,.src-link.last-week:hover,
   .btn:hover{transform:none!important;box-shadow:var(--shadow-sm)!important}
 }
+
+/* ─── Lucide icon sizing ─── */
+.nav-link .lucide{width:15px;height:15px;margin-right:6px;flex-shrink:0}
+.status-pill .lucide{width:14px;height:14px;color:#4b5563;flex-shrink:0}
+.btn .lucide,.dl .lucide,.tab .lucide{width:14px;height:14px;flex-shrink:0;display:inline-block;vertical-align:-1px}
+.btn .lucide{margin-right:4px}
+.dl .lucide{margin-right:6px}
+.tab .lucide{margin-right:5px}
+.lucide{stroke:currentColor}
 </style>
 </head>
 <body>
@@ -415,15 +424,16 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
   </div>
   <div class="head-right">
     <nav class="nav-links" id="site-nav" aria-label="Primary">
-      <a class="nav-link active" href="#sec-dashboard" onclick="return showSection('dashboard',this)">Dashboard</a>
-      <a class="nav-link" href="#sec-table" onclick="return showSection('table',this)">10-Week Table</a>
-      <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)">Crude Oil Imports</a>
-      <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)">PM CARES Fund</a>
+      <a class="nav-link active" href="#sec-dashboard" onclick="return showSection('dashboard',this)"><i data-lucide="layout-dashboard"></i>Dashboard</a>
+      <a class="nav-link" href="#sec-table" onclick="return showSection('table',this)"><i data-lucide="table-2"></i>10-Week Table</a>
+      <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
+      <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
     </nav>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>
     </button>
     <div class="status-pill">
+      <i data-lucide="activity"></i>
       <div class="dot" id="status-dot"></div>
       <span id="status-text" aria-live="polite">Idle</span>
     </div>
@@ -437,7 +447,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
   <div class="fetch-panel">
     <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json</div>
     <div id="log-box" aria-live="polite"></div>
-    <button class="btn" id="start-btn" onclick="startFetch()">↺ Reload data</button>
+    <button class="btn" id="start-btn" onclick="startFetch()"><i data-lucide="rotate-cw"></i> Reload data</button>
   </div>
 
   <!-- Weekly summary panel — populated by JS after records are loaded -->
@@ -445,7 +455,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     <div class="panel-label">This week at a glance</div>
     <p id="weekly-summary-text" aria-live="polite">—</p>
     <div class="dl-row mt1">
-      <button class="dl" onclick="dlCSV('tab')">⤓ Download 10-week table (CSV)</button>
+      <button class="dl" onclick="dlCSV('tab')"><i data-lucide="download"></i> Download 10-week table (CSV)</button>
     </div>
   </div>
 
@@ -550,7 +560,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations">⚑ Events</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations"><i data-lucide="flag"></i> Events</button></div>
       <div id="events-last-note"></div>
       <div class="chart-wrap"><canvas id="cFx" role="img" aria-label="Line chart of rupee spot rate"></canvas></div>
     </div>
@@ -756,7 +766,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     <div class="tbl-header">
       <h2>Year-by-year: audited Receipt &amp; Payment Accounts (₹ crore)</h2>
       <div class="hdr-actions">
-        <button class="dl" onclick="dlPmCaresCSV()">⤓ Download as CSV</button>
+        <button class="dl" onclick="dlPmCaresCSV()"><i data-lucide="download"></i> Download as CSV</button>
         <span class="panel-label inline">FY = 1 April - 31 March</span>
       </div>
     </div>
@@ -956,7 +966,8 @@ async function startFetch() {
     setStatus('error');
   }
   btn.disabled = false;
-  btn.textContent = '↺ Reload data';
+  btn.innerHTML = '<i data-lucide="rotate-cw" aria-hidden="true"></i> Reload data';
+  if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
 }
 
 // Point the footer's "latest Friday" link at the most recent record we have.
@@ -2035,5 +2046,7 @@ function dlPmCaresCSV(){
   URL.revokeObjectURL(a.href);
 }
 </script>
+<script src="lucide.min.js"></script>
+<script>lucide.createIcons({ nameAttr: 'data-lucide' });</script>
 </body>
 </html>
