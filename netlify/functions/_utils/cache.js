@@ -42,4 +42,4 @@ setInterval(() => {
   for (const [k, v] of store) if (now - v.t >= DAY) store.delete(k);
 }, 30 * 60 * 1000).unref();
 
-module.exports = { withCache, _store: store };
+module.exports = { withCache };

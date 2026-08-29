@@ -53,3 +53,9 @@ netlify.toml            → Publish/functions config + per-function timeouts
 - Do not commit `public/rbi-data.json` manually unless it's the intentional baseline; the Action owns refreshes
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
+
+## Icons (Lucide)
+- Icons come from a vendored copy of Lucide (`public/lucide.min.js`, pinned 0.462.0). Add `<i data-lucide="name"></i>` to markup; `lucide.createIcons()` runs at end of `<body>`.
+- Icon lookup keys are PascalCase at runtime (`data-lucide="ship"` → `Ship`). Not every Lucide name exists in this pinned build — verify an icon name against `lucide.icons` before using it (e.g. `barrel` and `droplets` do NOT exist here; `ship`, `fuel`, `factory`, `hand-heart`, `table-2` do).
+- The Reload button re-injects its icon after load: `btn.innerHTML = '<i data-lucide="rotate-cw"></i> Reload data'` then re-runs `lucide.createIcons()`.
+- Size icons via the `.lucide` rules at the bottom of the inline `<style>` (in nav/status/btn/dl/tab). SVGs inherit `currentColor`.
