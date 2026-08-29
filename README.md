@@ -15,6 +15,9 @@ Built as a static site deployable on **Netlify**, with serverless functions hand
 | Rupee spot rate | Yahoo Finance + RBI WSS Excel | INR per USD & INR per EUR |
 | Nifty 50 close | Yahoo Finance | Index points (Friday) |
 | Sensex close | Yahoo Finance | Index points (Friday) |
+| PM CARES Fund (curated) | Audited Receipt & Payment Accounts | ₹ crore per financial year |
+
+Live crude-oil import estimates (PPAC + TankerMap AIS + Brent/WTI spot) and macro-context tiles (FPI flows, G-Sec yield, CBIC tax, REER, RBI FX forward position) are also shown, fetched on demand from the serverless functions.
 
 All data points correspond to **Friday closing / reporting dates**, starting from **January 1, 2026**.
 
@@ -27,6 +30,10 @@ rbi-dashboard/
 ├── netlify.toml                  # Build config — build command + publish dir + functions + timeouts
 ├── package.json                  # Node deps + npm scripts (fetch:data regenerates the data file)
 ├── README.md
+├── CLAUDE.md                     # Onboarding notes for AI coding agents
+├── .github/
+│   └── workflows/
+│       └── refresh-data.yml      # Daily cron: refresh + commit rbi-data.json
 ├── scripts/
 │   └── fetch-all.js              # Regenerates public/rbi-data.json from RBI + Yahoo
 ├── netlify/
@@ -42,9 +49,11 @@ rbi-dashboard/
 │       ├── data-latest.js        # Public JSON: latest week (/data/latest.json)
 │       ├── data-forex-weekly.js  # Public JSON: last N weeks
 │       ├── data-crude-bpd.js     # Public JSON: Brent/WTI/Urals snapshot
-│       └── _utils/http.js        # Shared fetch + HTML-table helpers
+│       └── _utils/
+│           ├── http.js           # Shared fetch + HTML-table helpers
+│           └── cache.js          # In-memory TTL memoization for heavy scrapers
 └── public/
-    ├── index.html                # Full dashboard — charts, metrics, tables, crude
+    ├── index.html                # Full dashboard — charts, metrics, tables, crude, PM CARES
     ├── rbi-data.json             # STATIC DATA FILE — all fetched RBI weekly records
     ├── _redirects                # /data/*.json → serverless functions
     └── embed/
@@ -107,12 +116,14 @@ Frontend GET /rbi-data.json → renders charts + metrics + tables + summary
 ### Frontend
 
 - Single `index.html` — no build step, no framework
-- Three tabs: **Dashboard** (charts + metric cards + macro context), **10-Week Table**, and **Crude Oil Imports**
-- All charts built with [Chart.js 4](https://www.chartjs.org/)
+- Four tabs: **Dashboard** (charts + metric cards + macro context), **10-Week Table**, **Crude Oil Imports**, and **PM CARES Fund**
+- All charts built with [Chart.js 4](https://www.chartjs.org/), loaded with `defer` so it never blocks first paint
 - Charts are tabbed: switch between USD/INR, gold series, both indices, EM peers, events, etc.
 - Macro context row: FPI equity/debt, YTD FII/DII, 10Y G-Sec yield, CBIC tax, REER, RBI Forward Position (loaded async from the macro functions)
 - 10-week table shows every column with week-on-week Δ and direct links to each Friday's RBI report page
-- Crude Oil Imports tab: live BPD estimates, prices, port arrivals, tankers (fetch-crude)
+- Crude Oil Imports tab: live BPD estimates, prices, port arrivals, tankers (fetch-crude), memoized in-page so repeat visits share one fetch
+- **PM CARES Fund tab**: year-by-year audited Receipt & Payment Accounts (receipts, interest, disbursements, closing balance) with downloadable PDF evidence, plus EM-DAT natural-disaster counts per year and whether any relief was disbursed. Curated from the audited PDFs (they are scanned images, so not auto-scraped)
+- Mobile-first: collapsible hamburger nav on small screens, a progressively-collapsible sticky header (hides on scroll down, reveals on scroll up), and tables that scroll inside their containers instead of widening the page
 - Footer link to the latest fetched Friday auto-updates after each fetch
 - Embeddable forex-reserves widget at `public/embed/forex-reserves.html`
 
