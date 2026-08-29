@@ -1,6 +1,9 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+  # Regenerate the static data file on every deploy so the site always ships
+  # with the latest RBI weekly reports. See scripts/fetch-all.js.
+  command = "npm run fetch:data"
 
 [functions]
   node_bundler = "esbuild"

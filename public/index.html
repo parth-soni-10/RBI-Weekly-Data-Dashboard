@@ -11,223 +11,339 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* ─── Refreshed green palette with better shadows & elevation ─── */
 :root{
-  --bg:#f0fdf4;--surface:#fff;--s2:#dcfce7;--s3:#f0fdf4;
-  --border:#bbf7d0;--border2:#86efac;
+  --bg:#f4fdf7;--surface:#ffffff;--s2:#e2f5e9;--s3:#f4fdf7;
+  --border:#b9e5c6;--border2:#6ec98b;
   --text:#14532d;--muted:#6b7280;--muted2:#9ca3af;
-  --accent:#15803d;--accent-strong:#14532d;--dark:#14532d;
-  --up:#15803d;--dn:#dc2626;
-  --grid:rgba(0,0,0,0.04);--r:14px;--r-filter:6px;
+  --accent:#16a34a;--accent-strong:#14532d;--accent-glow:rgba(22,163,74,.12);--dark:#14532d;
+  --up:#16a34a;--dn:#dc2626;
+  --grid:rgba(0,0,0,.035);--r:14px;--r-filter:6px;
+  --shadow-sm:0 1px 2px rgba(20,83,45,.04);
+  --shadow:0 2px 8px rgba(20,83,45,.07),0 1px 3px rgba(20,83,45,.04);
+  --shadow-lg:0 6px 20px rgba(20,83,45,.09),0 2px 6px rgba(20,83,45,.05);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh}
+body{background:linear-gradient(180deg,#f4fdf7 0%,#edf8f0 40%,#e7f5ec 100%);
+  color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;min-height:100vh;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .skip-link{position:absolute;left:-9999px;top:0;z-index:300;background:var(--accent);color:#fff;padding:8px 14px;border-radius:0 0 6px 0;font-size:13px;font-weight:600;font-family:'Inter',sans-serif}
 .skip-link:focus{left:0}
 
-header{background:#fff;border-bottom:1.5px solid var(--border);padding:.85rem 2rem;
-  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+/* ─── Sticky header with subtle glassmorphism ─── */
+header{background:rgba(255,255,255,.88);backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 1px 6px rgba(20,83,45,.05);
+  padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+  transition:box-shadow .3s,background .3s}
 .logo{display:flex;align-items:center;gap:10px}
-.logo-badge{width:32px;height:32px;background:var(--accent);border-radius:50%;display:flex;
-  align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.logo-badge{width:34px;height:34px;background:linear-gradient(135deg,#22c55e 0%,#16a34a 60%,#15803d 100%);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(22,163,74,.25);letter-spacing:-.5px}
 .logo-text h1{font-size:14px;font-weight:600;color:var(--dark);line-height:1.2;font-family:'Inter',sans-serif}
 .logo-text span{font-size:12px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400}
 .nav-links{display:flex;align-items:center;gap:6px}
-.nav-link{height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:var(--r-filter);
+.nav-link{height:30px;display:inline-flex;align-items:center;padding:0 13px;border-radius:var(--r-filter);
   font-size:13px;line-height:16px;font-weight:500;color:var(--muted);
-  text-decoration:none;transition:background .15s,color .15s,border-color .15s;border:1px solid transparent;font-family:'Inter',sans-serif;
-  letter-spacing:.1px}
-.nav-link:hover{background:var(--s2);color:var(--dark);border-color:var(--border)}
-.nav-link.active{background:var(--accent);color:#fff}
-.status-pill{height:28px;display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--border);
-  border-radius:var(--r-filter);padding:0 12px;font-size:13px;line-height:16px;font-weight:500;color:#4b5563;
-  font-family:'Inter',sans-serif}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+  text-decoration:none;transition:all .2s cubic-bezier(.4,0,.2,1);
+  border:1px solid transparent;font-family:'Inter',sans-serif;letter-spacing:.1px}
+.nav-link:hover{background:var(--s2);color:var(--dark);border-color:var(--border);transform:translateY(-1px);
+  box-shadow:0 2px 6px rgba(20,83,45,.06)}
+.nav-link.active{background:var(--accent);color:#fff;
+  box-shadow:0 2px 8px rgba(22,163,74,.3);transform:translateY(-1px)}
+.status-pill{height:30px;display:flex;align-items:center;gap:6px;
+  background:rgba(226,245,233,.7);border:1px solid var(--border);
+  border-radius:var(--r-filter);padding:0 12px;font-size:13px;line-height:16px;font-weight:500;
+  color:#4b5563;font-family:'Inter',sans-serif}
+.dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex-shrink:0;transition:background .3s}
 .dot.running{background:var(--accent);animation:blink 1.2s infinite}
 .dot.done{background:var(--up)}.dot.error{background:var(--dn)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
+/* ─── Sections ─── */
 .section{display:none;max-width:1160px;margin:0 auto;padding:1.75rem 2rem;font-family:'Inter',sans-serif}
 .section.active{display:block}
 
-.fetch-panel{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
-  padding:1.4rem 16px;margin-bottom:1.5rem}
+/* ─── Fetch panel ─── */
+.fetch-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.4rem 16px;margin-bottom:1.5rem;
+  box-shadow:var(--shadow-sm);transition:box-shadow .3s}
+.fetch-panel:hover{box-shadow:var(--shadow)}
 .panel-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
   margin-bottom:.85rem;font-family:'Inter',sans-serif;display:block}
-.prog-track{height:5px;background:var(--s2);border-radius:3px;overflow:hidden;margin-bottom:5px}
-.prog-fill{height:100%;background:var(--accent);border-radius:3px;transform-origin:left center;transform:scaleX(0);transition:transform .35s ease}
-.prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
-  font-family:'DM Mono',monospace;margin-bottom:.85rem}
-#log-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem 1rem;
-  height:140px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:11px;line-height:1.9;color:var(--muted)}
+#log-box{background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:.6rem 1rem;
+  height:140px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:11px;line-height:1.9;
+  color:var(--muted);transition:background .2s}
 #log-box .ok{color:var(--up);font-weight:500}
 #log-box .err{color:var(--dn)}
 #log-box .warn{color:#b45309}
-.btn{height:28px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+
+/* ─── Buttons ─── */
+.btn{height:30px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   margin-top:.85rem;padding:0 16px;
-  background:var(--accent);color:#fff;border:none;border-radius:var(--r-filter);
+  background:linear-gradient(135deg,#22c55e 0%,var(--accent) 100%);color:#fff;
+  border:none;border-radius:var(--r-filter);
   font-family:'Inter',sans-serif;font-size:13px;line-height:16px;font-weight:500;
   letter-spacing:.1px;cursor:pointer;
-  transition:background .15s,transform .1s}
-.btn:hover{background:var(--accent-strong)}.btn:active{transform:scale(.98)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 2px 6px rgba(22,163,74,.25)}
+.btn:hover{background:linear-gradient(135deg,#16a34a 0%,var(--accent-strong) 100%);
+  transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,163,74,.3)}
+.btn:active{transform:translateY(0) scale(.98);box-shadow:0 1px 3px rgba(22,163,74,.2)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 
-/*download buttons injected by JS into chart-card headers and table headers*/
-.dl{height:28px;display:inline-flex;align-items:center;padding:0 12px;font-size:13px;
+/* ─── Download buttons ─── */
+.dl{height:30px;display:inline-flex;align-items:center;padding:0 12px;font-size:13px;
   line-height:16px;letter-spacing:.1px;background:var(--s2);border:1px solid var(--border);
   border-radius:var(--r-filter);cursor:pointer;color:var(--text);
-  font-family:'Inter',sans-serif;font-weight:500}
-.dl:hover{background:var(--surface);color:var(--dark)}
+  font-family:'Inter',sans-serif;font-weight:500;
+  transition:all .2s cubic-bezier(.4,0,.2,1)}
+.dl:hover{background:var(--surface);color:var(--dark);transform:translateY(-1px);
+  box-shadow:0 2px 6px rgba(20,83,45,.08)}
 .dl:active{transform:scale(.97)}
 .dl-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 html{-webkit-tap-highlight-color:transparent}
 .nav-link,.btn,.dl,.tab,.src-link{touch-action:manipulation}
 .nav-link:focus-visible,.btn:focus-visible,.dl:focus-visible,.tab:focus-visible,.src-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-/*weekly summary panel (top of dashboard) - mirrors .tbl-intro style*/
-.weekly-summary{background:var(--s3);border:1.5px solid var(--border);border-radius:var(--r);
-  padding:1.1rem 16px;margin-bottom:1.25rem;display:none}
+/* ─── Weekly summary ─── */
+.weekly-summary{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);
+  border:1px solid var(--border);border-radius:var(--r);
+  padding:1.1rem 16px;margin-bottom:1.25rem;display:none;
+  box-shadow:var(--shadow-sm)}
 .weekly-summary.show{display:block}
 .weekly-summary .panel-label{margin-bottom:.5rem}
 .weekly-summary p{font-size:14px;color:var(--dark);line-height:1.7;margin:0;font-family:'Inter',sans-serif}
 .weekly-summary strong{font-weight:600}
 
-/*hover-glossary — dotted underline + tooltip on metric labels that carry a data-glossary attribute*/
-[data-glossary]{ border-bottom:1px dotted var(--muted); cursor:help; position:relative; }
+/* ─── Glossary tooltips ─── */
+[data-glossary]{border-bottom:1px dotted var(--muted);cursor:help;position:relative}
 [data-glossary]:hover::after{
-  content:attr(data-glossary); position:absolute; left:0; top:calc(100% + 6px);
-  background:var(--dark); color:#dcfce7; padding:8px 11px; border-radius:6px;
-  font-size:11.5px; font-weight:400; line-height:1.5; max-width:280px;
-  z-index:9999; box-shadow:0 2px 8px rgba(0,0,0,0.12); white-space:normal;
-  text-transform:none; letter-spacing:0; font-family:'Inter',sans-serif;
-}
+  content:attr(data-glossary);position:absolute;left:0;top:calc(100% + 6px);
+  background:var(--dark);color:#dcfce7;padding:10px 13px;border-radius:8px;
+  font-size:11.5px;font-weight:400;line-height:1.55;max-width:300px;
+  z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);white-space:normal;
+  text-transform:none;letter-spacing:0;font-family:'Inter',sans-serif}
 
-/*metric-extra-row: Import Cover KPI + Volatility Gauge + Repo Rate, sits above the macro-context section*/
-.metric-extra-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px; margin:0 0 1.25rem 0; opacity:0; transition:opacity .4s }
-.metric-extra-row.show{ opacity:1 }
-.mex{ background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r);
-  padding:1rem 16px; }
-.mex-label{ font-size:12px; line-height:16px; font-weight:500; color:var(--muted);
-  letter-spacing:.1px; margin-bottom:5px; font-family:'Inter',sans-serif; }
-.mex-val{ font-size:18px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; font-family:'Inter',sans-serif;
-  color:var(--dark); letter-spacing:-.1px; }
-.mex-detail{ font-size:10.5px; color:var(--muted); margin-top:3px; font-family:'DM Mono',monospace }
+/* ─── Metric extra row (Import Cover / Volatility / Repo Rate) ─── */
+.metric-extra-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;margin:0 0 1.25rem 0;opacity:0;transition:opacity .4s}
+.metric-extra-row.show{opacity:1}
+.mex{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
+.mex:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.mex-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);
+  letter-spacing:.1px;margin-bottom:5px;font-family:'Inter',sans-serif}
+.mex-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
+  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
+.mex-detail{font-size:10.5px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace}
 
-.vol-pill{ display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px;
-  font-weight:500; font-family:'DM Mono',monospace; margin-left:6px; }
-.vol-pill.low{ background:#dcfce7; color:#14532d }
-.vol-pill.med{ background:#fef3c7; color:#92400e }
-.vol-pill.high{ background:#fee2e2; color:#991b1b }
+.vol-pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;
+  font-weight:500;font-family:'DM Mono',monospace;margin-left:6px}
+.vol-pill.low{background:#dcfce7;color:#14532d}.vol-pill.med{background:#fef3c7;color:#92400e}
+.vol-pill.high{background:#fee2e2;color:#991b1b}
 
-/*macro context card grid — FII / G-Sec / Tax / REER / FX intervention*/
-.macro-context{ background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r);
-  padding:1.2rem 16px; margin-bottom:1.25rem; }
-.macro-context h3{ font-size:12px; line-height:16px; font-weight:600; color:var(--muted);
-  letter-spacing:.1px; margin-bottom:.85rem; font-family:'Inter',sans-serif; font-weight:600; }
-.mc-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px }
-.mctx{ background:var(--s3); border:1px solid var(--border); border-radius:var(--r); padding:1rem 16px }
-.mctx-label{ font-size:12px; line-height:16px; font-weight:500; color:var(--muted);
-  letter-spacing:.1px; margin-bottom:4px; font-family:'Inter',sans-serif; }
-.mctx-val{ font-size:18px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; font-family:'Inter',sans-serif;
-  color:var(--dark); letter-spacing:-.1px; }
-.mctx-sub{ font-size:11px; color:var(--muted); margin-top:3px; font-family:'Inter',sans-serif }
+/* ─── Macro context card grid ─── */
+.macro-context{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.2rem 16px;margin-bottom:1.25rem;box-shadow:var(--shadow-sm);transition:box-shadow .3s}
+.macro-context:hover{box-shadow:var(--shadow)}
+.macro-context h3{font-size:12px;line-height:16px;font-weight:600;color:var(--muted);
+  letter-spacing:.1px;margin-bottom:.85rem;font-family:'Inter',sans-serif}
+.mc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.mctx{background:var(--s3);border:1px solid var(--border);border-radius:var(--r);
+  padding:1rem 16px;transition:all .25s}
+.mctx:hover{background:var(--s2);transform:translateY(-1px);box-shadow:0 2px 8px rgba(20,83,45,.06)}
+.mctx-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);
+  letter-spacing:.1px;margin-bottom:4px;font-family:'Inter',sans-serif}
+.mctx-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
+  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
+.mctx-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',sans-serif}
 
+/* ─── Key metric cards (#metrics) ─── */
 #metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
   gap:10px;margin-bottom:1.5rem;opacity:0;transition:opacity .4s}
 #metrics.show{opacity:1}
-.mc{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1rem 16px}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
+.mc:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
 .mc-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
   margin-bottom:5px;font-family:'Inter',sans-serif}
-.mc-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;font-family:'Inter',sans-serif;
-  color:var(--dark);letter-spacing:-.1px}
+.mc-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
+  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
 .mc-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',sans-serif}
 .mc-delta{font-size:11px;margin-top:5px;font-family:'DM Mono',monospace;letter-spacing:-.1px;font-weight:500}
 .up{color:var(--up)}.dn{color:var(--dn)}
 
+/* ─── Charts section ─── */
 #charts{display:flex;flex-direction:column;gap:1.25rem;opacity:0;transition:opacity .4s}
 #charts.show{opacity:1}
-.chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1.2rem 16px}
-.chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.85rem}
-.chart-title{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;letter-spacing:-.1px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.2rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
+.chart-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  gap:8px;margin-bottom:.85rem}
+.chart-title{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;
+  letter-spacing:-.1px}
 .chart-note{font-size:11px;color:var(--muted);margin-top:2px;font-family:'Inter',sans-serif}
-.tab-row{display:flex;gap:4px;background:var(--s2);border-radius:var(--r-filter);padding:4px;width:fit-content;margin-bottom:.85rem}
-.tab{height:28px;padding:0 12px;display:inline-flex;align-items:center;border-radius:6px;
+.tab-row{display:flex;gap:4px;background:var(--s2);border-radius:var(--r-filter);
+  padding:4px;width:fit-content;margin-bottom:.85rem}
+.tab{height:30px;padding:0 13px;display:inline-flex;align-items:center;border-radius:6px;
   font-size:13px;line-height:16px;font-weight:500;letter-spacing:.1px;cursor:pointer;
-  border:none;background:none;color:#4b5563;font-family:'Inter',sans-serif;transition:background .12s,color .12s}
-.tab.on{background:var(--accent);color:#fff}
-.tab:hover{background:var(--surface);color:var(--dark)}
+  border:none;background:none;color:#4b5563;font-family:'Inter',sans-serif;
+  transition:all .2s cubic-bezier(.4,0,.2,1)}
+.tab.on{background:var(--accent);color:#fff;
+  box-shadow:0 2px 6px rgba(22,163,74,.3)}
+.tab:hover:not(.on){background:var(--surface);color:var(--dark);transform:translateY(-1px)}
 .chart-wrap{position:relative}
 
-#empty{text-align:center;padding:3rem 2rem;color:var(--muted);font-family:'Inter',sans-serif}
+/* ─── Empty state ─── */
+#empty{text-align:center;padding:3.5rem 2rem;color:var(--muted);font-family:'Inter',sans-serif}
 #empty h2{font-size:18px;line-height:24px;font-weight:600;color:var(--dark);margin-bottom:7px;
   letter-spacing:-.1px}
 #empty p{font-size:13px;line-height:1.65;max-width:360px;margin:0 auto 1.5rem}
 
-.tbl-intro{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
-  padding:1.2rem 16px;margin-bottom:1.25rem}
+/* ─── Intro text boxes ─── */
+.tbl-intro{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.2rem 16px;margin-bottom:1.25rem;box-shadow:var(--shadow-sm)}
 .tbl-intro p{font-size:14px;color:var(--muted);line-height:1.7;font-family:'Inter',sans-serif}
 .tbl-intro strong{color:var(--dark)}
 
-.tbl-wrap{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden}
-.tbl-header{padding:1rem 16px;border-bottom:1.5px solid var(--border);display:flex;
+/* ─── Tables ─── */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;box-shadow:var(--shadow-sm);transition:box-shadow .3s}
+.tbl-wrap:hover{box-shadow:var(--shadow)}
+.tbl-header{padding:1rem 16px;border-bottom:1px solid var(--border);display:flex;
   align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.tbl-header h2{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;letter-spacing:-.1px}
+.tbl-header h2{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;
+  letter-spacing:-.1px}
 .tbl-header span{font-size:11px;color:var(--muted);font-family:'Inter',sans-serif}
-table{width:100%;border-collapse:collapse;font-size:12.5px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
 thead th{
-  background:var(--s2);padding:.75rem 16px;text-align:left;
-  font-size:12px;line-height:16px;font-weight:500;color:#4b5563;
-  letter-spacing:.1px;border-bottom:1.5px solid var(--border);white-space:nowrap;
-  font-family:'Inter',sans-serif;
-}
+  background:linear-gradient(180deg,#e2f5e9 0%,#d7f0df 100%);
+  padding:.75rem 16px;text-align:left;
+  font-size:12px;line-height:16px;font-weight:600;color:#374151;
+  letter-spacing:.1px;white-space:nowrap;
+  font-family:'Inter',sans-serif;border-bottom:1.5px solid var(--border);
+  position:sticky;top:0;z-index:1}
 thead th:not(:first-child){text-align:right}
-tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
-tbody tr:hover{background:var(--s3)}
+tbody tr{transition:background .15s;border-bottom:1px solid rgba(185,229,198,.5)}
+tbody tr:hover{background:rgba(212,245,220,.35)}
 tbody tr:last-child{border-bottom:none}
 td{padding:.65rem 16px;color:var(--dark);font-family:'DM Mono',monospace;font-size:12px}
 td:not(:first-child){text-align:right}
 td.date-cell{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);
   letter-spacing:-.1px}
-.delta-cell{font-size:11px}
+.cal-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:600;font-size:11px;cursor:help}
+.rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:600;font-size:11px;cursor:help}
 .cell-group{display:flex;flex-direction:column;gap:1px}
 .cell-main{font-size:12px}
 .cell-delta{font-size:10px;color:var(--muted)}
 .cell-delta.up{color:var(--up)}.cell-delta.dn{color:var(--dn)}
-.tbl-empty{text-align:center;padding:3rem;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px}
-.col-group-header{background:var(--s2);padding:.5rem 16px;font-size:12px;line-height:16px;font-weight:600;
-  color:var(--accent);letter-spacing:.1px;font-family:'Inter',sans-serif;border-bottom:1px solid var(--border)}
+.tbl-empty{text-align:center;padding:3rem;color:var(--muted);font-family:'Inter',sans-serif;
+  font-size:13px}
 
-footer{max-width:1160px;margin:1.5rem auto 0;padding:1.4rem 16px 2.5rem;border-top:1.5px solid var(--border)}
+/* ─── Footer ─── */
+footer{max-width:1160px;margin:2rem auto 0;padding:1.4rem 16px 2.5rem;
+  border-top:1.5px solid var(--border)}
 footer h3{font-size:12px;line-height:16px;font-weight:600;color:var(--muted);
   letter-spacing:.1px;margin-bottom:.75rem;font-family:'Inter',sans-serif}
 .src-links{display:flex;flex-direction:column;gap:7px;margin-bottom:1rem}
 .src-link{display:inline-flex;align-items:center;gap:7px;width:fit-content;
-  font-size:13px;color:var(--accent);text-decoration:none;font-weight:500;font-family:'Inter',sans-serif}
-.src-link:hover{color:var(--accent-strong);text-decoration:underline}
+  font-size:13px;color:var(--accent);text-decoration:none;font-weight:500;font-family:'Inter',sans-serif;
+  transition:all .2s}
+.src-link:hover{color:var(--accent-strong);text-decoration:underline;transform:translateX(2px)}
 .src-link svg{width:12px;height:12px;flex-shrink:0}
 .src-link.last-week{border:1px solid var(--border);background:var(--s2);
-  border-radius:var(--r-filter);padding:0 12px;height:28px;font-size:13px;font-weight:500;}
-footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font-family:'Inter',sans-serif}
+  border-radius:var(--r-filter);padding:0 12px;height:28px;font-size:13px;font-weight:500;
+  transition:all .2s}
+.src-link.last-week:hover{background:var(--surface);transform:translateX(2px);
+  box-shadow:0 2px 6px rgba(20,83,45,.06)}
+footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
+  font-family:'Inter',sans-serif}
 
-::-webkit-scrollbar{width:5px;height:5px}
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;border:1px solid rgba(255,255,255,.4)}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* ─── Mobile ─── */
+@media(max-width:1024px){
+  .nav-link{height:32px}
+  .tab{height:40px;padding:0 16px;border-radius:10px}
+  .dl,.btn{height:36px}
+  td,thead th{padding:.6rem 12px}
+}
+
+/* ─── Collapsible mobile nav (hamburger) ─── */
+.nav-toggle{display:none} /* desktop: keep the tabs inline */
+
+@media(max-width:900px){
+  header{gap:.6rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem}
+  .logo{order:1}
+  .logo .logo-text span{display:none}
+  .head-right{order:2;width:100%;min-width:0;flex-wrap:wrap}
+
+  /* hamburger button — sits beside the status pill */
+  .nav-toggle{order:1;display:inline-flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:5px;width:40px;height:36px;padding:0;flex-shrink:0;
+    background:var(--s2);border:1px solid var(--border);border-radius:10px;cursor:pointer;
+    transition:background .2s,border-color .2s}
+  .nav-toggle:hover{background:var(--surface);border-color:var(--border2);color:var(--dark)}
+  .nav-toggle span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;
+    transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s}
+  header.nav-open .nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  header.nav-open .nav-toggle span:nth-child(2){opacity:0}
+  header.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+  .status-pill{order:2;margin-left:auto}
+
+  /* nav collapses to a vertical dropdown, hidden until the menu is opened */
+  .nav-links{order:4;width:100%;flex:1 1 100%;min-width:0;display:none;padding:8px 0 2px}
+  header.nav-open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+  .nav-links .nav-link{white-space:nowrap;width:100%;height:40px;padding:0 14px;
+    justify-content:flex-start;border-radius:8px}
+}
 
 @media(max-width:780px){
   .section,footer{padding:1rem}
-  header{padding:.75rem 1rem}
+  header{padding:.6rem 1rem}
+  main{padding-left:1rem!important;padding-right:1rem!important}
   .nav-link span{display:none}
   table{font-size:11px}
   td,thead th{padding:.55rem .7rem}
-  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,    .tbl-intro,.tbl-wrap,.tbl-header,.col-group-header{padding-left:16px;padding-right:16px}
+  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,
+  .tbl-intro,.tbl-wrap,.tbl-header{padding-left:14px;padding-right:14px}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.tbl-wrap:hover{transform:none;box-shadow:var(--shadow-sm)}
+  #empty,.tbl-empty{padding:2.5rem 1rem}
+  .chart-wrap{overflow:hidden}
+  .chart-card{overflow:hidden}
 }
 
-/*design-taste: reduced-motion guard — blink, smooth scroll, and transitions collapse to static */
-@media (prefers-reduced-motion: reduce){
+/* Small phones */
+@media(max-width:430px){
+  .status-pill{padding:0 9px;font-size:12px}
+  .tab-row{flex-wrap:wrap;width:100%}
+  .tab{padding:0 12px}
+  .logo-badge{width:30px;height:30px;border-radius:9px;font-size:15px}
+  .logo-text h1{font-size:13px}
+  .tbl-header{padding:.8rem 14px}
+  .chart-title{font-size:13px}
+  .mc-val,.mex-val,.mctx-val{font-size:16px;line-height:20px}
+}
+
+/* ─── Reduced motion ─── */
+@media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .dot.running{animation:none}
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.tbl-wrap:hover,
+  .nav-link:hover,.tab:hover:not(.on),.dl:hover,.src-link:hover,.src-link.last-week:hover,
+  .btn:hover{transform:none!important;box-shadow:var(--shadow-sm)!important}
 }
 </style>
 </head>
@@ -240,15 +356,19 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
     <div class="logo-badge" aria-hidden="true">₹</div>
     <div class="logo-text">
       <h1>RBI Weekly Dashboard</h1>
-      <span>Forex, Rupee, Gold, Markets, 2026</span>
+      <span id="logo-year">Forex, Rupee, Gold, Markets</span>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <nav class="nav-links">
+  <div class="head-right" style="display:flex;align-items:center;gap:10px">
+    <nav class="nav-links" id="site-nav" aria-label="Primary">
       <a class="nav-link active" href="#sec-dashboard" onclick="return showSection('dashboard',this)">Dashboard</a>
       <a class="nav-link" href="#sec-table" onclick="return showSection('table',this)">10-Week Table</a>
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)">Crude Oil Imports</a>
+      <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)">PM CARES Fund</a>
     </nav>
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="status-pill">
       <div class="dot" id="status-dot"></div>
       <span id="status-text" aria-live="polite">Idle</span>
@@ -262,11 +382,9 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
     <strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.
   </div>
   <div class="fetch-panel">
-    <div class="panel-label">Data fetch: RBI Weekly Statistical Supplement</div>
-    <div class="prog-track"><div class="prog-fill" id="prog-bar"></div></div>
-    <div class="prog-row"><span id="prog-label">Ready</span><span id="prog-pct">0%</span></div>
+    <div class="panel-label">Data: RBI Weekly Statistical Supplement — rbi-data.json</div>
     <div id="log-box" aria-live="polite"></div>
-    <button class="btn" id="start-btn" onclick="startFetch()">▶ Fetch data</button>
+    <button class="btn" id="start-btn" onclick="startFetch()">↺ Reload data</button>
   </div>
 
   <!-- Weekly summary panel — populated by JS after records are loaded -->
@@ -280,7 +398,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 
   <div id="empty">
     <h2>No data yet</h2>
-    <p>Click "Fetch data" to pull all RBI Weekly Statistical Supplement reports since Jan 1, 2026. Takes ~30–60 s.</p>
+    <p>Run <code>npm run fetch:data</code> to generate <code>public/rbi-data.json</code>, then reload this page. On Netlify the data file is regenerated automatically on every deploy.</p>
   </div>
   <div id="metrics">
     <div class="mc"><div class="mc-label">Forex reserves</div><div class="mc-val" id="m-res-usd">—</div>
@@ -496,7 +614,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
   </div>
 
   <!-- Port and Vessel -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin:1rem 0;">
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Port Arrivals (Crude Tankers)</h3></div></div>
       <div class="chart-wrap" style="height:220px"><canvas id="crudePorts" role="img" aria-label="Bar chart of crude tanker arrivals by port"></canvas></div>
@@ -565,6 +683,78 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 </main>
 </div>
 
+<div class="section" id="sec-pmcares">
+<main style="max-width:1160px;margin:0 auto;padding:1.75rem 2rem">
+  <!-- Icon+about which mirrors the note strip at top of dashboard -->
+  <div style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:var(--dark);">
+    <strong>PM CARES Fund</strong> — <em>Prime Minister's Citizen Assistance and Relief in Emergency Situations Fund</em>, a public charitable trust set up on 27 March 2020 to provide relief in emergencies such as the COVID-19 pandemic. Unlike the data above (which is scraped live), PM CARES figures below are <strong>curated from the Fund's audited Receipt &amp; Payment Accounts</strong> published on <a href="https://pmcares.gov.in/en/web/page/about_us" target="_blank" rel="noopener" style="color:var(--accent)">pmcares.gov.in</a>, and are presented as-is with downloadable evidence. Amounts in ₹ crore unless noted.
+  </div>
+
+  <!-- Headline metrics -->
+  <div id="pmcares-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.25rem">
+    <div class="mc"><div class="mc-label">Corpus (FY 2024-25 close)</div><div class="mc-val" id="pm-total">—</div><div class="mc-sub">₹ crore · as on 31 Mar 2025</div></div>
+    <div class="mc"><div class="mc-label">Contributions received (cumulative)</div><div class="mc-val" id="pm-donations">—</div><div class="mc-sub">₹ crore · through FY 2022-23 audited</div></div>
+    <div class="mc"><div class="mc-label">Interest income (4 yrs)</div><div class="mc-val" id="pm-interest">—</div><div class="mc-sub">₹ crore · through FY 2022-23</div></div>
+    <div class="mc"><div class="mc-label">Biggest yearly disbursement</div><div class="mc-val" id="pm-bigspend">—</div><div class="mc-sub">FY 2020-21 · pandemic relief</div></div>
+  </div>
+
+  <!-- Disbursements chart -->
+  <div class="chart-card">
+    <div class="chart-hdr"><div><h3 class="chart-title">PM CARES: receipts · interest · disbursements by financial year (₹ crore)</h3><div class="chart-note">Green = total receipts · blue = interest earned in the year · amber = disbursed. FY 2019-20 covers only Mar 27–31, 2020.</div></div></div>
+    <div class="chart-wrap" style="height:240px"><canvas id="cPmCares" role="img" aria-label="Grouped bar chart of PM CARES receipts and disbursements by financial year"></canvas></div>
+  </div>
+
+  <!-- Year-by-year table -->
+  <div class="tbl-wrap" style="margin-top:1.25rem">
+    <div class="tbl-header">
+      <h2>Year-by-year: audited Receipt &amp; Payment Accounts (₹ crore)</h2>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="dl" onclick="dlPmCaresCSV()">⤓ Download as CSV</button>
+        <span class="panel-label" style="margin:0;align-self:center">FY = 1 April &ndash; 31 March</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="pmcares-table">
+        <thead><tr>
+          <th>Financial Year</th><th>Opening</th><th>Receipts (yr)</th><th>Interest (yr)</th><th>Disbursed (yr)</th><th>Closing</th><th>Calamities (yr)</th><th>PM CARES relief?</th><th>Highlights</th>
+        </tr></thead>
+        <tbody id="pmcares-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Downloadable evidence -->
+  <div class="tbl-wrap" style="margin-top:1.25rem">
+    <div class="tbl-header">
+      <h2>Downloadable evidence — official audited accounts</h2>
+      <span style="font-size:11px;color:var(--muted)">Source: pmcares.gov.in · PDF</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="pmcares-evidence">
+        <thead><tr><th>Document</th><th>Period</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2019-20</td><td>27 Mar – 31 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited Statement.PDF" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2020-21</td><td>Apr 2020 – Mar 2021</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2020_21.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2021-22</td><td>Apr 2021 – Mar 2022</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2021_22.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2022-23</td><td>Apr 2022 – Mar 2023</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2022_23.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2023-24</td><td>Apr 2023 – Mar 2024</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2023_24.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) — FY 2024-25</td><td>Apr 2024 – Mar 2025</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2024_25.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">PM CARES Trust Deed</td><td>Registered 27 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Trust_Deed.pdf" target="_blank" rel="noopener" style="text-decoration:none">⬇ PDF</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tbl-intro" style="margin-top:1rem">
+    <p><strong>Notes &amp; caveats:</strong> Figures are ₹ crore and reflect the audited Receipt &amp; Payment Accounts published by the Fund on pmcares.gov.in (FY 2019-20 through FY 2022-23 released in Dec 2024; FY 2023-24 &amp; FY 2024-25 released 18 Aug 2026). <strong>Interest (yr)</strong> = interest earned during the financial year — explicitly reported as ₹224.33 cr (FY 2020-21), ₹170.38 cr (FY 2022-23, of which ₹154 cr regular + ₹16.07 cr foreign account), and ₹475.14 cr (FY 2024-25, ₹469.37 cr fixed deposits + ₹5.76 cr regular account); ~nil in FY 2019-20 (7-day period). FY 2021-22 (~₹170.29 cr) is derived as the residual of the reported 4-year cumulative interest of ~₹565 cr (through FY 2022-23), and FY 2023-24 (~₹137.70 cr) is derived from receipts minus donations minus refunds — treat these two as estimates. Cumulative <em>contributions</em> received since inception (~₹13,605 cr) and cumulative interest (~₹565 cr) were reported through FY 2022-23. The fund is outside the RTI Act; figures shown here are what the Fund has itself disclosed. Cross-check against the downloadable PDFs above.</p>
+    <p style="margin-top:.6rem"><strong>Disasters &amp; relief columns:</strong> <em>Calamities (yr)</em> = natural disasters recorded for India in EM-DAT (via the IMF Climate Change Indicators database — floods, storms, landslides, extreme temperature, drought, wildfire). EM-DAT counts are calendar-year, so each is shown against the FY whose Apr–Mar span covers that calendar year (e.g. CY 2023 → FY 2023-24). Hover the chip for the year's major events. <em>PM CARES relief?</em> reads <strong>None for every year</strong>: per the audited accounts, the Fund's disbursals were entirely COVID-related (FY 2020-21 ₹3,976 cr; FY 2021-22 ₹3,716 cr) and thereafter the PM CARES for Children scheme — no disbursement to any natural calamity appears in any audited year. Cyclone and flood relief (Amphan ₹1,000 cr, Tauktae ₹1,000 cr, etc.) was released through the PMNRF and NDRF instead, not PM CARES. See Frontline (Aug 2026) and The Wire/The News Minute (Aug 2026) for the audit coverage.</p>
+  </div>
+  <div class="tbl-intro" style="margin-top:1rem">
+    <p><strong>Press coverage for context:</strong> <a href="https://www.hindustantimes.com/india-news/pm-cares-fund-corpus-up-18-to-8-452-crore-despite-drop-in-domestic-donations-101787080869598.html" target="_blank" rel="noopener" style="color:var(--accent)">Hindustan Times (Aug 2026)</a> · <a href="https://frontline.thehindu.com/politics/pm-cares-fund-audit-transparency-questions/article71373611.ece" target="_blank" rel="noopener" style="color:var(--accent)">Frontline (Aug 2026)</a> · <a href="https://www.deccanherald.com/india/pm-cares-fund-receives-rs-116292-crore-spends-only-rs-1647-crore-during-2023-25-audit-report-4115413" target="_blank" rel="noopener" style="color:var(--accent)">Deccan Herald (Aug 2026)</a></p>
+  </div>
+</main>
+</div>
+
 <footer>
   <h3>Data sources</h3>
   <div class="src-links">
@@ -581,6 +771,13 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;font
 <script>
 let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty'};
 
+/* ─── Static data file ──────────────────────────────────────────
+   All fetched RBI weekly records live in public/rbi-data.json, which is
+   regenerated by scripts/fetch-all.js on every build/deploy (and locally
+   via `npm run fetch:data`). The dashboard just loads that file — no
+   browser cache, no per-week scraping in the frontend. */
+const DATA_URL = 'rbi-data.json';
+
 function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-'+name).classList.add('active');
@@ -594,6 +791,28 @@ function showSection(name, el) {
   return false;
 }
 
+/* Mobile collapsible nav (hamburger) — closes on select, outside tap, or Esc */
+function initNav(){
+  const toggle = document.getElementById('nav-toggle');
+  if(!toggle) return;
+  const headerEl = toggle.closest('header') || document.querySelector('header') || document.body;
+  const setNav = open => {
+    headerEl.classList.toggle('nav-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    setNav(!headerEl.classList.contains('nav-open'));
+  });
+  document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', () => setNav(false)));
+  document.addEventListener('click', e => {
+    if(headerEl.classList.contains('nav-open') && !headerEl.contains(e.target)) setNav(false);
+  });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && headerEl.classList.contains('nav-open')) setNav(false); });
+  toggle.addEventListener('keydown', e => { if(e.key === 'Escape') setNav(false); });
+}
+initNav();
+
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
 const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!m||!d) return s; return new Date(y, m-1, d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); };
@@ -601,12 +820,6 @@ const diff = arr => arr.map((v,i)=>i===0?null:(v!=null&&arr[i-1]!=null?v-arr[i-1
 function setStatus(s){
   document.getElementById('status-dot').className='dot '+s;
   document.getElementById('status-text').textContent=s==='running'?'Fetching…':s==='done'?'Complete':s==='error'?'Error':'Idle';
-}
-function setProgress(done,total){
-  const p=total?Math.round(done/total*100):0;
-  document.getElementById('prog-bar').style.transform='scaleX('+(p/100)+')';
-  document.getElementById('prog-label').textContent=total>1?`${done} / ${total} weeks`:done===1?'Done':'Waiting…';
-  document.getElementById('prog-pct').textContent=p+'%';
 }
 function appendLog(msg, cls=''){
   const box=document.getElementById('log-box');
@@ -618,88 +831,51 @@ function appendLog(msg, cls=''){
   d.textContent=msg; box.appendChild(d); box.scrollTop=box.scrollHeight;
 }
 
+// Load all RBI weekly records from the static data file (rbi-data.json),
+// which scripts/fetch-all.js regenerates on every build/deploy.
 async function startFetch() {
   const btn = document.getElementById('start-btn');
   btn.disabled = true;
   setStatus('running');
-  appendLog('Starting sequential fetch (one week per request)…');
-  
-  let allRecords = [];
-  let offset = 0;
-  let totalWeeks = 0;
-  
-  // First, get the total number of weeks
+  appendLog(`Loading ${DATA_URL}…`);
   try {
-    const res = await fetch('/.netlify/functions/fetch-data?weekOffset=0');
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    totalWeeks = data.totalWeeks || 0;
-    appendLog(`Found ${totalWeeks} Fridays since Jan 1, 2026. Fetching each…`);
-  } catch (err) {
-    appendLog(`Error getting total weeks: ${err.message}`, 'err');
-    btn.disabled = false;
-    setStatus('error');
-    return;
-  }
-  
-  for (offset = 0; offset < totalWeeks; offset++) {
-    setProgress(offset, totalWeeks);
-    appendLog(`Fetching week ${offset+1}/${totalWeeks}…`);
-    
-    try {
-      const res = await fetch(`/.netlify/functions/fetch-data?weekOffset=${offset}`);
-      if (res.status === 404) {
-        appendLog(`Reached end of available data.`, 'warn');
-        break;
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      
-      const data = await res.json();
-      if (data.error) {
-        appendLog(`⚠️ Week ${offset+1}: ${data.error}`, 'warn');
-      } else if (data.record) {
-        allRecords.push(data.record);
-        appendLog(`✓ ${data.record.date} | Reserves $${data.record.total_usd?.toLocaleString()}M | USD/INR ${data.record.usd_inr ?? 'N/A'}`);
-      } else {
-        appendLog(`⚠️ Week ${offset+1} returned empty record`, 'warn');
-      }
-    } catch (err) {
-      appendLog(`✗ Request failed for week ${offset+1}: ${err.message}`, 'err');
-    }
-    
-    await new Promise(r => setTimeout(r, 500));
-  }
-  
-  if (allRecords.length > 0) {
-    records = allRecords.sort((a,b) => a.date.localeCompare(b.date));
+    if (!Array.isArray(data.records)) throw new Error('malformed data file (no records array)');
+    records = data.records
+      .filter(r => r && r.date)
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if (!records.length) throw new Error('data file has no records yet — run `npm run fetch:data`');
     updateUI();
-    appendLog(`✅ Complete! Fetched ${records.length} weeks.`);
+    const fetchedAt = data.fetched_at ? new Date(data.fetched_at) : null;
+    appendLog(`✅ Loaded ${records.length} week${records.length>1?'s':''} from ${DATA_URL}`
+      + (fetchedAt ? ` (generated ${fetchedAt.toLocaleString('en-IN')})` : ''));
+    updateFooterLink();
     setStatus('done');
-    
-    const latest = records[records.length-1];
-    if (latest) {
-      // latest.date is the "as on" (previous) Friday; link and label should reflect publication Friday (as-on + 7 days)
-      const [ay,am,ad] = latest.date.split('-').map(Number);
-      const asOn = new Date(ay, am-1, ad);
-      const pub = new Date(asOn);
-      pub.setDate(pub.getDate() + 7);
-      const py = pub.getFullYear();
-      const pm = pub.getMonth() + 1;
-      const pd = pub.getDate();
-      const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pm}/${pd}/${py}`;
-      const footerLink = document.getElementById('footer-last-week');
-      const footerLabel = document.getElementById('footer-last-week-label');
-      footerLink.href = lastFridayUrl;
-      footerLabel.textContent = `RBI WSS - Latest available Friday (published ${pub.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
-    }
-  } else {
-    appendLog('❌ No records were fetched.', 'err');
+  } catch (err) {
+    appendLog(`✗ Could not load data: ${err.message}`, 'err');
     setStatus('error');
   }
-  
-  setProgress(1, 1);
   btn.disabled = false;
-  btn.textContent = '↺ Refresh data';
+  btn.textContent = '↺ Reload data';
+}
+
+// Point the footer's "latest Friday" link at the most recent record we have.
+function updateFooterLink(){
+  const latest = records[records.length-1];
+  if(!latest) return;
+  // latest.date is the "as on" (previous) Friday; the WSS was published on as-on + 7 days
+  const [ay,am,ad] = latest.date.split('-').map(Number);
+  const asOn = new Date(ay, am-1, ad);
+  const pub = new Date(asOn); pub.setDate(pub.getDate() + 7);
+  const lastFridayUrl = `https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pub.getMonth()+1}/${pub.getDate()}/${pub.getFullYear()}`;
+  const footerLink = document.getElementById('footer-last-week');
+  const footerLabel = document.getElementById('footer-last-week-label');
+  if(footerLink && footerLabel){
+    footerLink.href = lastFridayUrl;
+    footerLabel.textContent = `RBI WSS - Latest available Friday (published ${pub.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})})`;
+  }
 }
 
 function updateUI(){
@@ -1714,11 +1890,109 @@ function renderFiiHistoryChart(){
   });
 }
 
-// Auto-trigger macro + EM peer loads on page load (in parallel with user clicking Fetch)
+// Page load: load the static data file (rbi-data.json, regenerated on every
+// deploy by scripts/fetch-all.js) plus macro + EM data in parallel.
 window.addEventListener('DOMContentLoaded', () => {
+  // Keep the header tagline current across calendar years.
+  const ly = document.getElementById('logo-year');
+  if (ly) ly.textContent = `Forex, Rupee, Gold, Markets, ${new Date().getFullYear()}`;
   loadMacroData();
   loadEmPeers();
+  renderPmCares();
+  startFetch();
 });
+
+/* ===== PM CARES FUND — curated year-by-year data =====
+   Compiled from the Fund's audited Receipt & Payment Accounts on pmcares.gov.in.
+   Amounts in ₹ crore. FY 2019-20 covers only 27-31 Mar 2020. */
+const PMCARES = [
+  { fy:'2019-20', open:0,     recap:3076.62, int:0,    disp:0,   close:3076.62,
+    cal:12, calnote:'Cyclone Fani, Cyclone Vayu, Cyclone Kyarr, Cyclone Bulbul, Kerala floods, Assam floods, Maharashtra/Pune floods, heat wave (EM-DAT CY 2019)',
+    relief:'None', relnote:'Fund created 27 Mar 2020 (5 days of FY); no expenditure recorded.',
+    note:'Fund established 27 Mar 2020; launch-week rush of domestic & foreign donations. ₹2.25 lakh from the PM.' },
+  { fy:'2020-21', open:3076.62, recap:7913.4, int:224.33, disp:3976, close:7013.99,
+    cal:11, calnote:'Cyclone Amphan, Cyclone Nisarga, Assam floods, Hyderabad floods, Cyclone Nivar, Cyclone Burevi (EM-DAT CY 2020)',
+    relief:'None', relnote:'All ₹3,976 cr disbursed was COVID-related (ventilators, migrant welfare, vaccine research). Cyclone Amphan relief was paid from PMNRF/NDRF, not PM CARES.',
+    note:'Pandemic-relief peak. Interest ₹224.33 cr on regular account.' },
+  { fy:'2021-22', open:7013.99, recap:2117,  int:170.29, disp:3716, close:5415,
+    cal:16, calnote:'Chamoli glacier burst, Cyclone Tauktae, Cyclone Yaas, Cyclone Gulab, Cyclone Shaheen, Cyclone Jawad, Uttarakhand/Maharashtra floods (EM-DAT CY 2021)',
+    relief:'None', relnote:'₹3,716 cr was COVID-related (oxygen plants, vaccines, hospitals). Cyclone Tauktae/Yaas relief came from NDRF, not PM CARES.',
+    note:'Vaccine procurement & COVID care scale-up. Interest derived from 4-yr cumulative (~₹565 cr).' },
+  { fy:'2022-23', open:5415,   recap:1307,  int:170.38, disp:439,  close:6283,
+    cal:7, calnote:'Cyclone Asani, Cyclone Sitrang, Cyclone Mandous, Assam floods, north-India floods (EM-DAT CY 2022)',
+    relief:'None', relnote:'₹439 cr spent, of which ₹346 cr on PM CARES for Children. No natural-disaster disbursement.',
+    note:'PM CARES for Children — ₹346 cr. Interest ₹154 cr regular + ₹16.07 cr foreign account.' },
+  { fy:'2023-24', open:6283,   recap:905.4, int:137.7, disp:15.38, close:7173.03,
+    cal:16, calnote:'Cyclone Mocha, Cyclone Biparjoy, Himachal floods, Cyclone Tej, Cyclone Hamoon, Sikkim floods, Cyclone Midhili, Cyclone Michaung (EM-DAT CY 2023)',
+    relief:'None', relnote:'Only ~₹15 cr spent (PM CARES for Children). Audited accounts show no natural-disaster disbursement; Odisha train-accident & Sikkim relief went via other funds.',
+    note:'Lowest outlay yet; domestic ₹681.8 cr, foreign ₹1.14 cr. Interest ≈ receipts − donations − refunds.' },
+  { fy:'2024-25', open:7173.03, recap:1279.91, int:475.14, disp:0.88, close:8452.07,
+    cal:15, calnote:'Cyclone Remal, Wayanad landslides, Cyclone Asna, Cyclone Dana, Cyclone Fengal, Chennai floods, heat waves (EM-DAT CY 2024)',
+    relief:'None', relnote:'Only ₹0.88 cr spent (PM CARES for Children). Audited accounts show no natural-disaster disbursement.',
+    note:'Interest ₹469.37 cr FD + ₹5.76 cr regular acct. Receipts also include ₹479.04 cr domestic, ₹0.93 cr foreign, ₹324.66 cr refunds.' }
+];
+
+function renderPmCares(){
+  const L = PMCARES[PMCARES.length-1];
+  const set = (id,v)=>document.getElementById(id).textContent = fmt(v,2);
+  set('pm-total', L.close);
+  set('pm-donations', 13605);
+  set('pm-interest', 565);
+  set('pm-bigspend', 3976);
+
+  // table
+  const body = document.getElementById('pmcares-body');
+  body.innerHTML = PMCARES.map(r=>
+    `<tr>
+      <td class="date-cell">FY ${r.fy}</td>
+      <td>${fmt(r.open,2)}</td>
+      <td>${fmt(r.recap,2)}</td>
+      <td>${fmt(r.int,2)}</td>
+      <td>${fmt(r.disp,2)}</td>
+      <td>${fmt(r.close,2)}</td>
+      <td title="${r.calnote}"><span class="cal-chip">${r.cal}</span></td>
+      <td title="${r.relnote}"><span class="rel-chip">${r.relief}</span></td>
+      <td style="font-size:11px;color:var(--muted);font-family:'Inter',sans-serif;text-align:left;white-space:normal;min-width:220px">${r.note}</td>
+    </tr>`
+  ).join('');
+
+  // chart (grouped bar: receipts / interest / disbursed)
+  const el = document.getElementById('cPmCares');
+  if(!el) return;
+  const labels = PMCARES.map(r=>'FY '+r.fy);
+  const G='#15803d', AMB='#b45309', BLUE='#2563eb';
+  if(charts.pm) charts.pm.destroy();
+  charts.pm = new Chart(el, {
+    type:'bar',
+    data:{ labels,
+      datasets:[
+        { label:'Receipts (₹ cr)',   data:PMCARES.map(r=>r.recap), backgroundColor:G,    borderRadius:4 },
+        { label:'Interest (₹ cr)',   data:PMCARES.map(r=>r.int),   backgroundColor:BLUE, borderRadius:4 },
+        { label:'Disbursed (₹ cr)',  data:PMCARES.map(r=>r.disp),  backgroundColor:AMB,  borderRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#14532d', font:{ family:'Inter', size:11 } } } },
+      scales:{
+        x:{ ticks:{ color:'#6b7280', font:{ family:'Inter', size:11 } }, grid:{ display:false } },
+        y:{ beginAtZero:true, ticks:{ color:'#6b7280', font:{ family:'Inter', size:10 } }, grid:{ color:'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+}
+
+function dlPmCaresCSV(){
+  const header = 'financial_year,opening_balance,receipts,interest_earned,disbursed,closing_balance,calamities_emdat_cy,relief_to_calamities,highlights';
+  const rows = PMCARES.map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'"\"')}"`].join(','));
+  const csv = header + '\n' + rows.join('\n');
+  const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pm-cares-yearly-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,54 @@
+name: Refresh RBI data
+
+# Keeps public/rbi-data.json up to date automatically so the deployed
+# dashboard always ships the latest weekly RBI reports, without requiring a
+# manual deploy or a Netlify-scheduled function.
+#
+# The RBI Weekly Statistical Supplement is published every Friday evening IST,
+# so a daily run is more than enough to catch it (and re-runs are cheap — the
+# fetch script is incremental and only pulls weeks newer than the newest record
+# already in the file).
+
+on:
+  schedule:
+    # Every day at 00:30 UTC (~06:00 IST). The weekly report appears Friday
+    # evening IST, so by 06:00 Saturday the latest publication is picked up.
+    - cron: "30 0 * * *"
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # Give the scraper clearance to hit RBI + Yahoo over the public internet.
+    # GitHub's hosted runners have default egress; no restricted-network pool.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch latest RBI weekly data
+        run: npm run fetch:data
+
+      - name: Commit updated data (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/rbi-data.json
+          if git diff --cached --quiet; then
+            echo "No new data — nothing to commit."
+          else
+            git commit -m "chore(data): refresh rbi-data.json"
+            git push
+            echo "Pushed refreshed data."
+          fi

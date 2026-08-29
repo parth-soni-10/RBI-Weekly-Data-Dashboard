@@ -24,12 +24,14 @@ All data points correspond to **Friday closing / reporting dates**, starting fro
 
 ```
 rbi-dashboard/
-├── netlify.toml                  # Build config — publish dir + function dir + timeouts
-├── package.json                  # Node dependencies for the serverless functions
+├── netlify.toml                  # Build config — build command + publish dir + functions + timeouts
+├── package.json                  # Node deps + npm scripts (fetch:data regenerates the data file)
 ├── README.md
+├── scripts/
+│   └── fetch-all.js              # Regenerates public/rbi-data.json from RBI + Yahoo
 ├── netlify/
 │   └── functions/
-│       ├── fetch-data.js         # RBI WSS scraper (weekly reserves/rates/indices)
+│       ├── fetch-data.js         # RBI WSS scraper internals (shared with scripts/fetch-all.js)
 │       ├── fetch-crude.js        # Crude imports (PPAC + TankerMap AIS + Yahoo)
 │       ├── fetch-fii.js          # NSDL FPI daily flows
 │       ├── fetch-fii-history.js  # 6-month FII + DII series (NSDL + CDSL)
@@ -43,6 +45,7 @@ rbi-dashboard/
 │       └── _utils/http.js        # Shared fetch + HTML-table helpers
 └── public/
     ├── index.html                # Full dashboard — charts, metrics, tables, crude
+    ├── rbi-data.json             # STATIC DATA FILE — all fetched RBI weekly records
     ├── _redirects                # /data/*.json → serverless functions
     └── embed/
         └── forex-reserves.html   # Embeddable forex-reserves widget
@@ -54,25 +57,52 @@ rbi-dashboard/
 
 ### Data pipeline
 
+All RBI weekly records live in **`public/rbi-data.json`** — a static, committed
+data file regenerated on every deploy. The frontend just loads that file; there
+is no per-week scraping in the browser and no client-side cache.
+
 ```
-Browser clicks "Fetch data"
+`npm run fetch:data`  (also run automatically by the Netlify build command)
         │
         ▼
-GET /.netlify/functions/fetch-data?weekOffset=N  (one week per request, sequential)
+scripts/fetch-all.js  — reuses the scraper internals from fetch-data.js
         │
         ├─→ RBI WSS page (HTML) — find Excel links
         │
-        └─→ Download both Excel files in parallel:
+        └─→ For each Friday (only NEWER weeks than the newest record already
+            in the file), download in parallel:
                 ├─ Foreign Exchange Reserves.xlsx → reserves + gold
                 └─ Foreign Exchange Market.xlsx   → USD/INR, EUR/INR spot rates
             + Yahoo Finance (Nifty, Sensex, USD/INR, EUR/INR) in parallel
         │
         ▼
-Returns JSON { record, error, iso, weekIndex, totalWeeks }
+Merges + dedupes by date and writes public/rbi-data.json
         │
         ▼
-Frontend renders charts + metric cards + tables + weekly summary
+Frontend GET /rbi-data.json → renders charts + metrics + tables + summary
 ```
+
+### Updating the data
+
+- **Automatically (GitHub Actions):** `.github/workflows/refresh-data.yml` runs
+  `npm run fetch:data` on a **daily schedule** (00:30 UTC) and commits the
+  refreshed `public/rbi-data.json` back to `main` if it changed. So the data
+  updates itself every week — the latest Friday's RBI report is published Friday
+  evening IST and is committed by Saturday morning. It can also be triggered
+  manually via the "Run workflow" button in the Actions tab. (The action only
+  commits when there is actual new data, so it won't churn empty commits.)
+- **On Netlify:** the build command (`npm run fetch:data`) regenerates
+  `rbi-data.json` on every deploy, so the deployed site also always ships with
+  the latest reports — even ahead of a scheduled commit.
+- **Locally:** run `npm run fetch:data` to refresh the file, then commit it
+  (or serve `public/` directly).
+- The script is incremental — each run only fetches weeks newer than the
+  newest record already in the file, so repeat runs are fast and polite to RBI.
+- It also **auto-extends across calendar years**: the Friday list is anchored
+  on the oldest record's year, so when the year rolls over the script keeps
+  fetching the new year's weeks without edits — and any week published in late
+  December that wasn't fetched until January is still picked up (no gap at the
+  year boundary). The header tagline's year updates automatically too.
 
 ### Frontend
 
@@ -178,4 +208,4 @@ No API keys are required. The Yahoo Finance chart API endpoint used (`/v8/financ
 - **Spot rate table** — RBI labels this table differently across years ("Foreign Exchange Market", "Exchange Rate", "Spot Rate"). The scraper tries all three keywords.
 - **Gold tonnes** — parsed from either a dedicated "metric tonnes" row or as the third numeric value in the gold row, whichever is found first.
 - **Nifty/Sensex date alignment** — Yahoo returns weekly bars whose timestamps don't always land exactly on Friday. The scraper snaps each timestamp to the nearest Friday before building the date→value map.
-- **Data is fetched fresh on every button click** — results are held in browser memory. The public JSON endpoints (`/data/*.json`) are cache-enabled server-side (`Cache-Control` headers) so embeds don't burn a function invocation on every load.
+- **Data lives in `public/rbi-data.json`** — regenerated on every deploy (Netlify build command) or via `npm run fetch:data` locally. The dashboard reads this static file on load; the "↺ Reload data" button re-reads it. The public JSON endpoints (`/data/*.json`) are cache-enabled server-side (`Cache-Control` headers) so embeds don't burn a function invocation on every load.

@@ -9,27 +9,36 @@ const XLSX  = require("node-xlsx");
 // focused on the 10-week as-on-Friday RBI + yfinance records.
 
 // ─── DATE HELPERS ────────────────────────────────────────────
-// Returns every Friday on or after `startISO` (defaults to Jan 1 of the current
-// calendar year) up to today. Used both by the dashboard handler and by the
-// public data-latest / data-forex-weekly endpoints.
+// Returns every Friday on or after `startISO` up to today.
+//
+// Default start: Jan 1 of the PREVIOUS calendar year, so the public
+// data-latest / data-forex-weekly endpoints keep December's tail weeks
+// available immediately after a new year starts (e.g. on Jan 2, 2027 the
+// list still contains late-Dec 2026 Fridays).
+//
+// All arithmetic uses UTC (getUTCDay/setUTCDate) so the result is stable
+// regardless of the runtime's timezone or DST transitions — otherwise a
+// server in BST/PST/etc. can shift "Friday" labels onto adjacent days.
 function getAllFridaysUntilToday(startISO) {
-  const start = startISO ? new Date(startISO) : new Date(`${new Date().getFullYear()}-01-01`);
+  const thisYear = new Date().getFullYear();
+  const start = startISO ? new Date(startISO) : new Date(`${thisYear - 1}-01-01`);
   const end   = new Date();
   const fridays = [];
   // advance start to first Friday on or after Jan 1
-  const dow = start.getDay(); // 0=Sun, 5=Fri
+  const dow = start.getUTCDay(); // 0=Sun, 5=Fri
   const skip = dow <= 5 ? 5 - dow : 12 - dow;
   const cur = new Date(start);
-  cur.setDate(cur.getDate() + skip); // include the start date itself if it is already a Friday
+  cur.setUTCDate(cur.getUTCDate() + skip); // include the start date itself if it is already a Friday
   while (cur <= end) {
     fridays.push(new Date(cur));
-    cur.setDate(cur.getDate() + 7);
+    cur.setUTCDate(cur.getUTCDate() + 7);
   }
   return fridays;
 }
 
 function fmtRbi(d) {
-  return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+  // UTC to match the UTC-anchored Friday list (timezone/DST independent)
+  return `${d.getUTCMonth()+1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
 }
 function isoDate(d) {
   return d.toISOString().slice(0, 10);
@@ -304,8 +313,10 @@ function parseSpotRateExcel(buf) {
 // ─── YAHOO FINANCE ───────────────────────────────────────────
 // Fetch daily data ±3 days around the target date, find closest close.
 async function getYahooClose(symbol, targetDate) {
-  const from = new Date(targetDate); from.setDate(from.getDate() - 4);
-  const to   = new Date(targetDate); to.setDate(to.getDate() + 1);
+  // UTC arithmetic keeps the ±window aligned with isoDate() labels regardless
+  // of the runtime timezone / DST.
+  const from = new Date(targetDate); from.setUTCDate(from.getUTCDate() - 4);
+  const to   = new Date(targetDate); to.setUTCDate(to.getUTCDate() + 1);
   const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`
              + `?period1=${Math.floor(from/1000)}&period2=${Math.floor(to/1000)}&interval=1d`;
   try {
@@ -329,7 +340,7 @@ async function getYahooClose(symbol, targetDate) {
 async function processOneFriday(pubFriday) {
   // The publication Friday's WSS shows reserves/gold data "as on" the *previous* Friday
   const asOn = new Date(pubFriday);
-  asOn.setDate(asOn.getDate() - 7);
+  asOn.setUTCDate(asOn.getUTCDate() - 7);
   const iso = isoDate(asOn);
 
   // 1. Fetch RBI page (using publication date)
@@ -393,17 +404,27 @@ exports._processOne    = processOneFriday;
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
   const startYear = parseInt(qs.startYear ?? "") || new Date().getFullYear();
-  const allFridays = getAllFridaysUntilToday(`${startYear}-01-01`);
+  let allFridays = getAllFridaysUntilToday(`${startYear}-01-01`);
+
+  // ?after=YYYY-MM-DD — incremental mode: only process Fridays strictly AFTER
+  // this date. weekOffset is then relative to the remaining list, so a client
+  // can re-fetch just the weeks published since its last successful fetch
+  // instead of re-scraping the entire year on every request.
+  const after = qs.after;
+  if (after && /^\d{4}-\d{2}-\d{2}$/.test(after)) {
+    allFridays = allFridays.filter(f => isoDate(f) > after);
+  }
+
   const total = allFridays.length;
 
-  // ?weekOffset=N  →  process allFridays[N] (0 = oldest, total-1 = newest)
+  // ?weekOffset=N  →  process allFridays[N] (0 = oldest remaining, total-1 = newest)
   const offset = parseInt(qs.weekOffset ?? "0");
 
   if (isNaN(offset) || offset >= total) {
     return {
       statusCode: 404,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: "No more weeks", done: true }),
+      body: JSON.stringify({ error: "No more weeks", done: true, totalWeeks: total }),
     };
   }
 
