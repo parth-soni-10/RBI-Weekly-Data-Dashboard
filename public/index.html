@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f0fdf4">
 <title>RBI Weekly Dashboard</title>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -283,7 +283,9 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
 .nav-toggle{display:none} /* desktop: keep the tabs inline */
 
 @media(max-width:900px){
-  header{gap:.6rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem}
+  header{gap:.6rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem;
+    transition:box-shadow .3s,background .3s,transform .32s cubic-bezier(.4,0,.2,1)}
+  header.header-hidden{transform:translateY(-110%);box-shadow:none}
   .logo{order:1}
   .logo .logo-text span{display:none}
   .head-right{order:2;width:100%;min-width:0;flex-wrap:wrap}
@@ -304,7 +306,17 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
 
   /* nav collapses to a vertical dropdown, hidden until the menu is opened */
   .nav-links{order:4;width:100%;flex:1 1 100%;min-width:0;display:none;padding:8px 0 2px}
-  header.nav-open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+
+  @keyframes navDropIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes navLinkIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+  header.nav-open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:4px;
+    transform-origin:top;
+    animation:navDropIn .24s cubic-bezier(.2,.9,.32,1)}
+  header.nav-open .nav-links .nav-link{animation:navLinkIn .3s cubic-bezier(.2,.9,.32,1) both}
+  header.nav-open .nav-links .nav-link:nth-child(2){animation-delay:.04s}
+  header.nav-open .nav-links .nav-link:nth-child(3){animation-delay:.08s}
+  header.nav-open .nav-links .nav-link:nth-child(4){animation-delay:.12s}
   .nav-links .nav-link{white-space:nowrap;width:100%;height:40px;padding:0 14px;
     justify-content:flex-start;border-radius:8px}
 }
@@ -798,6 +810,8 @@ function initNav(){
   const headerEl = toggle.closest('header') || document.querySelector('header') || document.body;
   const setNav = open => {
     headerEl.classList.toggle('nav-open', open);
+    // opening the menu must always bring the header back on screen
+    if(open) headerEl.classList.remove('header-hidden');
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   };
   toggle.addEventListener('click', e => {
@@ -812,6 +826,38 @@ function initNav(){
   toggle.addEventListener('keydown', e => { if(e.key === 'Escape') setNav(false); });
 }
 initNav();
+
+// Progressively-collapsible header on mobile: hide on scroll DOWN past a small
+// threshold, reveal instantly on scroll UP (or at the top). Never hides while
+// the hamburger menu is open or on screens wider than the mobile breakpoint.
+function initScrollHeader(){
+  const header = document.querySelector('header');
+  if(!header) return;
+  const mq = window.matchMedia('(max-width: 900px)');
+  const THRESHOLD = 90;
+  let lastY = window.scrollY || 0;
+  let hidden = false;
+  let ticking = false;
+  const update = () => {
+    const y = window.scrollY || 0;
+    const hide = mq.matches &&
+                 !header.classList.contains('nav-open') &&
+                 y > THRESHOLD &&
+                 y > lastY; // only hide while scrolling down
+    if (hidden !== hide) header.classList.toggle('header-hidden', hide);
+    hidden = hide;
+    lastY = y;
+    ticking = false;
+  };
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(update);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  update();
+}
+initScrollHeader();
 
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
@@ -1897,7 +1943,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const ly = document.getElementById('logo-year');
   if (ly) ly.textContent = `Forex, Rupee, Gold, Markets, ${new Date().getFullYear()}`;
   loadMacroData();
-  loadEmPeers();
   renderPmCares();
   startFetch();
 });

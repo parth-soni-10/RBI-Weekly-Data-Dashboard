@@ -1,6 +1,11 @@
 const fetch = require("node-fetch");
+const { withCache } = require("./_utils/cache");
 
 // ─── CONFIG ───────────────────────────────────────────────────
+// Fine to memoize: crude data moves on a daily scale, not per-request. Both the
+// in-memory cache and the Cache-Control max-age keep repeat loads light.
+const CRUDE_TTL_MS = 2 * 60 * 1000;
+
 const PPAC_BASE     = "https://ppac.gov.in";
 const PPAC_PAGE     = PPAC_BASE + "/import-export";
 const PPAC_AJAX     = PPAC_BASE + "/AjaxController/getImportExportsJson";
@@ -536,6 +541,7 @@ exports.handler = async (event) => {
     "Access-Control-Allow-Origin":  "*",
     "Access-Control-Allow-Methods": "GET,OPTIONS",
     "Content-Type": "application/json",
+    "Cache-Control": "public, max-age=120", // 2 min edge/browser cache
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -564,59 +570,63 @@ exports.handler = async (event) => {
       };
     }
 
-    // action === "all"  → full crude data pipeline
-    const [
-      ppacData,
-      { portSummaries, arrivalsByDate },
-      liveVessels,
-      marketData,
-      brentRes,
-      wtiRes,
-    ] = await Promise.all([
-      fetchAllPpac(),
-      fetchPortArrivals(),
-      fetchLiveVessels(),
-      fetchMarketData(),
-      fetchYahooPrice("BZ=F"),
-      fetchYahooPrice("CL=F"),
-    ]);
+    // action === "all"  → full crude data pipeline. Memoized: the heavyweight
+    // PPAC + TankerMap AIS scrape is served from the in-memory TTL cache on
+    // repeat calls, so a burst of dashboard loads doesn't re-scrape upstreams.
+    const payload = await withCache("crude:all", CRUDE_TTL_MS, async () => {
+      const [
+        ppacData,
+        { portSummaries, arrivalsByDate },
+        liveVessels,
+        marketData,
+        brentRes,
+        wtiRes,
+      ] = await Promise.all([
+        fetchAllPpac(),
+        fetchPortArrivals(),
+        fetchLiveVessels(),
+        fetchMarketData(),
+        fetchYahooPrice("BZ=F"),
+        fetchYahooPrice("CL=F"),
+      ]);
 
-    const brentLive = brentRes.price;
-    const brentDate = brentRes.date;
-    const wtiLive   = wtiRes.price;
-    const wtiDate   = wtiRes.date;
+      const brentLive = brentRes.price;
+      const brentDate = brentRes.date;
+      const wtiLive   = wtiRes.price;
+      const wtiDate   = wtiRes.date;
 
-    const monthlyBarrels = ppacToMonthlyBarrels(ppacData);
-    const indiaBound     = filterIndiaBound(liveVessels);
-    const dailyEstimates = buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels);
+      const monthlyBarrels = ppacToMonthlyBarrels(ppacData);
+      const indiaBound     = filterIndiaBound(liveVessels);
+      const dailyEstimates = buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels);
 
-    // quality metrics
-    const total    = dailyEstimates.length;
-    const tankerD  = dailyEstimates.filter(e => e.tanker_arrivals > 0).length;
-    const ppacD    = dailyEstimates.filter(e => e.ppac_monthly_bpd).length;
-    const reconD   = dailyEstimates.filter(e => e.methodology === "TANKER_RECONCILED").length;
-    const complete = total ? (tankerD + ppacD) / (2 * total) : 0;
-    const quality  = {
-      total_days:        total,
-      tanker_days:       tankerD,
-      ppac_days:         ppacD,
-      reconciled_days:   reconD,
-      data_completeness: +complete.toFixed(2),
-      confidence:        reconD > total * 0.5 ? "HIGH" : ppacD > total * 0.3 ? "MEDIUM" : "LOW",
-      start_date:        dailyEstimates[0]?.date  || null,
-      end_date:          dailyEstimates[total - 1]?.date || null,
-    };
+      // quality metrics
+      const total    = dailyEstimates.length;
+      const tankerD  = dailyEstimates.filter(e => e.tanker_arrivals > 0).length;
+      const ppacD    = dailyEstimates.filter(e => e.ppac_monthly_bpd).length;
+      const reconD   = dailyEstimates.filter(e => e.methodology === "TANKER_RECONCILED").length;
+      const complete = total ? (tankerD + ppacD) / (2 * total) : 0;
+      const quality  = {
+        total_days:        total,
+        tanker_days:       tankerD,
+        ppac_days:         ppacD,
+        reconciled_days:   reconD,
+        data_completeness: +complete.toFixed(2),
+        confidence:        reconD > total * 0.5 ? "HIGH" : ppacD > total * 0.3 ? "MEDIUM" : "LOW",
+        start_date:        dailyEstimates[0]?.date  || null,
+        end_date:          dailyEstimates[total - 1]?.date || null,
+      };
 
-    const payload = {
-      fetched_at:       new Date().toISOString(),
-      live_prices:      { brent: brentLive, brent_date: brentDate, wti: wtiLive, wti_date: wtiDate },
-      daily_estimates:  dailyEstimates,
-      port_summaries:   portSummaries,
-      india_bound_tankers: indiaBound,
-      ppac_monthly_barrels: monthlyBarrels,
-      ppac_raw:         ppacData,
-      quality_metrics:  quality,
-    };
+      return {
+        fetched_at:       new Date().toISOString(),
+        live_prices:      { brent: brentLive, brent_date: brentDate, wti: wtiLive, wti_date: wtiDate },
+        daily_estimates:  dailyEstimates,
+        port_summaries:   portSummaries,
+        india_bound_tankers: indiaBound,
+        ppac_monthly_barrels: monthlyBarrels,
+        ppac_raw:         ppacData,
+        quality_metrics:  quality,
+      };
+    });
 
     return {
       statusCode: 200, headers: CORS,
