@@ -1,0 +1,2 @@
+Every Friday the RBI drops a spreadsheet. This dashboard turns it into the week at a glance — forex reserves, gold, the rupee, and the markets, with 35 weeks of history.
+Numbers move markets. Know where they're heading.

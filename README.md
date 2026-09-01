@@ -2,6 +2,12 @@
 
 A simple dashboard that gathers the Reserve Bank of India's weekly updates — foreign exchange reserves, gold holdings, the value of the rupee, and how the stock market is doing — and puts them all in one easy-to-read place.
 
+## Watch it
+
+A 30-second trailer:
+
+<video src="brag-output/brag.mp4" controls poster="brag-output/brag.jpg" width="360"></video>
+
 ## Why it exists
 
 Every week the RBI publishes a new report as a raw spreadsheet. This project keeps a **history** of those numbers, so instead of digging through old files you can see the story at a glance:

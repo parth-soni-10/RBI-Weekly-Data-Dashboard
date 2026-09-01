@@ -6,7 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "check": "for f in netlify/functions/*.js netlify/functions/_utils/*.js scripts/*.js; do node --check \"$f\" || exit 1; done",
+    "check": "node scripts/check-syntax.js",
     "fetch:data": "node scripts/fetch-all.js"
   },
   "dependencies": {
