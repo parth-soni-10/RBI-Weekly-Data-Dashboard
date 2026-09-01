@@ -40,6 +40,8 @@ npm run fetch:data
 
 Then open the `public` folder in any browser (or serve it with a local server). The dashboard reads the freshly generated data file.
 
+Quick checks: `npm run check` verifies the syntax of every script in the repo.
+
 ## Built with
 
 A hand-written **HTML / CSS / JavaScript** site hosted on **Netlify**, with a bit of **Node** automation behind the scenes that fetches the reports and tidies the numbers. No database, no accounts, no sign-up.
