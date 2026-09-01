@@ -4,9 +4,9 @@ A simple dashboard that gathers the Reserve Bank of India's weekly updates — f
 
 ## Watch it
 
-A 30-second trailer:
+A 30-second trailer — click the poster to play:
 
-<video src="brag-output/brag.mp4" controls poster="brag-output/brag.jpg" width="360"></video>
+[![Play the RBI trailer](brag-output/brag.jpg)](brag-output/brag.mp4)
 
 ## Why it exists
 
