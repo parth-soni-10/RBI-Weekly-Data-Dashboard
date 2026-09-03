@@ -3,411 +3,560 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#f0fdf4">
+<meta name="theme-color" content="#0b1120">
+<meta name="color-scheme" content="dark light">
 <title>RBI Weekly Dashboard</title>
+<script>
+/* Pick the theme before first paint to avoid a flash: a stored choice wins, otherwise the OS preference. */
+(function () {
+  try {
+    var s = localStorage.getItem('rbi-theme');
+    var t = (s === 'light' || s === 'dark') ? s
+      : (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    document.documentElement.dataset.theme = t;
+  } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+})();
+</script>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ─── Refreshed green palette with better shadows & elevation ─── */
+/* ══════════════════════════════════════════════════════════════════════
+   RBI Weekly Dashboard — design system
+   A dense, institutional "reserve terminal" look. One accent (reserve
+   gold) for interaction and identity; emerald/red stay reserved for the
+   semantic up/down of markets. Light and dark themes share every token.
+   ══════════════════════════════════════════════════════════════════════ */
 :root{
-  --bg:#f4fdf7;--surface:#ffffff;--s2:#e2f5e9;--s3:#f4fdf7;
-  --border:#b9e5c6;--border2:#6ec98b;
-  --text:#14532d;--muted:#6b7280;--muted2:#9ca3af;
-  --accent:#16a34a;--accent-strong:#14532d;--accent-glow:rgba(22,163,74,.12);--dark:#14532d;
-  --up:#16a34a;--dn:#dc2626;
-  --grid:rgba(0,0,0,.035);--r:14px;--r-filter:6px;
-  --shadow-sm:0 1px 2px rgba(20,83,45,.04);
-  --shadow:0 2px 8px rgba(20,83,45,.07),0 1px 3px rgba(20,83,45,.04);
-  --shadow-lg:0 6px 20px rgba(20,83,45,.09),0 2px 6px rgba(20,83,45,.05);
+  /* shared shape + type */
+  --r2:10px;--r3:15px;--pill:999px;
+  --w:1180px;
+  --font:'Inter',system-ui,-apple-system,sans-serif;
+  --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --fs-body:14px;
+}
+/* ── Dark (default) ─────────────────────────────────────────────────── */
+html{color-scheme:dark}
+:root[data-theme="dark"]{
+  --bg:#070b15;
+  --bg-tint-1:radial-gradient(1100px 520px at 88% -140px,rgba(233,185,73,.1),transparent 62%);
+  --bg-tint-2:radial-gradient(900px 560px at -12% 4%,rgba(59,130,246,.075),transparent 55%);
+  --glow-lo:.4;--glow-hi:.95;
+  --surface:#0d1526;--surface2:#111c31;
+  --border:rgba(148,163,184,.13);--border2:rgba(148,163,184,.28);--border3:rgba(148,163,184,.4);
+  --ink:#e9eff8;--ink2:#a2b2c9;--ink3:#72829c;
+  --brand:#e9b949;--brand2:#f6cf7e;--on-brand:#241a04;--brand-soft:rgba(233,185,73,.13);--brand-line:rgba(233,185,73,.4);
+  --active-bg:#e9b949;--active-fg:#241a04;
+  --pos:#3ecf8e;--neg:#fb7d7d;--pos-c:#2fb67c;--neg-c:#f97070;
+  --warn-fg:#eec06a;--warn-bg:rgba(238,192,106,.12);
+  --info-fg:#7fbdf0;--info-bg:rgba(96,165,250,.13);
+  --sel:rgba(233,185,73,.32);
+  --console-bg:#050910;
+  --shadow-sm:0 1px 2px rgba(3,7,18,.4),inset 0 1px 0 rgba(255,255,255,.05);
+  --shadow:0 3px 14px -4px rgba(3,7,18,.55),0 1px 3px rgba(3,7,18,.4),inset 0 1px 0 rgba(255,255,255,.05);
+  --shadow-lg:0 22px 48px -20px rgba(2,5,14,.8),inset 0 1px 0 rgba(255,255,255,.07);
+  --chip-latest-bg:rgba(233,185,73,.16);--chip-latest-fg:#f2cf86;
+  --row-hover:rgba(148,163,184,.06);--row-latest:rgba(233,185,73,.05);
+  --chart-tick:#8b9bb4;--chart-grid:rgba(148,163,184,.09);--chart-legend:#aab8cc;
+  --tt-bg:rgba(10,17,34,.97);--tt-t:#eef3fb;--tt-b:#c9d6ea;--tt-border:rgba(148,163,184,.35);
+}
+/* ── Light ──────────────────────────────────────────────────────────── */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f1f3f7;
+  --bg-tint-1:radial-gradient(1000px 480px at 85% -160px,rgba(210,150,40,.09),transparent 60%);
+  --bg-tint-2:radial-gradient(820px 520px at -10% 0%,rgba(37,99,235,.06),transparent 55%);
+  --glow-lo:.45;--glow-hi:.8;
+  --surface:#ffffff;--surface2:#f4f6fa;
+  --border:rgba(15,30,55,.11);--border2:rgba(15,30,55,.22);--border3:rgba(15,30,55,.35);
+  --ink:#101d33;--ink2:#4d5e78;--ink3:#5f7189;
+  --brand:#9a5e06;--brand2:#7a4a04;--on-brand:#ffffff;--brand-soft:rgba(180,112,10,.1);--brand-line:rgba(154,94,6,.45);
+  --active-bg:#d9a02c;--active-fg:#332106;
+  --pos:#047857;--neg:#c22b2b;--pos-c:#10a06e;--neg-c:#e04545;
+  --warn-fg:#965b00;--warn-bg:rgba(217,160,44,.16);
+  --info-fg:#1d5fb0;--info-bg:rgba(37,99,235,.09);
+  --sel:rgba(210,150,40,.25);
+  --console-bg:#f8fafd;
+  --shadow-sm:0 1px 2px rgba(16,30,55,.06);
+  --shadow:0 4px 18px -8px rgba(16,30,55,.16),0 1px 3px rgba(16,30,55,.06);
+  --shadow-lg:0 26px 52px -24px rgba(16,30,55,.28),inset 0 1px 0 rgba(255,255,255,.6);
+  --chip-latest-bg:rgba(180,112,10,.13);--chip-latest-fg:#7a4a04;
+  --row-hover:rgba(15,30,55,.045);--row-latest:rgba(180,112,10,.05);
+  --chart-tick:#64748b;--chart-grid:rgba(15,30,55,.07);--chart-legend:#5a6a82;
+  --tt-bg:rgba(255,255,255,.98);--tt-t:#101d33;--tt-b:#41516a;--tt-border:rgba(15,30,55,.18);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:linear-gradient(180deg,#f4fdf7 0%,#edf8f0 40%,#e7f5ec 100%);
-  color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;min-height:100vh;
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.skip-link{position:absolute;left:-9999px;top:0;z-index:300;background:var(--accent);color:#fff;padding:8px 14px;border-radius:0 0 6px 0;font-size:13px;font-weight:600;font-family:'Inter',sans-serif}
-.skip-link:focus{left:0}
+body{
+  background-color:var(--bg);
+  color:var(--ink);font-family:var(--font);font-size:var(--fs-body);line-height:1.5;
+  min-height:100vh;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+/* Ambient light: two fixed, compositor-friendly layers that breathe gently
+   behind the content so surfaces read as floating over depth. They sit at
+   z-index -1 (behind every card) and animate only opacity. The global
+   reduced-motion rule freezes them to the low state. */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:var(--bg-tint-1),var(--bg-tint-2);
+  background-repeat:no-repeat;
+  opacity:var(--glow-lo);
+  animation:breatheGlow 13s ease-in-out infinite alternate;
+  will-change:opacity;
+}
+@keyframes breatheGlow{from{opacity:var(--glow-lo)}to{opacity:var(--glow-hi)}}
+::selection{background:var(--sel)}
+a{color:var(--brand)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--border3);border:2px solid transparent;background-clip:content-box}
+*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.skip-link{position:absolute;left:-9999px;top:.5rem;z-index:300;background:var(--brand);color:var(--on-brand);
+  padding:.5rem .9rem;border-radius:var(--r2);font-size:13px;font-weight:600}
+.skip-link:focus{left:.5rem}
 
-/* ─── Sticky header with subtle glassmorphism ─── */
-header{background:rgba(255,255,255,.88);backdrop-filter:blur(14px) saturate(1.4);
-  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+/* ─── Header ────────────────────────────────────────────────────────── */
+header{
+  background:var(--surface);
+  background:color-mix(in srgb,var(--surface) 82%,transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);
   border-bottom:1px solid var(--border);
-  box-shadow:0 1px 6px rgba(20,83,45,.05);
-  padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem clamp(1rem,3vw,2rem);
+  display:flex;align-items:center;justify-content:space-between;gap:.8rem;
   position:sticky;top:0;z-index:200;
-  transition:box-shadow .3s,background .3s}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-badge{width:34px;height:34px;background:linear-gradient(135deg,#22c55e 0%,#16a34a 60%,#15803d 100%);
-  border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:16px;font-weight:700;color:#fff;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(22,163,74,.25);letter-spacing:-.5px}
-.logo-text h1{font-size:14px;font-weight:600;color:var(--dark);line-height:1.2;font-family:'Inter',sans-serif}
-.logo-text span{font-size:12px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400}
-.nav-links{display:flex;align-items:center;gap:6px}
-.nav-link{height:30px;display:inline-flex;align-items:center;padding:0 13px;border-radius:var(--r-filter);
-  font-size:13px;line-height:16px;font-weight:500;color:var(--muted);
-  text-decoration:none;transition:all .2s cubic-bezier(.4,0,.2,1);
-  border:1px solid transparent;font-family:'Inter',sans-serif;letter-spacing:.1px}
-.nav-link:hover{background:var(--s2);color:var(--dark);border-color:var(--border);transform:translateY(-1px);
-  box-shadow:0 2px 6px rgba(20,83,45,.06)}
-.nav-link.active{background:var(--accent);color:#fff;
-  box-shadow:0 2px 8px rgba(22,163,74,.3);transform:translateY(-1px)}
-.status-pill{height:30px;display:flex;align-items:center;gap:6px;
-  background:rgba(226,245,233,.7);border:1px solid var(--border);
-  border-radius:var(--r-filter);padding:0 12px;font-size:13px;line-height:16px;font-weight:500;
-  color:#4b5563;font-family:'Inter',sans-serif}
-.dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex-shrink:0;transition:background .3s}
-.dot.running{background:var(--accent);animation:blink 1.2s infinite}
-.dot.done{background:var(--up)}.dot.error{background:var(--dn)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-.head-right{display:flex;align-items:center;gap:10px}
+  transition:transform .32s cubic-bezier(.4,0,.2,1),box-shadow .3s,background .3s;
+}
+header.header-hidden{transform:translateY(-110%);box-shadow:none}
+header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border2)}
+.logo{display:flex;align-items:center;gap:.65rem;min-width:0}
+.logo-badge{
+  width:34px;height:34px;border-radius:11px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--brand2),var(--brand));
+  color:var(--on-brand);font-weight:700;font-size:17px;line-height:1;
+  box-shadow:0 3px 10px -3px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.25);
+}
+.logo-text{min-width:0}
+.logo-text h1{font-size:14.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo-text span{font-size:11px;color:var(--ink3);letter-spacing:.02em;font-weight:450}
+.head-right{display:flex;align-items:center;gap:.55rem}
+/* nav */
+.nav-links{display:flex;align-items:center;gap:3px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--r2);padding:3px}
+.nav-link{
+  height:32px;display:inline-flex;align-items:center;gap:.45rem;padding:0 .8rem;
+  border-radius:calc(var(--r2) - 3px);font-size:12.5px;font-weight:550;letter-spacing:.01em;
+  color:var(--ink2);text-decoration:none;white-space:nowrap;
+  transition:background .18s,color .18s,box-shadow .18s;
+}
+.nav-link:hover{background:var(--row-hover);color:var(--ink)}
+.nav-link.active{background:var(--active-bg);color:var(--active-fg);box-shadow:0 2px 8px -2px rgba(0,0,0,.35)}
+.nav-link .lucide{width:15px;height:15px;flex-shrink:0}
+/* icon buttons */
+.theme-toggle{
+  width:36px;height:36px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:var(--r2);border:1px solid var(--border);background:var(--surface2);color:var(--ink2);
+  cursor:pointer;transition:color .18s,border-color .18s,background .18s;
+}
+.theme-toggle:hover{color:var(--brand);border-color:var(--brand-line);background:var(--brand-soft)}
+/* status pill */
+.status-pill{
+  height:34px;display:inline-flex;align-items:center;gap:.5rem;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--pill);
+  padding:0 .8rem 0 .65rem;font-size:12px;font-weight:500;color:var(--ink2);white-space:nowrap;
+}
+.status-pill .lucide{width:13px;height:13px;color:var(--ink3)}
+.status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);flex-shrink:0;transition:background .3s}
+.status-pill .dot.running{background:var(--warn-fg);animation:blink 1.1s ease-in-out infinite}
+.status-pill .dot.done{background:var(--pos)}
+.status-pill .dot.error{background:var(--neg)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* ─── Sections ─── */
-.section{display:none;max-width:1160px;margin:0 auto;padding:1.75rem 2rem;font-family:'Inter',sans-serif}
-.section.active{display:block}
+/* ─── Sections ───────────────────────────────────────────────────────── */
+.section{display:none;max-width:var(--w);margin:0 auto;padding:1.5rem clamp(1rem,3vw,2rem) 2.6rem}
+.section.active{display:block;animation:sectionIn .38s cubic-bezier(.2,.9,.3,1) both}
+@keyframes sectionIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-/* ─── Fetch panel ─── */
-.fetch-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1.4rem 16px;margin-bottom:1.5rem;
-  box-shadow:var(--shadow-sm);transition:box-shadow .3s}
-.fetch-panel:hover{box-shadow:var(--shadow)}
-.panel-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
-  margin-bottom:.85rem;font-family:'Inter',sans-serif;display:block}
-#log-box{background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:.6rem 1rem;
-  height:140px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:11px;line-height:1.9;
-  color:var(--muted);transition:background .2s}
-#log-box .ok{color:var(--up);font-weight:500}
-#log-box .err{color:var(--dn)}
-#log-box .warn{color:#b45309}
+/* Weightless entrances: cards drop in like dominoes once their group becomes
+   visible (data loaded, section opened, or rows rendered). Transform/opacity
+   only; disabled entirely under prefers-reduced-motion by the global rule. */
+@keyframes cardIn{from{opacity:0;transform:translateY(13px) scale(.995)}to{opacity:1;transform:none}}
+#metrics.show .mc,.metric-extra-row.show .mex,.pm-metrics .mc,.mc-grid .mctx,
+#crude-kpis .mc,#charts.show .chart-card{
+  animation:cardIn .5s cubic-bezier(.2,.8,.25,1) both;
+}
+#metrics.show .mc:nth-child(2),.metric-extra-row.show .mex:nth-child(2),.pm-metrics .mc:nth-child(2),
+.mc-grid .mctx:nth-child(2),#crude-kpis .mc:nth-child(2),#charts.show .chart-card:nth-child(2){animation-delay:.045s}
+#metrics.show .mc:nth-child(3),.metric-extra-row.show .mex:nth-child(3),.pm-metrics .mc:nth-child(3),
+.mc-grid .mctx:nth-child(3),#crude-kpis .mc:nth-child(3),#charts.show .chart-card:nth-child(3){animation-delay:.09s}
+#metrics.show .mc:nth-child(4),.pm-metrics .mc:nth-child(4),.mc-grid .mctx:nth-child(4),
+#crude-kpis .mc:nth-child(4),#charts.show .chart-card:nth-child(4){animation-delay:.135s}
+#metrics.show .mc:nth-child(5),.pm-metrics .mc:nth-child(5),.mc-grid .mctx:nth-child(5),
+#charts.show .chart-card:nth-child(5){animation-delay:.18s}
+#metrics.show .mc:nth-child(6),.pm-metrics .mc:nth-child(6),.mc-grid .mctx:nth-child(6),
+#charts.show .chart-card:nth-child(6){animation-delay:.225s}
+#metrics.show .mc:nth-child(7),.mc-grid .mctx:nth-child(7),
+#charts.show .chart-card:nth-child(7){animation-delay:.27s}
+.mc-grid .mctx:nth-child(8),#charts.show .chart-card:nth-child(8){animation-delay:.315s}
 
-/* ─── Buttons ─── */
-.btn{height:30px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  margin-top:.85rem;padding:0 16px;
-  background:linear-gradient(135deg,#15803d 0%,#166534 100%);color:#fff;
-  border:none;border-radius:var(--r-filter);
-  font-family:'Inter',sans-serif;font-size:13px;line-height:16px;font-weight:500;
-  letter-spacing:.1px;cursor:pointer;
-  transition:all .2s cubic-bezier(.4,0,.2,1);
-  box-shadow:0 2px 6px rgba(22,163,74,.25)}
-.btn:hover{background:linear-gradient(135deg,#15803d 0%,#14532d 100%);
-  transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,163,74,.3)}
-.btn:active{transform:translateY(0) scale(.98);box-shadow:0 1px 3px rgba(22,163,74,.2)}
-.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+/* ─── Shared surface ─────────────────────────────────────────────────── */
+.note-strip,.fetch-panel,.weekly-summary,.tbl-intro,.tbl-wrap,.chart-card,
+.macro-context,.mex,.mctx,.mc{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);
+  box-shadow:var(--shadow-sm);
+}
 
-/* ─── Download buttons ─── */
-.dl{height:30px;display:inline-flex;align-items:center;padding:0 12px;font-size:13px;
-  line-height:16px;letter-spacing:.1px;background:var(--s2);border:1px solid var(--border);
-  border-radius:var(--r-filter);cursor:pointer;color:var(--text);
-  font-family:'Inter',sans-serif;font-weight:500;
-  transition:all .2s cubic-bezier(.4,0,.2,1)}
-.dl:hover{background:var(--surface);color:var(--dark);transform:translateY(-1px);
-  box-shadow:0 2px 6px rgba(20,83,45,.08)}
+/* ─── Note / callout banner ──────────────────────────────────────────── */
+.note-strip{
+  display:flex;gap:.7rem;align-items:flex-start;
+  background:var(--brand-soft);border-color:var(--brand-line);
+  border-left:3px solid var(--brand);
+  padding:.7rem .9rem;margin-bottom:1.1rem;font-size:12.5px;line-height:1.6;
+  color:var(--ink);
+  color:color-mix(in srgb,var(--ink) 88%,var(--brand));
+}
+.note-strip .lucide{width:15px;height:15px;color:var(--brand);flex-shrink:0;margin-top:2px}
+.note-strip strong{font-weight:650;color:var(--ink)}
+.accent-link{color:var(--brand);text-decoration:none;font-weight:550}
+.accent-link:hover{text-decoration:underline}
+
+/* ─── Fetch / console panel ─────────────────────────────────────────── */
+.fetch-panel{padding:1rem 1.1rem;margin-bottom:1.1rem;display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap}
+.panel-label{font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);
+  display:block;margin-bottom:.55rem}
+.fetch-panel .panel-label{flex:1 1 100%;margin-bottom:0}
+#log-box{
+  background:var(--console-bg);border:1px solid var(--border);border-radius:var(--r2);
+  padding:.6rem .85rem;height:118px;overflow-y:auto;flex:1 1 300px;
+  font-family:var(--mono);font-size:11px;line-height:1.85;color:var(--ink2);
+}
+#log-box .ok{color:var(--pos);font-weight:500}
+#log-box .err{color:var(--neg)}
+#log-box .warn{color:var(--warn-fg)}
+.ok{color:var(--pos)}
+.err{color:var(--neg)}
+.warn{color:var(--warn-fg)}
+
+/* ─── Buttons ────────────────────────────────────────────────────────── */
+.btn{
+  height:36px;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;
+  padding:0 1.05rem;background:var(--active-bg);color:var(--active-fg);
+  border:none;border-radius:var(--r2);font-family:var(--font);font-size:13px;font-weight:650;
+  letter-spacing:.01em;cursor:pointer;
+  transition:filter .18s,transform .18s,box-shadow .18s;
+  box-shadow:0 2px 8px -2px rgba(0,0,0,.35);
+}
+.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn .lucide{width:15px;height:15px}
+.dl{
+  height:32px;display:inline-flex;align-items:center;gap:.5rem;padding:0 .85rem;
+  background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r2);
+  color:var(--ink2);font-family:var(--font);font-size:12.5px;font-weight:550;cursor:pointer;
+  transition:color .18s,border-color .18s,background .18s,transform .18s;
+}
+.dl:hover{color:var(--brand);border-color:var(--brand-line);background:var(--brand-soft)}
 .dl:active{transform:scale(.97)}
 a.dl{text-decoration:none}
-.dl-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.dl .lucide{width:14px;height:14px}
+.dl-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
 html{-webkit-tap-highlight-color:transparent}
-.nav-link,.btn,.dl,.tab,.src-link{touch-action:manipulation}
-.nav-link:focus-visible,.btn:focus-visible,.dl:focus-visible,.tab:focus-visible,.src-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nav-link,.btn,.dl,.tab,.src-link,.theme-toggle{touch-action:manipulation}
 
-/* ─── Weekly summary ─── */
-.weekly-summary{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);
-  border:1px solid var(--border);border-radius:var(--r);
-  padding:1.1rem 16px;margin-bottom:1.25rem;display:none;
-  box-shadow:var(--shadow-sm)}
+/* ─── Intro copy block ─────────────────────────────────────────────── */
+.tbl-intro{padding:1rem 1.1rem;margin-bottom:1.1rem}
+.tbl-intro p{font-size:13px;color:var(--ink2);line-height:1.7}
+.tbl-intro strong{color:var(--ink);font-weight:600}
+.tbl-intro a{color:var(--brand)}
+#crude-fetch-status{margin-top:.55rem;font-size:12px;font-weight:550;font-family:var(--mono)}
+#crude-fetched-at{font-size:10.5px;color:var(--ink3);display:block;margin-top:.25rem;font-family:var(--mono)}
+
+/* ─── Weekly summary ────────────────────────────────────────────────── */
+.weekly-summary{
+  padding:1rem 1.15rem;margin-bottom:1.1rem;display:none;
+  border-left:3px solid var(--brand);
+}
 .weekly-summary.show{display:block}
-.weekly-summary .panel-label{margin-bottom:.5rem}
-.weekly-summary p{font-size:14px;color:var(--dark);line-height:1.7;margin:0;font-family:'Inter',sans-serif}
-.weekly-summary strong{font-weight:600}
+.weekly-summary p{font-size:13.5px;color:var(--ink2);line-height:1.75}
+.weekly-summary strong{color:var(--ink);font-weight:600}
+.weekly-summary .lucide{width:15px;height:15px;color:var(--brand);flex-shrink:0;margin-top:2px}
+.weekly-summary .panel-label{display:flex;gap:.5rem;align-items:center;color:var(--brand);margin-bottom:.5rem;text-transform:none;letter-spacing:.01em;font-size:12px}
 
-/* ─── Glossary tooltips ─── */
-[data-glossary]{border-bottom:1px dotted var(--muted);cursor:help;position:relative}
+/* ─── Glossary dotted hints ─────────────────────────────────────────── */
+[data-glossary]{border-bottom:1px dotted var(--border3);cursor:help;position:relative}
 [data-glossary]:hover::after{
-  content:attr(data-glossary);position:absolute;left:0;top:calc(100% + 6px);
-  background:var(--dark);color:#dcfce7;padding:10px 13px;border-radius:8px;
-  font-size:11.5px;font-weight:400;line-height:1.55;max-width:300px;
-  z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);white-space:normal;
-  text-transform:none;letter-spacing:0;font-family:'Inter',sans-serif}
+  content:attr(data-glossary);position:absolute;left:0;top:calc(100% + 8px);z-index:500;
+  background:var(--tt-bg);color:var(--tt-b);border:1px solid var(--tt-border);border-radius:var(--r2);
+  padding:.6rem .8rem;font-size:11.5px;font-weight:400;line-height:1.6;width:max-content;max-width:min(320px,80vw);
+  box-shadow:var(--shadow);white-space:normal;text-transform:none;letter-spacing:0;font-family:var(--font);
+}
 
-/* ─── Metric extra row (Import Cover / Volatility / Repo Rate) ─── */
-.metric-extra-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;margin:0 0 1.25rem 0;opacity:0;transition:opacity .4s}
-.metric-extra-row.show{opacity:1}
-.mex{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
-.mex:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
-.mex-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);
-  letter-spacing:.1px;margin-bottom:5px;font-family:'Inter',sans-serif}
-.mex-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
-  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
-.mex-detail{font-size:10.5px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace}
+/* ─── Metric cards (shared .mc + .mctx + .mex) ──────────────────────── */
+#metrics,.pm-metrics,.kpi-grid,.metric-extra-row,.mc-grid,.crude-hl-grid{
+  display:grid;gap:.7rem;
+}
+#metrics{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1.25rem;opacity:0;transition:opacity .4s}
+.pm-metrics{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:1.1rem}
+.kpi-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1rem}
+.metric-extra-row{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:0 0 1.1rem;opacity:0;transition:opacity .4s}
+.mc-grid{grid-template-columns:repeat(auto-fit,minmax(195px,1fr))}
+#metrics.show{opacity:1}.metric-extra-row.show{opacity:1}
+.mc,.mctx,.mex{
+  padding:.85rem .95rem;position:relative;transition:border-color .3s,box-shadow .3s,transform .3s cubic-bezier(.2,.8,.25,1);
+}
+.mc:hover,.mctx:hover,.mex:hover{border-color:var(--border2);box-shadow:var(--shadow-lg);transform:translateY(-3px)}
+.mc-label,.mctx-label,.mex-label,.crude-hl-label{
+  font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);
+  margin-bottom:.45rem;
+}
+.mctx-label{margin-bottom:.35rem}
+.mc-val,.mctx-val,.mex-val,.crude-hl-val{
+  font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:17.5px;font-weight:500;line-height:1.3;color:var(--ink);letter-spacing:-.02em;
+}
+.mex-val{font-size:19px}
+.mc-sub,.mctx-sub{font-size:10.5px;color:var(--ink3);margin-top:.3rem;font-family:var(--mono);letter-spacing:0}
+.mex-detail{font-size:10px;color:var(--ink3);margin-top:.35rem;font-family:var(--mono)}
+.mc-delta{font-size:11px;margin-top:.45rem;font-family:var(--mono);font-weight:500;letter-spacing:-.01em}
+.up{color:var(--pos)}
+.dn{color:var(--neg)}
+.mctx-sub{font-family:var(--font);font-size:11px}
 
-.vol-pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;
-  font-weight:500;font-family:'DM Mono',monospace;margin-left:6px}
-.vol-pill.low{background:#dcfce7;color:#14532d}.vol-pill.med{background:#fef3c7;color:#92400e}
-.vol-pill.high{background:#fee2e2;color:#991b1b}
+/* volatility pill */
+.vol-pill{display:inline-block;padding:1px 8px;border-radius:var(--pill);font-size:10px;font-weight:600;font-family:var(--mono);margin-left:.35rem}
+.vol-pill.low{background:var(--info-bg);color:var(--info-fg)}
+.vol-pill.med{background:var(--warn-bg);color:var(--warn-fg)}
+.vol-pill.high{background:rgba(233,64,64,.14);color:var(--neg)}
 
-/* ─── Macro context card grid ─── */
-.macro-context{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1.2rem 16px;margin-bottom:1.25rem;box-shadow:var(--shadow-sm);transition:box-shadow .3s}
-.macro-context:hover{box-shadow:var(--shadow)}
-.macro-context h3{font-size:12px;line-height:16px;font-weight:600;color:var(--muted);
-  letter-spacing:.1px;margin-bottom:.85rem;font-family:'Inter',sans-serif}
-.mc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.mctx{background:var(--s3);border:1px solid var(--border);border-radius:var(--r);
-  padding:1rem 16px;transition:all .25s}
-.mctx:hover{background:var(--s2);transform:translateY(-1px);box-shadow:0 2px 8px rgba(20,83,45,.06)}
-.mctx-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);
-  letter-spacing:.1px;margin-bottom:4px;font-family:'Inter',sans-serif}
-.mctx-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
-  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
-.mctx-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',sans-serif}
+/* ─── Macro context ─────────────────────────────────────────────────── */
+.macro-context{padding:1.05rem 1.1rem;margin-bottom:1.1rem}
+.macro-context h3{font-size:12px;font-weight:650;letter-spacing:.01em;color:var(--ink);margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.macro-context h3 .lucide{width:14px;height:14px;color:var(--brand)}
+.mctx{background:var(--surface2);border-radius:var(--r2)}
+.mctx:hover{background:var(--surface);border-color:var(--border2)}
 
-/* ─── Key metric cards (#metrics) ─── */
-#metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
-  gap:10px;margin-bottom:1.5rem;opacity:0;transition:opacity .4s}
-#metrics.show{opacity:1}
-.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
-.mc:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
-.mc-label{font-size:12px;line-height:16px;font-weight:500;color:var(--muted);letter-spacing:.1px;
-  margin-bottom:5px;font-family:'Inter',sans-serif}
-.mc-val{font-size:18px;line-height:24px;font-weight:600;font-variant-numeric:tabular-nums;
-  font-family:'Inter',sans-serif;color:var(--dark);letter-spacing:-.1px}
-.mc-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',sans-serif}
-.mc-delta{font-size:11px;margin-top:5px;font-family:'DM Mono',monospace;letter-spacing:-.1px;font-weight:500}
-.up{color:var(--up)}.dn{color:var(--dn)}
-
-/* ─── Charts section ─── */
-#charts{display:flex;flex-direction:column;gap:1.25rem;opacity:0;transition:opacity .4s}
+/* ─── Charts ────────────────────────────────────────────────────────── */
+#charts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(430px,100%),1fr));
+  gap:1rem;opacity:0;transition:opacity .4s;
+}
 #charts.show{opacity:1}
-.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1.2rem 16px;box-shadow:var(--shadow-sm);transition:all .25s}
-.chart-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
-.chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
-  gap:8px;margin-bottom:.85rem}
-.chart-title{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;
-  letter-spacing:-.1px}
-.chart-note{font-size:11px;color:var(--muted);margin-top:2px;font-family:'Inter',sans-serif}
-.tab-row{display:flex;gap:4px;background:var(--s2);border-radius:var(--r-filter);
-  padding:4px;width:fit-content;margin-bottom:.85rem}
-.tab{height:30px;padding:0 13px;display:inline-flex;align-items:center;border-radius:6px;
-  font-size:13px;line-height:16px;font-weight:500;letter-spacing:.1px;cursor:pointer;
-  border:none;background:none;color:#4b5563;font-family:'Inter',sans-serif;
-  transition:all .2s cubic-bezier(.4,0,.2,1)}
-.tab.on{background:var(--accent);color:#fff;
-  box-shadow:0 2px 6px rgba(22,163,74,.3)}
-.tab:hover:not(.on){background:var(--surface);color:var(--dark);transform:translateY(-1px)}
-.chart-wrap{position:relative;height:230px}
-.chart-wrap.tall{height:240px}
-.chart-wrap.wide{height:280px}
-.chart-wrap.compact{height:220px}
+#charts .chart-card.span2{grid-column:1/-1}
+.chart-card{padding:1.05rem 1.1rem;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}
+.chart-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+#charts .chart-card{margin-bottom:0}
+.chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.8rem}
+.chart-title{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink)}
+.chart-note{font-size:11px;color:var(--ink3);margin-top:.15rem}
+.chart-wrap{position:relative;height:225px}
+.chart-wrap.tall{height:250px}
+.chart-wrap.wide{height:290px}
+.chart-wrap.compact{height:215px}
 
-/* ─── Empty state ─── */
-#empty{text-align:center;padding:3.5rem 2rem;color:var(--muted);font-family:'Inter',sans-serif}
-#empty h2{font-size:18px;line-height:24px;font-weight:600;color:var(--dark);margin-bottom:7px;
-  letter-spacing:-.1px}
-#empty p{font-size:13px;line-height:1.65;max-width:360px;margin:0 auto 1.5rem}
+/* chart mode tabs */
+.tab-row{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:3px;width:fit-content;margin-bottom:.75rem}
+.tab{
+  height:28px;padding:0 .75rem;display:inline-flex;align-items:center;border-radius:calc(var(--r2) - 4px);
+  font-size:12px;font-weight:550;letter-spacing:.01em;cursor:pointer;border:none;background:transparent;
+  color:var(--ink2);font-family:var(--font);transition:background .18s,color .18s,box-shadow .18s;
+}
+.tab:hover:not(.on){color:var(--ink);background:var(--row-hover)}
+.tab.on{background:var(--active-bg);color:var(--active-fg);box-shadow:0 1px 5px -1px rgba(0,0,0,.3)}
+.tab .lucide{width:13px;height:13px;margin-right:.3rem;vertical-align:-2px}
 
-/* ─── Intro text boxes ─── */
-.note-strip{background:var(--s2);border:1px solid var(--border2);border-radius:6px;
-  padding:8px 12px;margin-bottom:1rem;font-size:12px;color:var(--dark)}
-.accent-link{color:var(--accent)}
-.tbl-intro{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:1.2rem 16px;margin-bottom:1.25rem;box-shadow:var(--shadow-sm)}
-.tbl-intro p{font-size:14px;color:var(--muted);line-height:1.7;font-family:'Inter',sans-serif}
-.tbl-intro strong{color:var(--dark)}
+/* ─── Empty states ──────────────────────────────────────────────────── */
+#empty{text-align:center;padding:3.5rem 1.5rem;color:var(--ink3)}
+#empty h2{font-size:17px;font-weight:650;color:var(--ink);margin-bottom:.4rem}
+#empty p{font-size:13px;line-height:1.65;max-width:430px;margin:.5rem auto 0}
+#empty code{font-family:var(--mono);font-size:12px;background:var(--surface2);padding:.1rem .35rem;border-radius:5px;border:1px solid var(--border)}
+.tbl-empty{text-align:center;padding:2.8rem 1rem;color:var(--ink3);font-size:13px}
 
-/* ─── Tables ─── */
-.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  overflow:hidden;box-shadow:var(--shadow-sm);transition:box-shadow .3s}
-.tbl-wrap:hover{box-shadow:var(--shadow)}
-.tbl-header{padding:1rem 16px;border-bottom:1px solid var(--border);display:flex;
-  align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.tbl-header h2{font-size:14px;font-weight:600;color:var(--dark);font-family:'Inter',sans-serif;
-  letter-spacing:-.1px}
-.tbl-header span{font-size:11px;color:var(--muted);font-family:'Inter',sans-serif}
-.hdr-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.panel-label.inline{margin:0;align-self:center}
+/* ─── Tables ────────────────────────────────────────────────────────── */
+.tbl-wrap{overflow:hidden;margin-bottom:1.1rem}
+.tbl-wrap.mt1{margin-top:1rem}.tbl-wrap.mt125{margin-top:1.25rem}
+.tbl-header{
+  padding:.85rem 1.1rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
+}
+.tbl-header h2{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink)}
+.tbl-header span{font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.tbl-header .hdr-actions span{font-family:var(--font);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;font-weight:600;color:var(--ink3)}
+.hdr-actions{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
+.tbl-header .hdr-actions .panel-label{margin:0;display:inline-flex;align-items:center;gap:.4rem}
 .tbl-scroll{overflow-x:auto}
 .tbl-scroll.hidden{display:none}
-.mt1{margin-top:1rem}
-.mt125{margin-top:1.25rem}
-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.mt1{margin-top:1rem}.mt125{margin-top:1.25rem}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+.tbl-scroll table{min-width:640px}
+#crude-daily-container table{min-width:0}
 thead th{
-  background:linear-gradient(180deg,#e2f5e9 0%,#d7f0df 100%);
-  padding:.75rem 16px;text-align:left;
-  font-size:12px;line-height:16px;font-weight:600;color:#374151;
-  letter-spacing:.1px;white-space:nowrap;
-  font-family:'Inter',sans-serif;border-bottom:1.5px solid var(--border);
-  position:sticky;top:0;z-index:1}
+  background:var(--surface2);color:var(--ink2);
+  padding:.62rem .9rem;text-align:left;font-size:10.5px;font-weight:650;letter-spacing:.06em;
+  text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--border);
+}
 thead th:not(:first-child){text-align:right}
 thead th.th-group{text-align:center;border-left:1px solid var(--border)}
 thead th.th-sep{border-left:1px solid var(--border)}
-tbody tr{transition:background .15s;border-bottom:1px solid rgba(185,229,198,.5)}
-tbody tr:hover{background:rgba(212,245,220,.35)}
-tbody tr:last-child{border-bottom:none}
-td{padding:.65rem 16px;color:var(--dark);font-family:'DM Mono',monospace;font-size:12px}
+tbody tr{border-bottom:1px solid transparent;transition:background .15s}
+tbody tr+tr{border-top:1px solid var(--border)}
+tbody tr:hover{background:var(--row-hover)}
+tbody tr.latest-row{background:var(--row-latest)}
+tbody tr.latest-row td.date-cell{box-shadow:inset 3px 0 0 var(--brand)}
+td{padding:.58rem .9rem;color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px}
 td:not(:first-child){text-align:right}
-td.date-cell{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);
-  letter-spacing:-.1px}
-.date-cell a{color:var(--accent);text-decoration:none;font-weight:500}
-.latest-badge{font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;
-  border-radius:4px;vertical-align:middle}
-tbody tr.latest-row{background:rgba(220,252,231,.4)}
-.cal-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:600;font-size:11px;cursor:help}
-.rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:600;font-size:11px;cursor:help}
-.cell-group{display:flex;flex-direction:column;gap:1px}
+td.num{text-align:right}
+td.date-cell{font-family:var(--font);font-size:12.5px;font-weight:550;color:var(--ink);white-space:nowrap}
+td.date-cell a{color:var(--ink);text-decoration:none;font-weight:550}
+td.date-cell a:hover{color:var(--brand);text-decoration:underline}
+td.note-cell{font-size:11px;color:var(--ink2);font-family:var(--font);text-align:left;white-space:normal;min-width:230px;line-height:1.55}
+.tbl-empty-cell{text-align:center;color:var(--ink3);font-family:var(--font)}
+.latest-badge{
+  display:inline-block;margin-left:.45rem;padding:1px 7px;border-radius:var(--pill);
+  background:var(--chip-latest-bg);color:var(--chip-latest-fg);
+  font-size:9px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;font-family:var(--font);vertical-align:1px;
+}
+.cell-group{display:flex;flex-direction:column;align-items:flex-end;gap:2px;line-height:1.2}
 .cell-main{font-size:12px}
-.cell-delta{font-size:10px;color:var(--muted)}
-.cell-delta.up{color:var(--up)}.cell-delta.dn{color:var(--dn)}
-td.note-cell{font-size:11px;color:var(--muted);font-family:'Inter',sans-serif;
-  text-align:left;white-space:normal;min-width:220px}
-.tbl-empty-cell{text-align:center;color:var(--muted)}
-.tbl-empty{text-align:center;padding:3rem;color:var(--muted);font-family:'Inter',sans-serif;
-  font-size:13px}
+.cell-delta{font-size:10px;color:var(--ink3)}
+.cell-delta.up{color:var(--pos)}
+.cell-delta.dn{color:var(--neg)}
+td.date-cell .cell-group{align-items:flex-start}
+/* chip columns in the PM CARES table */
+.cal-chip,.rel-chip{
+  display:inline-block;padding:2px 10px;border-radius:var(--pill);
+  font-weight:600;font-size:11px;cursor:help;font-family:var(--mono);
+}
+.cal-chip{background:var(--info-bg);color:var(--info-fg)}
+.rel-chip{background:var(--warn-bg);color:var(--warn-fg)}
 
-/* ─── Footer ─── */
-footer{max-width:1160px;margin:2rem auto 0;padding:1.4rem 16px 2.5rem;
-  border-top:1.5px solid var(--border)}
-footer h3{font-size:12px;line-height:16px;font-weight:600;color:var(--muted);
-  letter-spacing:.1px;margin-bottom:.75rem;font-family:'Inter',sans-serif}
-.src-links{display:flex;flex-direction:column;gap:7px;margin-bottom:1rem}
-.src-link{display:inline-flex;align-items:center;gap:7px;width:fit-content;
-  font-size:13px;color:var(--accent);text-decoration:none;font-weight:500;font-family:'Inter',sans-serif;
-  transition:all .2s}
-.src-link:hover{color:var(--accent-strong);text-decoration:underline;transform:translateX(2px)}
-.src-link svg{width:12px;height:12px;flex-shrink:0}
-.src-link.last-week{border:1px solid var(--border);background:var(--s2);
-  border-radius:var(--r-filter);padding:0 12px;height:28px;font-size:13px;font-weight:500;
-  transition:all .2s}
-.src-link.last-week:hover{background:var(--surface);transform:translateX(2px);
-  box-shadow:0 2px 6px rgba(20,83,45,.06)}
-footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
-  font-family:'Inter',sans-serif}
+/* ─── Crude section bits ────────────────────────────────────────────── */
+.crude-hl{
+  margin-top:1.4rem;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r3);box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.crude-hl .tbl-header{border-bottom:1px solid var(--border)}
+.crude-hl-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));padding:.9rem 1.1rem}
+.crude-hl-item{border-left:1px solid var(--border);padding:0 .9rem}
+.crude-hl-item:first-child{border-left:none;padding-left:0}
+.crude-hl-val{font-size:17px}
+.crude-hl-sub{font-size:10px;color:var(--ink3);margin-top:.3rem;font-family:var(--mono);line-height:1.5}
+.crude-hl-note{font-size:11px;color:var(--ink3);margin-top:.8rem;padding:0 1.1rem .9rem}
+.chart-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:0}
+.chart-pair .chart-card{margin-bottom:0}
+.crude-note{font-size:11px;color:var(--ink3);margin-top:1rem;font-family:var(--mono);line-height:1.7}
+.crude-glossary{margin-top:1rem;font-size:11px;color:var(--ink2);border-top:1px solid var(--border);padding-top:.8rem;line-height:1.9}
+.crude-glossary strong{color:var(--ink3);font-weight:600}
+#events-last-note,.events-note{font-size:10.5px;color:var(--ink3);margin-bottom:.6rem;font-family:var(--mono)}
+.events-note{margin:0}
+.kpi-msg{grid-column:1/-1;font-size:12.5px;color:var(--ink3);padding:.4rem 0}
+.kpi-msg.err{color:var(--neg)}
 
-/* ─── Crude oil section ─── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:1rem}
-.pm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.25rem}
-.crude-hl{margin-top:1rem;background:#f0fdf4}
-.crude-hl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:8px}
-.crude-hl-item{background:var(--surface);padding:8px;border-radius:6px;border:1px solid #bbf7d0}
-.crude-hl-label{font-size:10px;color:var(--muted)}
-.crude-hl-val{font-size:18px;font-weight:700;color:var(--dark)}
-.crude-hl-sub{font-size:10px;color:var(--muted);margin-top:3px}
-.crude-hl-note{font-size:11px;color:var(--muted);margin-top:6px}
-.chart-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin:1rem 0}
-.crude-note{margin-top:1rem;font-size:11px;color:var(--muted)}
-.crude-glossary{margin-top:1rem;font-size:10.5px;color:var(--muted);border-top:1px solid #bbf7d0;padding-top:6px}
-#crude-fetch-status{margin-top:6px;font-size:11px;font-family:'DM Mono',monospace}
-#crude-fetched-at{font-size:10px;color:var(--muted);display:block;margin-top:3px}
-#events-last-note{font-size:10.5px;color:var(--muted);margin-top:-4px;margin-bottom:.5rem;font-family:'DM Mono',monospace}
-.events-note{font-size:10.5px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace}
-.kpi-msg{grid-column:1/-1;font-size:12px;color:var(--muted)}
-.kpi-msg.err{color:var(--dn)}
+/* ─── Footer ────────────────────────────────────────────────────────── */
+footer{max-width:var(--w);margin:1rem auto 0;padding:1.4rem clamp(1rem,3vw,2rem) 2.6rem;border-top:1px solid var(--border)}
+footer h3{font-size:11px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-bottom:.9rem}
+.src-links{display:flex;flex-direction:column;gap:.55rem;margin-bottom:1.1rem;align-items:flex-start}
+.src-link{
+  display:inline-flex;align-items:center;gap:.5rem;font-size:13px;color:var(--brand);
+  text-decoration:none;font-weight:550;transition:color .18s,transform .18s;
+}
+.src-link:hover{color:var(--brand2);text-decoration:underline;transform:translateX(2px)}
+.src-link svg{width:13px;height:13px;flex-shrink:0}
+.src-link.last-week{
+  border:1px solid var(--border2);background:var(--surface2);border-radius:var(--r2);
+  padding:0 .9rem;height:32px;font-size:12.5px;font-weight:550;
+}
+.src-link.last-week:hover{background:var(--brand-soft);border-color:var(--brand-line);box-shadow:none}
+footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font-family:var(--mono)}
 
-/* ─── Custom scrollbar ─── */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;border:1px solid rgba(255,255,255,.4)}
-::-webkit-scrollbar-thumb:hover{background:var(--border2)}
-
-/* ─── Mobile ─── */
+/* ═══════════ Responsive ═══════════ */
 @media(max-width:1024px){
-  .nav-link{height:32px}
-  .tab{height:40px;padding:0 16px;border-radius:10px}
+  .tab{height:32px}
   .dl,.btn{height:36px}
-  td,thead th{padding:.6rem 12px}
+  .nav-link{height:34px}
 }
 
-/* ─── Collapsible mobile nav (hamburger) ─── */
-.nav-toggle{display:none} /* desktop: keep the tabs inline */
-
+/* ─── Collapsible header + hamburger (≤900) ────────────────────────── */
+.nav-toggle{display:none}
 @media(max-width:900px){
-  header{gap:.6rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem;
-    transition:box-shadow .3s,background .3s,transform .32s cubic-bezier(.4,0,.2,1)}
-  header.header-hidden{transform:translateY(-110%);box-shadow:none}
+  header{gap:.55rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem}
   .logo{order:1}
-  .logo .logo-text span{display:none}
-  .head-right{order:2;width:100%;min-width:0;flex-wrap:wrap}
-
-  /* hamburger button — sits beside the status pill */
-  .nav-toggle{order:1;display:inline-flex;align-items:center;justify-content:center;
-    flex-direction:column;gap:5px;width:40px;height:36px;padding:0;flex-shrink:0;
-    background:var(--s2);border:1px solid var(--border);border-radius:10px;cursor:pointer;
-    transition:background .2s,border-color .2s}
-  .nav-toggle:hover{background:var(--surface);border-color:var(--border2);color:var(--dark)}
-  .nav-toggle span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;
-    transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s}
-  header.nav-open .nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .logo-text span{display:none}
+  .head-right{order:2;width:100%;min-width:0;display:flex;flex-wrap:wrap;gap:.5rem}
+  .nav-toggle{
+    order:1;display:inline-flex;align-items:center;justify-content:center;flex-direction:column;gap:4.5px;
+    width:36px;height:36px;padding:0;flex-shrink:0;
+    background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);cursor:pointer;
+    transition:background .2s,border-color .2s;
+  }
+  .nav-toggle:hover{background:var(--brand-soft);border-color:var(--brand-line)}
+  .nav-toggle span{display:block;width:17px;height:2px;background:var(--ink2);border-radius:2px;
+    transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s,background .2s}
+  header.nav-open .nav-toggle span{background:var(--brand)}
+  header.nav-open .nav-toggle span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
   header.nav-open .nav-toggle span:nth-child(2){opacity:0}
-  header.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-
+  header.nav-open .nav-toggle span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+  .theme-toggle{order:1}
   .status-pill{order:2;margin-left:auto}
-
-  /* nav collapses to a vertical dropdown, hidden until the menu is opened */
-  .nav-links{order:4;width:100%;flex:1 1 100%;min-width:0;display:none;padding:8px 0 2px}
-
-  @keyframes navDropIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes navLinkIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-
+  .nav-links{
+    order:5;width:100%;flex:1 1 100%;min-width:0;display:none;
+    margin-top:.15rem;background:transparent;border:none;padding:0;
+  }
+  @keyframes navDropIn{from{opacity:0;transform:translateY(-8px) scale(.995)}to{opacity:1;transform:none}}
+  @keyframes navLinkIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
   header.nav-open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:4px;
-    transform-origin:top;
-    animation:navDropIn .24s cubic-bezier(.2,.9,.32,1)}
-  header.nav-open .nav-links .nav-link{animation:navLinkIn .3s cubic-bezier(.2,.9,.32,1) both}
-  header.nav-open .nav-links .nav-link:nth-child(2){animation-delay:.04s}
-  header.nav-open .nav-links .nav-link:nth-child(3){animation-delay:.08s}
-  header.nav-open .nav-links .nav-link:nth-child(4){animation-delay:.12s}
-  .nav-links .nav-link{white-space:nowrap;width:100%;height:40px;padding:0 14px;
-    justify-content:flex-start;border-radius:8px}
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);padding:.45rem;
+    box-shadow:var(--shadow);transform-origin:top;animation:navDropIn .22s cubic-bezier(.2,.9,.32,1) both}
+  header.nav-open .nav-links .nav-link{animation:navLinkIn .28s cubic-bezier(.2,.9,.32,1) both;white-space:nowrap}
+  header.nav-open .nav-links .nav-link:nth-child(2){animation-delay:.03s}
+  header.nav-open .nav-links .nav-link:nth-child(3){animation-delay:.06s}
+  header.nav-open .nav-links .nav-link:nth-child(4){animation-delay:.09s}
+  .nav-links .nav-link{width:100%;height:42px;padding:0 .7rem;justify-content:flex-start;border-radius:var(--r2)}
+  .nav-links .nav-link.active{background:var(--brand-soft);color:var(--brand2);box-shadow:none;border:1px solid var(--brand-line)}
 }
 
 @media(max-width:780px){
-  .section,footer{padding:1rem}
-  header{padding:.6rem 1rem}
-  .nav-link span{display:none}
-  table{font-size:11px}
-  td,thead th{padding:.55rem .7rem}
-  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,
-  .tbl-intro,.tbl-wrap,.tbl-header{padding-left:14px;padding-right:14px}
-  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.tbl-wrap:hover{transform:none;box-shadow:var(--shadow-sm)}
-  #empty,.tbl-empty{padding:2.5rem 1rem}
-  .chart-wrap{overflow:hidden}
-  .chart-card{overflow:hidden}
+  .section,footer{padding:.9rem 1rem 2rem}
+  header{padding:.55rem 1rem}
+  table{font-size:11.5px}
+  td,thead th{padding:.5rem .6rem}
+  .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,.tbl-intro,.tbl-wrap,.tbl-header{padding-left:14px;padding-right:14px}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover{transform:none;box-shadow:var(--shadow-sm)}
+  #charts{grid-template-columns:1fr}
+  #charts .chart-card.span2{grid-column:auto}
+  .tbl-header h2{font-size:13px}
+  .tbl-header span{display:block;width:100%}
+  #crude-fetch-status,.crude-hl-note{font-size:10.5px}
+  .chart-card,.crude-hl{overflow:hidden}
 }
 
-/* Small phones */
+/* small phones */
 @media(max-width:430px){
-  .status-pill{padding:0 9px;font-size:12px}
+  .status-pill{padding:0 .6rem 0 .5rem;font-size:11.5px}
   .tab-row{flex-wrap:wrap;width:100%}
-  .tab{padding:0 12px}
-  .logo-badge{width:30px;height:30px;border-radius:9px;font-size:15px}
-  .logo-text h1{font-size:13px}
-  .tbl-header{padding:.8rem 14px}
-  .chart-title{font-size:13px}
-  .mc-val,.mex-val,.mctx-val{font-size:16px;line-height:20px}
+  .logo-badge{width:31px;height:31px;border-radius:10px;font-size:16px}
+  .logo-text h1{font-size:13.5px}
+  .tbl-header{padding:.7rem 12px}
+  .mc,.mctx,.mex{padding:.8rem}
+  .mc-val,.mctx-val,.mex-val,.crude-hl-val{font-size:16px}
+  #metrics{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .chart-wrap{height:215px}
+  .crude-hl-item{border-left:none;border-top:1px solid var(--border);padding:.75rem 0 0;margin-top:.6rem}
+  .crude-hl-item:first-child{border-top:none;margin-top:0}
 }
 
-/* ─── Reduced motion ─── */
+/* ═══════════ Reduced motion ═══════════ */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .dot.running{animation:none}
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
-  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.tbl-wrap:hover,
-  .nav-link:hover,.tab:hover:not(.on),.dl:hover,.src-link:hover,.src-link.last-week:hover,
-  .btn:hover{transform:none!important;box-shadow:var(--shadow-sm)!important}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.btn:hover,.nav-link:hover,.tab:hover:not(.on),.dl:hover,.src-link:hover{transform:none!important}
 }
 
-/* ─── Lucide icon sizing ─── */
-.nav-link .lucide{width:15px;height:15px;margin-right:6px;flex-shrink:0}
-.status-pill .lucide{width:14px;height:14px;color:#4b5563;flex-shrink:0}
-.btn .lucide,.dl .lucide,.tab .lucide{width:14px;height:14px;flex-shrink:0;display:inline-block;vertical-align:-1px}
-.btn .lucide{margin-right:4px}
-.dl .lucide{margin-right:6px}
-.tab .lucide{margin-right:5px}
-.lucide{stroke:currentColor}
 </style>
 </head>
 <body>
@@ -429,20 +578,22 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
       <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
     </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme"><i data-lucide="moon"></i></button>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>
     </button>
-    <div class="status-pill">
+    <div class="status-pill" role="status">
       <i data-lucide="activity"></i>
       <div class="dot" id="status-dot"></div>
-      <span id="status-text" aria-live="polite">Idle</span>
+      <span id="status-text">Idle</span>
     </div>
   </div>
 </header>
 
 <div class="section active" id="sec-dashboard">
   <div class="note-strip">
-    <strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.
+    <i data-lucide="info" aria-hidden="true"></i>
+    <div><strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.</div>
   </div>
   <div class="fetch-panel">
     <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json</div>
@@ -558,7 +709,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
       <div class="tab-row"><button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button><button class="tab" onclick="sw(this,'gold','inr')">INR cr</button></div>
       <div class="chart-wrap"><canvas id="cGold" role="img" aria-label="Bar chart of weekly change in gold reserves"></canvas></div>
     </div>
-    <div class="chart-card">
+    <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations"><i data-lucide="flag"></i> Events</button></div>
       <div id="events-last-note"></div>
@@ -576,13 +727,13 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     </div>
 
     <!-- Reserves decomposition chart — populated by rebuildDecomp() when decomposition fields are present -->
-    <div class="chart-card">
+    <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">Reserves composition: latest snapshot</h3><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
       <div class="chart-wrap"><canvas id="cDecomp" role="img" aria-label="Doughnut chart of reserves composition"></canvas></div>
     </div>
 
     <!-- FII + DII 6-month daily history -->
-    <div class="chart-card">
+    <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
     </div>
@@ -591,7 +742,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
   <!-- Crude Oil Highlights on main page -->
   <div class="crude-hl">
     <div class="tbl-header"><h2>India Crude Oil Imports: Highlights (last 10 weeks aligned)</h2></div>
-    <div id="crude-highlights" class="crude-hl-grid">
+    <div class="crude-hl-grid">
       <div class="crude-hl-item">
         <div class="crude-hl-label">Latest BPD</div>
         <div id="crude-latest-bpd" class="crude-hl-val">—</div>
@@ -627,21 +778,21 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     <strong>Nifty 50</strong> and <strong>Sensex</strong> Friday closing prices from Yahoo Finance.
     </p>
   </div>
-  <div class="tbl-wrap" id="tbl-wrap">
+  <div class="tbl-wrap">
     <div class="tbl-header"><h2>Weekly summary: last 10 Fridays</h2><span id="tbl-updated"></span></div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" class="tbl-scroll hidden">
-      <table id="data-table"><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="2">Forex Reserves</th><th class="th-group" colspan="2">Gold Holdings</th><th class="th-group" colspan="2">Rupee Spot Rate</th><th class="th-group" colspan="2">Equity Markets</th></tr><tr><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD/INR</th><th>EUR/INR</th><th class="th-sep">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
+      <table><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="2">Forex Reserves</th><th class="th-group" colspan="2">Gold Holdings</th><th class="th-group" colspan="2">Rupee Spot Rate</th><th class="th-group" colspan="2">Equity Markets</th></tr><tr><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD/INR</th><th>EUR/INR</th><th class="th-sep">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
     </div>
   </div>
-  <div class="tbl-wrap mt125" id="eq-tbl-wrap">
+  <div class="tbl-wrap mt125">
     <div class="tbl-header"><h2>Nifty 50 &amp; Sensex: weekly detail</h2><span id="eq-tbl-updated"></span></div>
     <div id="eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="eq-tbl-container" class="tbl-scroll hidden">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="4">Nifty 50</th><th class="th-group" colspan="4">Sensex</th></tr><tr><th class="th-sep">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th><th class="th-sep">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="eq-tbl-body"></tbody></table>
     </div>
   </div>
-  <div class="tbl-wrap mt125" id="rupee-eq-tbl-wrap">
+  <div class="tbl-wrap mt125">
     <div class="tbl-header"><h2>Rupee Spot Rate: up to latest available (10 weeks)</h2><span id="rupee-eq-tbl-updated"></span></div>
     <div id="rupee-eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="rupee-eq-tbl-container" class="tbl-scroll hidden">
@@ -689,7 +840,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     <div class="tbl-header"><h2>Daily Estimates (last 10 days)</h2><span id="crude-daily-updated"></span></div>
     <div id="crude-daily-empty" class="tbl-empty">Load crude data to see table.</div>
     <div id="crude-daily-container" class="tbl-scroll hidden">
-      <table id="crude-daily-table"><thead><tr><th>Date</th><th class="num">BPD</th><th class="num">Tankers</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Brent</th><th class="num">WTI</th></tr></thead><tbody id="crude-daily-body"></tbody></table>
+      <table><thead><tr><th>Date</th><th class="num">BPD</th><th class="num">Tankers</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Brent</th><th class="num">WTI</th></tr></thead><tbody id="crude-daily-body"></tbody></table>
     </div>
   </div>
 
@@ -701,7 +852,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
         <span>12 monitored ports, TankerMap AIS, zeros = no activity or slug not matched</span>
       </div>
       <div class="tbl-scroll">
-        <table id="crude-ports-table">
+        <table>
           <thead><tr>
             <th>Port</th>
             <th class="num">Crude Arr.</th>
@@ -721,7 +872,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
     <div class="tbl-wrap">
       <div class="tbl-header"><h2>Live India-Bound Crude Tankers</h2><span>AIS-tracked · origin inferred from last port or position</span></div>
       <div class="tbl-scroll">
-        <table id="crude-tankers-table"><thead><tr><th>Vessel</th><th>Class</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Barrels Est.</th><th>Origin</th><th>Dest</th></tr></thead><tbody id="crude-tankers-body"></tbody></table>
+        <table><thead><tr><th>Vessel</th><th>Class</th><th class="num" title="DWT = Deadweight Tonnage (see glossary below)">DWT</th><th class="num">Barrels Est.</th><th>Origin</th><th>Dest</th></tr></thead><tbody id="crude-tankers-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -744,11 +895,12 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
 <div class="section" id="sec-pmcares">
   <!-- Icon+about which mirrors the note strip at top of dashboard -->
   <div class="note-strip">
-    <strong>PM CARES Fund</strong> - <em>Prime Minister's Citizen Assistance and Relief in Emergency Situations Fund</em>, a public charitable trust set up on 27 March 2020 to provide relief in emergencies such as the COVID-19 pandemic. Unlike the data above (which is scraped live), PM CARES figures below are <strong>curated from the Fund's audited Receipt &amp; Payment Accounts</strong> published on <a class="accent-link" href="https://pmcares.gov.in/en/web/page/about_us" target="_blank" rel="noopener">pmcares.gov.in</a>, and are presented as-is with downloadable evidence. Amounts in ₹ crore unless noted.
+    <i data-lucide="scale" aria-hidden="true"></i>
+    <div><strong>PM CARES Fund</strong> - <em>Prime Minister's Citizen Assistance and Relief in Emergency Situations Fund</em>, a public charitable trust set up on 27 March 2020 to provide relief in emergencies such as the COVID-19 pandemic. Unlike the data above (which is scraped live), PM CARES figures below are <strong>curated from the Fund's audited Receipt &amp; Payment Accounts</strong> published on <a class="accent-link" href="https://pmcares.gov.in/en/web/page/about_us" target="_blank" rel="noopener">pmcares.gov.in</a>, and are presented as-is with downloadable evidence. Amounts in ₹ crore unless noted.</div>
   </div>
 
   <!-- Headline metrics -->
-  <div id="pmcares-metrics" class="pm-metrics">
+  <div class="pm-metrics">
     <div class="mc"><div class="mc-label">Corpus (FY 2024-25 close)</div><div class="mc-val" id="pm-total">—</div><div class="mc-sub">₹ crore · as on 31 Mar 2025</div></div>
     <div class="mc"><div class="mc-label">Contributions received (cumulative)</div><div class="mc-val" id="pm-donations">—</div><div class="mc-sub">₹ crore · through FY 2022-23 audited</div></div>
     <div class="mc"><div class="mc-label">Interest income (4 yrs)</div><div class="mc-val" id="pm-interest">—</div><div class="mc-sub">₹ crore · through FY 2022-23</div></div>
@@ -771,7 +923,7 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
       </div>
     </div>
     <div class="tbl-scroll">
-      <table id="pmcares-table">
+      <table>
         <thead><tr>
           <th>Financial Year</th><th>Opening</th><th>Receipts (yr)</th><th>Interest (yr)</th><th>Disbursed (yr)</th><th>Closing</th><th>Calamities (yr)</th><th>PM CARES relief?</th><th>Highlights</th>
         </tr></thead>
@@ -787,16 +939,16 @@ footer p{font-size:12px;color:var(--muted);line-height:1.65;max-width:700px;
       <span>Source: pmcares.gov.in · PDF</span>
     </div>
     <div class="tbl-scroll">
-      <table id="pmcares-evidence">
+      <table>
         <thead><tr><th>Document</th><th>Period</th><th></th></tr></thead>
         <tbody>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2019-20</td><td>27 Mar - 31 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited Statement.PDF" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2020-21</td><td>Apr 2020 - Mar 2021</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2020_21.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2021-22</td><td>Apr 2021 - Mar 2022</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2021_22.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2022-23</td><td>Apr 2022 - Mar 2023</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2022_23.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2023-24</td><td>Apr 2023 - Mar 2024</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2023_24.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2024-25</td><td>Apr 2024 - Mar 2025</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2024_25.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
-          <tr><td class="date-cell">PM CARES Trust Deed</td><td>Registered 27 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Trust_Deed.pdf" target="_blank" rel="noopener">⬇ PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2019-20</td><td>27 Mar - 31 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited Statement.PDF" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2020-21</td><td>Apr 2020 - Mar 2021</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2020_21.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2021-22</td><td>Apr 2021 - Mar 2022</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2021_22.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2022-23</td><td>Apr 2022 - Mar 2023</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2022_23.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2023-24</td><td>Apr 2023 - Mar 2024</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2023_24.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">Receipt &amp; Payment Account (Audited) - FY 2024-25</td><td>Apr 2024 - Mar 2025</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Audited_Statement_2024_25.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
+          <tr><td class="date-cell">PM CARES Trust Deed</td><td>Registered 27 Mar 2020</td><td><a class="dl" href="https://pmcares.gov.in/assets/donation/pdf/Trust_Deed.pdf" target="_blank" rel="noopener"><i data-lucide="download"></i>PDF</a></td></tr>
         </tbody>
       </table>
     </div>
@@ -905,6 +1057,26 @@ function initScrollHeader(){
 }
 initScrollHeader();
 
+// Glass header elevation: cast a soft shadow once the page has been scrolled
+// (rAF-throttled, passive; no-op while the mobile header is hidden).
+function initHeaderShadow(){
+  const header = document.querySelector('header');
+  if(!header) return;
+  let ticking = false;
+  const update = () => {
+    const y = window.scrollY || 0;
+    header.classList.toggle('header-scrolled', y > 6 && !header.classList.contains('header-hidden'));
+    ticking = false;
+  };
+  window.addEventListener('scroll', () => {
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(update);
+  }, { passive: true });
+  update();
+}
+initHeaderShadow();
+
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
 const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!m||!d) return s; return new Date(y, m-1, d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); };
@@ -927,7 +1099,7 @@ function rbiPublicationDate(dateStr){
 }
 function setStatus(s){
   document.getElementById('status-dot').className='dot '+s;
-  document.getElementById('status-text').textContent=s==='running'?'Fetching…':s==='done'?'Complete':s==='error'?'Error':'Idle';
+  document.getElementById('status-text').textContent=s==='running'?'Fetching...':s==='done'?'Complete':s==='error'?'Error':'Idle';
 }
 function appendLog(msg, cls=''){
   const box=document.getElementById('log-box');
@@ -957,7 +1129,7 @@ async function startFetch() {
     if (!records.length) throw new Error('data file has no records yet - run `npm run fetch:data`');
     updateUI();
     const fetchedAt = data.fetched_at ? new Date(data.fetched_at) : null;
-    appendLog(`✅ Loaded ${records.length} week${records.length>1?'s':''} from ${DATA_URL}`
+    appendLog(`✓ Loaded ${records.length} week${records.length>1?'s':''} from ${DATA_URL}`
       + (fetchedAt ? ` (generated ${fetchedAt.toLocaleString('en-IN')})` : ''));
     updateFooterLink();
     setStatus('done');
@@ -1102,16 +1274,46 @@ function rebuildRupeeEqTable(){
   });
 }
 
-const G = '#16a34a', R = '#dc2626', BLUE = '#2563eb', AMB = '#d97706';
-const gridC = 'rgba(0,0,0,0.04)', tickC = '#9ca3af';
+/* Chart palette. Chrome colors (grid, ticks, legends, tooltips) are read from
+   the active theme's CSS variables so charts match the UI in light and dark
+   mode. The theme is fixed per page load, so it is safe to read once here.
+   Series hues stay constant across themes. */
+const cssVar = (name, fb) => {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fb;
+  } catch (_) { return fb; }
+};
+const al = (hex, a) => {
+  if (!hex || hex.charAt(0) !== '#' || hex.length < 7) return hex;
+  const n = parseInt(hex.slice(1, 7), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+};
+const CH = {
+  up:    cssVar('--pos-c', '#2fb67c'),
+  dn:    cssVar('--neg-c', '#f97070'),
+  gold:  '#eab308',
+  blue:  '#3b82f6',
+  violet:'#8b5cf6',
+  teal:  '#2dd4bf',
+  tick:  cssVar('--chart-tick', '#8b9bb4'),
+  grid:  cssVar('--chart-grid', 'rgba(148,163,184,0.09)'),
+  legend:cssVar('--chart-legend', '#aab8cc'),
+  tbg:   cssVar('--tt-bg', 'rgba(10,17,34,0.97)'),
+  tt:    cssVar('--tt-t', '#eef3fb'),
+  tb:    cssVar('--tt-b', '#c9d6ea'),
+  tbord: cssVar('--tt-border', 'rgba(148,163,184,0.35)'),
+};
+const G = CH.up, R = CH.dn, BLUE = CH.blue, AMB = '#f59e0b';
+const gridC = CH.grid, tickC = CH.tick;
 
 const labels = () => records.map(r => r.date.slice(5));
 const barColors = arr => arr.map(v => v === null ? 'transparent' : v >= 0 ? G : R);
 
 function ttOpts(label){
   return {
-    backgroundColor: '#14532d', titleColor: '#dcfce7', bodyColor: '#bbf7d0',
-    borderColor: '#16a34a', borderWidth: 1,
+    backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb,
+    borderColor: CH.up, borderWidth: 1,
     callbacks: { label: ctx => `${label}: ${ctx.parsed.y != null ? ctx.parsed.y.toLocaleString('en-IN',{maximumFractionDigits:2}) : 'N/A'}` },
   };
 }
@@ -1142,7 +1344,7 @@ function mkLine(id, datasets, yFmt){
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: datasets.length > 1, labels: { color: tickC, font: { size: 11, family: 'Inter', weight: '500' }, boxWidth: 12 } },
-        tooltip: { backgroundColor: '#14532d', titleColor: '#dcfce7', bodyColor: '#bbf7d0', borderColor: G, borderWidth: 1 },
+        tooltip: { backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1 },
       },
       scales: axOpts(yFmt || (v => v.toFixed(2))),
     },
@@ -1171,18 +1373,18 @@ async function rebuildFx(){
         datasets: data.map(p => ({
           label: p.code + ' vs USD (indexed)',
           data: p.points,
-          borderColor: p.code === 'INR' ? '#16a34a'
-                      : p.code === 'BRL' ? '#eab308'
-                      : p.code === 'CNY' ? '#dc2626'
-                      : p.code === 'IDR' ? '#2563eb' : '#7c3aed',
+          borderColor: p.code === 'INR' ? G
+                      : p.code === 'BRL' ? AMB
+                      : p.code === 'CNY' ? R
+                      : p.code === 'IDR' ? BLUE : CH.violet,
           backgroundColor: 'transparent',
           tension: .3, pointRadius: 0, borderWidth: 1.8,
         })),
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { font: { size: 10.5, family: 'Inter', weight: '500' }, color: '#14532d' } } },
-        scales: { y: { title: { display: true, text: 'Indexed to 100' }, ticks: { color: '#9ca3af' } }, x: { display: false } },
+        plugins: { legend: { position: 'top', labels: { font: { size: 10.5, family: 'Inter', weight: '500' }, color: CH.legend } } },
+        scales: { y: { title: { display: true, text: 'Indexed to 100', color: CH.legend }, ticks: { color: CH.tick }, grid: { color: CH.grid } }, x: { display: false } },
       },
     });
     return;
@@ -1292,9 +1494,9 @@ function setCrudeStatus(state, msg) {
   const el = document.getElementById('crude-fetch-status');
   if (!el) return;
   const map = {
-    loading: { cls: 'warn',  txt: '⏳ Fetching live crude data…' },
-    done:    { cls: 'ok',    txt: '✓ Live crude data loaded'      },
-    error:   { cls: 'err',   txt: `✗ Crude fetch failed: ${msg}`  },
+    loading: { cls: 'warn',  txt: 'Fetching live crude data...' },
+    done:    { cls: 'ok',    txt: 'Live crude data loaded'       },
+    error:   { cls: 'err',   txt: `Crude fetch failed: ${msg}`   },
   };
   const s = map[state] || {};
   el.className = s.cls || '';
@@ -1337,11 +1539,11 @@ async function renderCrudeHighlights() {
 async function renderCrudeSection() {
   // show loading state immediately
   const kpiDiv = document.getElementById('crude-kpis');
-  if (kpiDiv) kpiDiv.innerHTML = '<div class="kpi-msg">⏳ Loading live crude data…</div>';
+  if (kpiDiv) kpiDiv.innerHTML = '<div class="kpi-msg">Loading live crude data...</div>';
 
   let c;
   try { c = await loadCrudeData(); } catch(e) {
-    if (kpiDiv) kpiDiv.innerHTML = `<div class="kpi-msg err">✗ Failed to load crude data: ${e.message}</div>`;
+    if (kpiDiv) kpiDiv.innerHTML = `<div class="kpi-msg err">Failed to load crude data: ${e.message}</div>`;
     return;
   }
 
@@ -1376,17 +1578,20 @@ async function renderCrudeSection() {
         labels: daily.map(d => d.date.slice(5)),
         datasets: [
           { label: 'Reconciled BPD', data: daily.map(d => d.barrels_per_day),
-            borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.15)',
+            borderColor: G, backgroundColor: al(G, 0.15),
             fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
           { label: 'PPAC Monthly Avg', data: daily.map(d => d.ppac_monthly_bpd),
-            borderColor: '#d97706', borderDash: [5,3], pointRadius: 0,
+            borderColor: AMB, borderDash: [5,3], pointRadius: 0,
             borderWidth: 1.5, fill: false, spanGaps: true },
         ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { font: { size: 11 } } } },
-        scales: { y: { ticks: { callback: v => (v/1e6).toFixed(1)+'M' } } }
+        plugins: { legend: { display: true, labels: { color: CH.legend, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' }, maxTicksLimit: 10 }, grid: { color: CH.grid } },
+          y: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => (v/1e6).toFixed(1)+'M' }, grid: { color: CH.grid } }
+        }
       }
     });
   }
@@ -1405,18 +1610,21 @@ async function renderCrudeSection() {
           labels: daily.map(d => d.date.slice(5)),
           datasets: [
             { label: 'Brent (USD/bbl)', data: brentData,
-              borderColor: '#16a34a', pointRadius: 0, borderWidth: 2, spanGaps: true, fill: false },
+              borderColor: G, pointRadius: 0, borderWidth: 2, spanGaps: true, fill: false },
             { label: 'WTI (USD/bbl)', data: wtiData,
-              borderColor: '#2563eb', pointRadius: 0, borderWidth: 2, spanGaps: true, fill: false },
+              borderColor: BLUE, pointRadius: 0, borderWidth: 2, spanGaps: true, fill: false },
             { label: 'Urals (USD/bbl)', data: uralsData,
-              borderColor: '#7c3aed', pointRadius: 0, borderWidth: 1.5,
+              borderColor: CH.violet, pointRadius: 0, borderWidth: 1.5,
               borderDash: [4,3], spanGaps: true, fill: false },
           ],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, labels: { font: { size: 11 } } } },
-          scales: { y: { ticks: { callback: v => '$' + v.toFixed(0) } } }
+          plugins: { legend: { display: true, labels: { color: CH.legend, font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' } }, grid: { color: CH.grid } },
+            y: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => '$' + v.toFixed(0) }, grid: { color: CH.grid } }
+          }
         }
       });
     }
@@ -1431,14 +1639,14 @@ async function renderCrudeSection() {
       data: {
         labels: portVals.map(p => p.name),
         datasets: [
-          { label: 'Crude Arrivals', data: portVals.map(p => p.crude_arrivals || 0), backgroundColor: '#16a34a' },
-          { label: 'In Port',        data: portVals.map(p => p.in_port || 0),        backgroundColor: '#86efac' },
-          { label: 'Expected',       data: portVals.map(p => p.expected || 0),       backgroundColor: '#d97706' },
+          { label: 'Crude Arrivals', data: portVals.map(p => p.crude_arrivals || 0), backgroundColor: G },
+          { label: 'In Port',        data: portVals.map(p => p.in_port || 0),        backgroundColor: al(G, 0.55) },
+          { label: 'Expected',       data: portVals.map(p => p.expected || 0),       backgroundColor: AMB },
         ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { font: { size: 11 } } } },
+        plugins: { legend: { display: true, labels: { color: CH.legend, font: { size: 11 } } } },
       }
     });
   }
@@ -1458,10 +1666,10 @@ async function renderCrudeSection() {
         data: {
           labels: lbls,
           datasets: [{ data: lbls.map(k=>counts[k]),
-            backgroundColor: ['#16a34a','#86efac','#4ade80','#2563eb','#7c3aed','#9ca3af'] }],
+            backgroundColor: [G, al(G,0.55), CH.teal, BLUE, CH.violet, '#9ca3af'] }],
         },
         options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+          plugins: { legend: { position: 'bottom', labels: { color: CH.legend, font: { size: 11 } } } } }
       });
     }
   }
@@ -1574,21 +1782,21 @@ function rebuildDecomp(){
   const hasSdr = L.sdr_usd         != null;
   const hasImf = L.imf_reserve_usd != null;
   let parts = [];
-  if(hasFca) parts.push({ label:'Foreign Currency Assets', value:L.fca_usd,         color:'#16a34a' });
-  if(hasSdr) parts.push({ label:'SDR',                     value:L.sdr_usd,         color:'#2563eb' });
-  if(hasImf) parts.push({ label:'IMF Reserve',             value:L.imf_reserve_usd, color:'#dc2626' });
-  if(L.gold_usd != null) parts.push({ label:'Gold', value:L.gold_usd, color:'#eab308' });
+  if(hasFca) parts.push({ label:'Foreign Currency Assets', value:L.fca_usd,         color:G });
+  if(hasSdr) parts.push({ label:'SDR',                     value:L.sdr_usd,         color:BLUE });
+  if(hasImf) parts.push({ label:'IMF Reserve',             value:L.imf_reserve_usd, color:R });
+  if(L.gold_usd != null) parts.push({ label:'Gold', value:L.gold_usd, color:CH.gold });
   // Nothing parsed specifically but we still have total + gold.
   if(!parts.length && total != null && L.gold_usd != null){
     parts = [
-      { label:'Gold',                          value:L.gold_usd,                       color:'#eab308' },
-      { label:'Other (FCA + SDR + IMF)',       value:Math.max(0, total - L.gold_usd),  color:'#16a34a' },
+      { label:'Gold',                          value:L.gold_usd,                       color:CH.gold },
+      { label:'Other (FCA + SDR + IMF)',       value:Math.max(0, total - L.gold_usd),  color:G },
     ];
   } else if(!hasFca && total != null && L.gold_usd != null){
     // Partial decomposition: derive FCA and LABEL as derived so the viewer
     // knows it's not from a fresh parse.
     const known = (L.sdr_usd||0) + (L.imf_reserve_usd||0) + L.gold_usd;
-    if(total > known) parts.push({ label:'Foreign Currency Assets (derived)', value: total - known, color:'#16a34a' });
+    if(total > known) parts.push({ label:'Foreign Currency Assets (derived)', value: total - known, color:G });
   }
   parts = parts.filter(p => p.value > 0);
   if(!parts.length) return;
@@ -1599,8 +1807,8 @@ function rebuildDecomp(){
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '60%',
       plugins: {
-        legend: { position: 'right', labels: { font: { size: 11, family: 'Inter', weight: '500' }, boxWidth: 11, color: '#14532d' } },
-        tooltip: { backgroundColor:'#14532d', titleColor:'#dcfce7', bodyColor:'#bbf7d0', borderColor:G, borderWidth:1, callbacks:{ label: ctx => `${ctx.label}: ${ctx.parsed.toLocaleString('en-IN')} USD mn` } }
+        legend: { position: 'right', labels: { font: { size: 11, family: 'Inter', weight: '500' }, boxWidth: 11, color: CH.legend } },
+        tooltip: { backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: ctx => `${ctx.label}: ${ctx.parsed.toLocaleString('en-IN')} USD mn` } }
       }
     }
   });
@@ -1922,22 +2130,22 @@ function renderFiiHistoryChart(){
     data: {
       labels,
       datasets: [
-        { label:'FII Equity', data: eq,   backgroundColor:'#16a34a', borderRadius:2, borderSkipped:false, stack:'fii' },
-        { label:'FII Debt',   data: debt, backgroundColor:'#eab308', borderRadius:2, borderSkipped:false, stack:'fii' },
-        { label:'DII Equity', data: dii,  backgroundColor:'#2563eb', borderRadius:2, borderSkipped:false, stack:'fii' },
+        { label:'FII Equity', data: eq,   backgroundColor:G, borderRadius:2, borderSkipped:false, stack:'fii' },
+        { label:'FII Debt',   data: debt, backgroundColor:CH.gold, borderRadius:2, borderSkipped:false, stack:'fii' },
+        { label:'DII Equity', data: dii,  backgroundColor:BLUE, borderRadius:2, borderSkipped:false, stack:'fii' },
       ],
     },
     options: {
       responsive:true, maintainAspectRatio:false,
       plugins: {
-        legend: { position:'top', labels:{ font:{ size:10.5, family:'Inter', weight:'500' }, color:'#14532d', boxWidth: 10 } },
-        tooltip: { backgroundColor:'#14532d', titleColor:'#dcfce7', bodyColor:'#bbf7d0',
+        legend: { position:'top', labels:{ font:{ size:10.5, family:'Inter', weight:'500' }, color:CH.legend, boxWidth: 10 } },
+        tooltip: { backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb,
                    callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toLocaleString('en-IN')} ₹ cr` } }
       },
       scales: {
-        x: { ticks: { color:'#9ca3af', font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, maxTicksLimit: 24 }, grid: { color:'rgba(0,0,0,0.04)' }, stacked: true },
-        y: { ticks: { color:'#9ca3af', font:{size:9.5,family:'Inter',weight:'500'}, callback: v => (v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0)) },
-             grid: { color:'rgba(0,0,0,0.04)' }, stacked: true }
+        x: { ticks: { color:tickC, font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, maxTicksLimit: 24 }, grid: { color:gridC }, stacked: true },
+        y: { ticks: { color:tickC, font:{size:9.5,family:'Inter',weight:'500'}, callback: v => (v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0)) },
+             grid: { color:gridC }, stacked: true }
       }
     }
   });
@@ -2012,7 +2220,7 @@ function renderPmCares(){
   const el = document.getElementById('cPmCares');
   if(!el) return;
   const labels = PMCARES.map(r=>'FY '+r.fy);
-  const pmGreen = '#15803d', pmAmber = '#b45309', pmBlue = '#2563eb';
+  const pmGreen = G, pmAmber = AMB, pmBlue = BLUE;
   if(charts.pm) charts.pm.destroy();
   charts.pm = new Chart(el, {
     type:'bar',
@@ -2025,10 +2233,10 @@ function renderPmCares(){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:'#14532d', font:{ family:'Inter', size:11 } } } },
+      plugins:{ legend:{ labels:{ color:CH.legend, font:{ family:'Inter', size:11 } } } },
       scales:{
-        x:{ ticks:{ color:'#6b7280', font:{ family:'Inter', size:11 } }, grid:{ display:false } },
-        y:{ beginAtZero:true, ticks:{ color:'#6b7280', font:{ family:'Inter', size:10 } }, grid:{ color:'rgba(0,0,0,0.05)' } }
+        x:{ ticks:{ color:CH.tick, font:{ family:'Inter', size:11 } }, grid:{ display:false } },
+        y:{ beginAtZero:true, ticks:{ color:CH.tick, font:{ family:'Inter', size:10 } }, grid:{ color:CH.grid } }
       }
     }
   });
@@ -2047,6 +2255,29 @@ function dlPmCaresCSV(){
 }
 </script>
 <script src="lucide.min.js"></script>
-<script>lucide.createIcons({ nameAttr: 'data-lucide' });</script>
+<script>
+/* Theme toggle: flips the CSS token set, persists the choice, then refreshes
+   icons. Chart chrome was read from CSS variables at parse time, so a full
+   reload on toggle keeps charts in sync with the new theme. */
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  function syncIcon() {
+    var dark = root.dataset.theme !== 'light';
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="' + (dark ? 'sun' : 'moon') + '"></i>';
+      btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+    if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  }
+  if (btn) btn.addEventListener('click', function () {
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('rbi-theme', root.dataset.theme); } catch (e) {}
+    syncIcon();
+    location.reload();
+  });
+  syncIcon();
+})();
+</script>
 </body>
 </html>
