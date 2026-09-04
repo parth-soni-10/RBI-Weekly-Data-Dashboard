@@ -598,7 +598,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   <div class="fetch-panel">
     <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json + live check</div>
     <div id="log-box" aria-live="polite"></div>
-    <button class="btn" id="start-btn" onclick="startFetch()"><i data-lucide="rotate-cw"></i> Reload data</button>
+    <button class="btn" id="start-btn" onclick="reloadData()"><i data-lucide="rotate-cw"></i> Reload data</button>
   </div>
 
   <!-- Weekly summary panel — populated by JS after records are loaded -->
@@ -1005,6 +1005,10 @@ let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty
    via `npm run fetch:data`). The dashboard just loads that file — no
    browser cache, no per-week scraping in the frontend. */
 const DATA_URL = 'rbi-data.json';
+// Durable merge cache (Netlify Blob behind the data-sync function): the
+// dashboard persists merged live weeks here so repeat reloads don't re-scrape
+// them from RBI. Falls back silently when the function isn't deployed.
+const SYNC_URL = '.netlify/functions/data-sync';
 
 function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1156,6 +1160,8 @@ async function startFetch() {
     // Phase 2: also live-check RBI for weeks newer than the file, merge any
     // found, and re-render. Falls back silently when the function is absent.
     await mergeLiveUpdates();
+    // Phase 3: live-check the forward book and EM-peers series too.
+    await refreshLiveSeries();
   } catch (err) {
     appendLog(`✗ Could not load data: ${err.message}`, 'err');
     setStatus('error');
@@ -1172,17 +1178,40 @@ async function startFetch() {
 // ?weekOffset=, so we page through it; a failed week stops the walk and is
 // retried on the next click (the ?after= anchor only advances past successes).
 async function mergeLiveUpdates() {
-  const latest = records[records.length - 1];
-  if (!latest) return;
-  // The function's ?after= filter compares *publication* Fridays (> after); our
-  // record dates are as-on dates, so anchor on the newest publication Friday
-  // (= as-on + 7 days) to request strictly newer weeks.
-  const pub = rbiPublicationDate(latest.date);
-  const after = `${pub.getFullYear()}-${String(pub.getMonth()+1).padStart(2,'0')}-${String(pub.getDate()).padStart(2,'0')}`;
+  if (!records.length) return;
   const FN = '.netlify/functions/fetch-data';
-  let added = 0;
+  let added = 0, blobNewest = null;
   try {
     setStatus('running');
+    // 1. Restore previously merged weeks from the durable sync store first, so
+    //    the live check anchors on the newest record across file + saved data
+    //    and repeat reloads never re-scrape the same weeks.
+    const blob = await loadSyncRecords();
+    // Defensive PM CARES restore: the blob mirrors the curated rows (persisted
+    // on every Reload); the inline array stays the source of truth, the blob
+    // copy only fills in if a deploy ever ships without it.
+    if (blob && blob.pmcares && Array.isArray(blob.pmcares.rows) && blob.pmcares.rows.length) {
+      pmcaresData = blob.pmcares.rows;
+      if (!(PMCARES && PMCARES.length)) renderPmCares();
+    }
+    if (blob && Array.isArray(blob.records) && blob.records.length) {
+      let fromBlob = 0;
+      for (const rec of blob.records) {
+        if (rec && rec.date && mergeLiveRecord(rec)) fromBlob++;
+        if (rec && rec.date && (!blobNewest || rec.date > blobNewest)) blobNewest = rec.date;
+      }
+      if (fromBlob) {
+        records.sort((a, b) => a.date.localeCompare(b.date));
+        appendLog(`✓ Restored ${fromBlob} week${fromBlob > 1 ? 's' : ''} from saved sync data → ${records.length} total`);
+      }
+    }
+    // 2. Live-check RBI for anything newer than file + saved data. The function's
+    //    ?after= filter compares *publication* Fridays (> after); our record dates
+    //    are as-on dates, so anchor on the newest publication Friday (= as-on + 7
+    //    days) to request strictly newer weeks.
+    const latest = records[records.length - 1];
+    const pub = rbiPublicationDate(latest.date);
+    const after = `${pub.getFullYear()}-${String(pub.getMonth()+1).padStart(2,'0')}-${String(pub.getDate()).padStart(2,'0')}`;
     appendLog(`Checking RBI for weeks newer than ${latest.date}…`);
     let offset = 0, walked = 0;
     while (walked < 60) {
@@ -1215,10 +1244,249 @@ async function mergeLiveUpdates() {
     } else {
       appendLog('✓ Up to date - no newer RBI weeks found');
     }
+    // 3. Persist the merged set whenever it advanced past what the store had,
+    //    so the next reload restores it instead of re-scraping RBI.
+    const newestDate = records[records.length - 1] && records[records.length - 1].date;
+    if (newestDate && (!blobNewest || newestDate > blobNewest)) {
+      await persistSyncRecords();
+    }
     setStatus('done');
   } catch (err) {
     appendLog(`⚠ Live update unavailable: ${err.message}`);
     setStatus('done');
+  }
+}
+
+// Read the merged records previously persisted by data-sync (Netlify Blob).
+// Returns null when unavailable — callers fall back to file + live check.
+// Last blob payload read (records + forward + em + pmcares) — loaded once per
+// Reload in mergeLiveUpdates, reused by the forward/EM live checks so they
+// don't re-fetch.
+let syncBlob = null;
+// PM CARES rows restored from the blob (defensive fallback only — the inline
+// PMCARES array is the source of truth and always wins when present).
+let pmcaresData = null;
+
+async function loadSyncRecords() {
+  try {
+    const res = await fetch(SYNC_URL, { cache: 'no-store' });
+    if (!res.ok) { appendLog(`ℹ Saved-data check skipped (HTTP ${res.status})`); return null; }
+    const j = await res.json();
+    syncBlob = (j && Array.isArray(j.records)) ? j : null;
+    return syncBlob;
+  } catch (err) {
+    appendLog('ℹ Saved-data check skipped - data-sync function isn\'t deployed here');
+    return null;
+  }
+}
+
+// Live-check the other series the dashboard shows, beyond the weekly RBI
+// records: the forward book (newest official Bulletin figure) and the EM-peers
+// overlay (bust the per-range cache so the next view refetches from Yahoo).
+// Button wrapper: the heavy crude refresh only runs on an EXPLICIT Reload
+// click, never on the initial page load (which already fetches crude once via
+// updateUI → renderCrudeHighlights).
+let explicitReload = false;
+async function reloadData(){
+  explicitReload = true;
+  try { await startFetch(); } finally { explicitReload = false; }
+}
+
+async function refreshLiveSeries() {
+  await refreshMacroData();
+  await checkForwardLive();
+  refreshEmPeers();
+  if (explicitReload) refreshCrudeData(); // fire-and-forget — never blocks the other checks
+  savePmcaresToBlob();                    // fire-and-forget — durable mirror
+}
+
+// Persist the curated PM CARES rows into the data-sync blob (durable mirror;
+// the inline array stays the source of truth). Records + saved forward/em ride
+// along so the write never loses them.
+async function savePmcaresToBlob() {
+  try {
+    const rows = pmRows();
+    if (!rows.length) return;
+    const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
+    const em = (syncBlob && syncBlob.em) ? syncBlob.em : undefined;
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records, ...(fwd ? { forward: fwd } : {}), ...(em ? { em } : {}), pmcares: { rows, checkedAt: new Date().toISOString() } }),
+    });
+    if (res.ok && syncBlob) syncBlob.pmcares = { rows, checkedAt: new Date().toISOString() };
+    if (res.ok) appendLog('✓ PM CARES data saved to blob');
+    else appendLog(`⚠ Could not save PM CARES data (HTTP ${res.status})`);
+  } catch (err) {
+    appendLog(`⚠ Could not save PM CARES data: ${err.message}`);
+  }
+}
+
+// Check the forward book without re-scraping rbi.org.in on every reload. The
+// newest official figure found by a live check is persisted in the data-sync
+// blob (syncBlob.forward). While that figure is fresh (checked within
+// FWD_BLOB_MAX_AGE_MS), Reload reuses it: restored in-memory when the deployed
+// series tail lags it, or reported up to date when the tail already caught up
+// (the daily cron advances the deployed series). Only a stale or missing saved
+// figure triggers a fresh fetch-fwd-latest scrape, and whatever it finds is
+// saved back. Skips silently when the forward data isn't loaded (static
+// hosting) or the function isn't deployed.
+const FWD_BLOB_MAX_AGE_MS = 3 * 864e5; // reuse a saved figure for 3 days
+
+async function checkForwardLive() {
+  const fx = macroData.fxintv || {};
+  if (!fx.history || !fx.history.length) return; // nothing loaded to extend
+  const tail = fx.history[fx.history.length - 1];
+  const saved = (syncBlob && syncBlob.forward && typeof syncBlob.forward.date === 'string' && typeof syncBlob.forward.net_fwd === 'number')
+    ? syncBlob.forward : null;
+  const fresh = !!(saved && saved.checkedAt && (Date.now() - new Date(saved.checkedAt).getTime()) < FWD_BLOB_MAX_AGE_MS);
+  if (saved && fresh) {
+    // Reuse the saved figure — no RBI scrape this reload.
+    if (saved.date > tail.date) {
+      const point = { date: saved.date, net_fwd: saved.net_fwd, source: (saved.source || 'RBI Bulletin Table 4A') + ' (live-checked)' };
+      fx.history.push(point);
+      fx.month = saved.date;
+      fx.net_fwd = saved.net_fwd;
+      renderFwdChart(fx);
+      renderReserveForwardKpis();
+      appendLog(`✓ Forward book: restored ${saved.date} (${fwdDate(saved.date)}, ${saved.net_fwd >= 0 ? '+$' : '−$'}${Math.abs(saved.net_fwd).toFixed(2)}B) from saved check`);
+    } else {
+      appendLog('✓ Forward book up to date');
+    }
+    return;
+  }
+  // No fresh saved figure: ask fetch-fwd-latest (same discovery + parse as
+  // scripts/update-fwd-monthly.js, no file writes). The figure is persisted so
+  // the next reload reuses it — even when it merely matches the series tail.
+  try {
+    const res = await fetch('.netlify/functions/fetch-fwd-latest', { cache: 'no-store' });
+    if (!res.ok) { appendLog(`ℹ Forward-book check skipped (HTTP ${res.status})`); return; }
+    const j = await res.json();
+    if (j.error || !j.date || j.net_fwd == null) {
+      appendLog(`ℹ Forward-book check: ${j.error || 'no figure available'}`);
+      return;
+    }
+    if (j.date <= tail.date) {
+      appendLog('✓ Forward book up to date');
+      saveForwardToBlob({ date: j.date, net_fwd: j.net_fwd, source: j.source || 'RBI Bulletin Table 4A', asOn: j.asOn || null, checkedAt: new Date().toISOString() });
+      return;
+    }
+    const point = { date: j.date, net_fwd: j.net_fwd, source: (j.source || 'RBI Bulletin Table 4A (live-checked)') + ' (live-checked)' };
+    fx.history.push(point);
+    fx.month = j.date;
+    fx.net_fwd = j.net_fwd;
+    renderFwdChart(fx);
+    renderReserveForwardKpis();
+    appendLog(`✓ Forward book: added ${j.date} (${fwdDate(j.date)}, ${j.net_fwd >= 0 ? '+$' : '−$'}${Math.abs(j.net_fwd).toFixed(2)}B) - live-checked`);
+    saveForwardToBlob({ date: j.date, net_fwd: j.net_fwd, source: point.source, asOn: j.asOn || null, checkedAt: new Date().toISOString() });
+  } catch (err) {
+    appendLog(`⚠ Forward-book live check failed: ${err.message}`);
+  }
+}
+
+// Persist the newest official forward figure into the data-sync blob so repeat
+// reloads restore it instead of re-scraping rbi.org.in. Records ride along in
+// the same POST (the blob stores one payload) so the write never loses the
+// weekly merge.
+async function saveForwardToBlob(forward) {
+  try {
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records, forward }),
+    });
+    if (res.ok) appendLog('✓ Forward figure saved - next reload skips the RBI scrape');
+    else appendLog(`⚠ Could not save forward figure (HTTP ${res.status})`);
+  } catch (err) {
+    appendLog(`⚠ Could not save forward figure: ${err.message}`);
+  }
+}
+
+// EM-peers data is already live-fetched per range by the server-side proxy;
+// the per-range cache just avoids refetching on every tab click. Reload busts
+// the cache so the next EM view pulls fresh Yahoo data — refetching the active
+// range immediately when the EM overlay is on screen.
+// EM-peers data is fetched live per range by the server-side proxy; the
+// per-range cache avoids refetching on every tab click. Payloads are persisted
+// in the data-sync blob (key `em`) so repeat reloads restore them instead of
+// re-fetching from Yahoo while they're fresh (EM_BLOB_MAX_AGE_MS). Stale
+// payloads are dropped — the active range refetches immediately, the rest
+// lazily on their tab.
+const EM_BLOB_MAX_AGE_MS = 12 * 3600e3; // reuse a persisted EM payload for 12h
+
+function emFresh(fetchedAt){
+  if (!fetchedAt) return false;
+  const t = new Date(fetchedAt).getTime();
+  return !isNaN(t) && (Date.now() - t) < EM_BLOB_MAX_AGE_MS;
+}
+
+function refreshEmPeers() {
+  // 1. Restore fresh persisted payloads from the blob into the session cache.
+  if (syncBlob && syncBlob.em) {
+    for (const range of Object.keys(syncBlob.em)) {
+      const e = syncBlob.em[range];
+      if (e && Array.isArray(e.peers) && e.peers.length && emFresh(e.fetchedAt) && !emPeerCache[range]) {
+        emPeerCache[range] = e.peers;
+        emMeta[range] = e.fetchedAt;
+      }
+    }
+  }
+  // 2. Drop stale session entries; the active range refetches immediately.
+  let dropped = 0;
+  for (const range of Object.keys(emPeerCache)) {
+    const t = emMeta[range] ? new Date(emMeta[range]).getTime() : 0;
+    if (!t || (Date.now() - t) >= EM_BLOB_MAX_AGE_MS) {
+      delete emPeerCache[range];
+      delete emMeta[range];
+      dropped++;
+    }
+  }
+  if (dropped) {
+    if (modes.fx === 'em') {
+      rebuildFx(); // restores a fresh blob payload, or refetches Yahoo when stale
+      appendLog(`✓ EM peers: ${dropped} stale range${dropped > 1 ? 's' : ''} dropped - active range refreshing`);
+    } else {
+      appendLog(`✓ EM peers: ${dropped} stale range${dropped > 1 ? 's' : ''} dropped - refreshes on next view`);
+    }
+  } else if (Object.keys(emPeerCache).length) {
+    appendLog('✓ EM peers: restored from saved data (no Yahoo fetch)');
+  }
+}
+
+// Crude-oil data is the heaviest fetch on the site (~150 external requests, up
+// to a 26s function timeout), so Reload refreshes it FIRE-AND-FORGET: the other
+// live checks never wait on it. The cache is busted so the next load re-pulls
+// everything; the dashboard highlights + import bill/cover re-render when the
+// payload lands, and the full crude section re-renders too when it's the tab on
+// screen. Failures are logged and the tile keeps its last data.
+async function refreshCrudeData() {
+  crudeData = null;
+  crudePromise = null;
+  appendLog('Crude data refreshing in background…');
+  try {
+    await loadCrudeData();
+    renderCrudeHighlights();
+    const sec = document.getElementById('sec-crude');
+    if (sec && sec.classList.contains('active')) await renderCrudeSection();
+    appendLog('✓ Crude data refreshed (import bill updated)');
+  } catch (err) {
+    appendLog(`ℹ Crude refresh unavailable: ${err.message} - tile keeps last data`);
+  }
+}
+
+// Write the current merged records back through data-sync so repeat reloads
+// restore them instead of re-scraping the same weeks from RBI.
+async function persistSyncRecords() {
+  try {
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records }),
+    });
+    if (res.ok) appendLog(`✓ Saved merged data (${records.length} weeks) - next reload stays up to date`);
+    else appendLog(`⚠ Could not save merged data (HTTP ${res.status})`);
+  } catch (err) {
+    appendLog(`⚠ Could not save merged data: ${err.message}`);
   }
 }
 
@@ -2020,6 +2288,7 @@ const MACRO_ENDPOINTS = {
 };
 let macroData  = {};
 let emPeerCache = {};
+let emMeta = {}; // range → fetchedAt (ISO) of the cached EM payload
 let fiiHistChart = null;
 
 // Hard-coded macro events registry (Fed + RBI MPC + selected geopolitics).
@@ -2042,22 +2311,46 @@ const MACRO_EVENTS = [
   { date:'2025-03-19', label:'Fed: hold 4.25-4.50%' },
 ];
 
-async function loadMacroData(){
+// Fetch every macro endpoint into macroData. `noStore` busts the browser HTTP
+// cache (used by the Reload live refresh); returns false only when the fetch
+// loop itself blew up (offline etc.) — individual endpoint failures just store
+// null, exactly like the initial load.
+async function fetchAllMacro(noStore){
   const keys = Object.keys(MACRO_ENDPOINTS);
   let settled;
   try {
     settled = await Promise.allSettled(
-      keys.map(k => fetch(MACRO_ENDPOINTS[k], { cache: 'default' })
+      keys.map(k => fetch(MACRO_ENDPOINTS[k], noStore ? { cache: 'no-store' } : { cache: 'default' })
                           .then(r => r.ok ? r.json() : null)
                           .catch(() => null))
     );
-  } catch(_) { return; }
+  } catch(_) { return false; }
   for (let i = 0; i < keys.length; i++) {
     macroData[keys[i]] = settled[i].status === 'fulfilled' ? settled[i].value : null;
   }
+  return true;
+}
+
+async function loadMacroData(){
+  await fetchAllMacro(false);
   renderMacroCards();
   const mex = document.getElementById('metric-extras');
   if(mex) mex.classList.add('show');
+}
+
+// Reload-time refresh of the macro cards: FII flows + history, G-Sec yield,
+// tax receipts, REER, and the forward-book source. Same endpoints as the
+// initial load but with the browser HTTP cache busted so every tile re-pulls
+// live data; renderMacroCards() re-renders the FII history chart, the forward
+// chart, and the reserve KPIs from the refreshed macroData.
+async function refreshMacroData(){
+  const ok = await fetchAllMacro(true);
+  if(!ok){ appendLog('ℹ Macro refresh skipped - endpoints unreachable'); return; }
+  renderMacroCards();
+  const any = Object.keys(MACRO_ENDPOINTS).some(k => macroData[k] != null);
+  appendLog(any
+    ? '✓ Macro cards refreshed (FII, G-Sec, tax, REER, forward source)'
+    : 'ℹ Macro refresh: endpoints unavailable here');
 }
 
 function setMctxVal(id, val, sub){
@@ -2238,12 +2531,42 @@ function renderVolatility(){
 async function loadEmPeers(range){
   range = range || '6mo';
   if(emPeerCache[range]) return emPeerCache[range];
+  // Fresh persisted payload in the blob? Restore it instead of hitting Yahoo.
+  if (syncBlob && syncBlob.em && syncBlob.em[range]) {
+    const e = syncBlob.em[range];
+    if (Array.isArray(e.peers) && e.peers.length && emFresh(e.fetchedAt)) {
+      emPeerCache[range] = e.peers;
+      emMeta[range] = e.fetchedAt;
+      return e.peers;
+    }
+  }
   try {
     const r = await fetch('/.netlify/functions/fetch-em-peers?range=' + encodeURIComponent(range) + '&interval=1d', { cache: 'no-cache' });
     const j = r.ok ? await r.json() : null;
-    if(j && Array.isArray(j.peers) && j.peers.length) emPeerCache[range] = j.peers;
+    if(j && Array.isArray(j.peers) && j.peers.length) {
+      emPeerCache[range] = j.peers;
+      emMeta[range] = new Date().toISOString();
+      persistEmToBlob(range, j.peers); // fire-and-forget — never blocks the chart
+    }
   } catch(_) { /* keep cache empty → EM tab draws its empty state */ }
   return emPeerCache[range] || [];
+}
+
+// Persist a freshly fetched EM payload into the data-sync blob (key `em`) so
+// repeat reloads restore it instead of re-fetching from Yahoo. Records and the
+// saved forward figure ride along so the write never loses them.
+async function persistEmToBlob(range, peers) {
+  try {
+    const em = Object.assign({}, (syncBlob && syncBlob.em) || {});
+    em[range] = { peers, fetchedAt: new Date().toISOString() };
+    const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records, ...(fwd ? { forward: fwd } : {}), em }),
+    });
+    if (res.ok && syncBlob) syncBlob.em = em; // keep the local copy current
+  } catch (_) { /* persist failure is non-fatal — the session cache still works */ }
 }
 
 // ─── FII + DII 6-month history chart ────────────────────────────────────────
@@ -2582,8 +2905,16 @@ const PMCARES = [
     note:'Interest ₹469.37 cr FD + ₹5.76 cr regular acct. Receipts also include ₹479.04 cr domestic, ₹0.93 cr foreign, ₹324.66 cr refunds.' }
 ];
 
+// Resolve the PM CARES rows: the inline curated array is the source of truth;
+// the blob mirror (pmcaresData) only fills in if the deploy ships without it.
+function pmRows(){
+  return (PMCARES && PMCARES.length) ? PMCARES : (pmcaresData || []);
+}
+
 function renderPmCares(){
-  const L = PMCARES[PMCARES.length-1];
+  const rows = pmRows();
+  if (!rows.length) return;
+  const L = rows[rows.length-1];
   const set = (id,v)=>document.getElementById(id).textContent = fmt(v,2);
   set('pm-total', L.close);
   set('pm-donations', 13605);
@@ -2592,7 +2923,7 @@ function renderPmCares(){
 
   // table
   const body = document.getElementById('pmcares-body');
-  body.innerHTML = PMCARES.map(r=>
+  body.innerHTML = rows.map(r=>
     `<tr>
       <td class="date-cell">FY ${r.fy}</td>
       <td>${fmt(r.open,2)}</td>
@@ -2609,16 +2940,16 @@ function renderPmCares(){
   // chart (grouped bar: receipts / interest / disbursed)
   const el = document.getElementById('cPmCares');
   if(!el) return;
-  const labels = PMCARES.map(r=>'FY '+r.fy);
+  const labels = rows.map(r=>'FY '+r.fy);
   const pmGreen = G, pmAmber = AMB, pmBlue = BLUE;
   if(charts.pm) charts.pm.destroy();
   charts.pm = new Chart(el, {
     type:'bar',
     data:{ labels,
       datasets:[
-        { label:'Receipts (₹ cr)',   data:PMCARES.map(r=>r.recap), backgroundColor:pmGreen, borderRadius:4 },
-        { label:'Interest (₹ cr)',   data:PMCARES.map(r=>r.int),   backgroundColor:pmBlue,  borderRadius:4 },
-        { label:'Disbursed (₹ cr)',  data:PMCARES.map(r=>r.disp),  backgroundColor:pmAmber, borderRadius:4 }
+        { label:'Receipts (₹ cr)',   data:rows.map(r=>r.recap), backgroundColor:pmGreen, borderRadius:4 },
+        { label:'Interest (₹ cr)',   data:rows.map(r=>r.int),   backgroundColor:pmBlue,  borderRadius:4 },
+        { label:'Disbursed (₹ cr)',  data:rows.map(r=>r.disp),  backgroundColor:pmAmber, borderRadius:4 }
       ]
     },
     options:{
@@ -2634,7 +2965,7 @@ function renderPmCares(){
 
 function dlPmCaresCSV(){
   const header = 'financial_year,opening_balance,receipts,interest_earned,disbursed,closing_balance,calamities_emdat_cy,relief_to_calamities,highlights';
-  const rows = PMCARES.map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'"\"')}"`].join(','));
+  const rows = pmRows().map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'"\"')}"`].join(','));
   const csv = header + '\n' + rows.join('\n');
   const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a');

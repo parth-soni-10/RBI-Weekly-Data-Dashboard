@@ -239,6 +239,28 @@ function applyOfficial(entries, official) {
   return { rows, changed, summary: `upgraded ${official.date} ${e.net_fwd} → ${official.netFwd}` };
 }
 
+// ── Newest-issue discovery + parse (no file writes) ─────────────────────
+// Shared with netlify/functions/fetch-fwd-latest.js so the Reload button can
+// live-check the newest official figure without running the CLI. Returns
+//   { id, date, asOn, netMn, longMn, shortMn, netFwd, source }  — newest figure
+//   { error: "no-table" | "unparseable", id? }                  — nothing usable
+async function fetchLatestOfficial() {
+  const id = await newestTableId();
+  if (!id) return { error: "no-table" };
+  const fig = parseFwdTable(await getText(TABLE_URL(id)));
+  if (!fig) return { error: "unparseable", id };
+  return {
+    id,
+    date: fig.period,
+    asOn: fig.asOn,
+    netMn: fig.netMn,
+    longMn: fig.longMn,
+    shortMn: fig.shortMn,
+    netFwd: +(fig.netMn / 1000).toFixed(3),
+    source: SRC_PREFIX(fig.period, fig.asOn),
+  };
+}
+
 async function main() {
   const backfill = process.argv.includes("--backfill");
   const src = fs.readFileSync(FN, "utf8");
@@ -246,13 +268,12 @@ async function main() {
   if (!entries.length) throw new Error("could not parse FWD_SERIES from " + FN);
 
   if (!backfill) {
-    const id = await newestTableId();
-    if (!id) { console.log("⚠ No 4A (Outstanding Forwards of RBI) table found on the Bulletin front page — leaving FWD_SERIES unchanged."); return; }
-    console.log(`Bulletin front page: newest 4A forward table id ${id}`);
-    const fig = parseFwdTable(await getText(TABLE_URL(id)));
-    if (!fig) { console.log(`⚠ Could not parse Table 4A from page ${id} — leaving FWD_SERIES unchanged.`); return; }
-    console.log(`Table 4A: ${fig.asOn} — net ${fig.netMn >= 0 ? "+" : "−"}$${Math.abs(fig.netMn).toLocaleString("en-US")}mn (long ${fig.longMn.toLocaleString("en-US")}, short ${fig.shortMn.toLocaleString("en-US")}) → period ${fig.period}`);
-    const official = { date: fig.period, netFwd: +(fig.netMn / 1000).toFixed(3), source: SRC_PREFIX(fig.period, fig.asOn) };
+    const latest = await fetchLatestOfficial();
+    if (latest.error === "no-table") { console.log("⚠ No 4A (Outstanding Forwards of RBI) table found on the Bulletin front page — leaving FWD_SERIES unchanged."); return; }
+    if (latest.error === "unparseable") { console.log(`⚠ Could not parse Table 4A from page ${latest.id} — leaving FWD_SERIES unchanged.`); return; }
+    console.log(`Bulletin front page: newest 4A forward table id ${latest.id}`);
+    console.log(`Table 4A: ${latest.asOn} — net ${latest.netMn >= 0 ? "+" : "−"}$${Math.abs(latest.netMn).toLocaleString("en-US")}mn (long ${latest.longMn.toLocaleString("en-US")}, short ${latest.shortMn.toLocaleString("en-US")}) → period ${latest.date}`);
+    const official = { date: latest.date, netFwd: latest.netFwd, source: latest.source };
     const res = applyOfficial(entries, official);
     if (!res.changed.length) { console.log(`✓ Up to date — ${res.summary}.`); return; }
     const marker = res.summary.startsWith("inserted") ? " (auto-appended)" : " (official)";
@@ -306,6 +327,10 @@ async function main() {
   console.log(`✎ Backfill wrote ${inserted} inserted + ${upgraded} upgraded monthly points (series now ${rowsArr.length} entries).`);
 }
 
-main().catch(e => {
-  console.warn(`⚠ update-fwd-monthly skipped (${e.message}) — FWD_SERIES unchanged.`);
-});
+if (require.main === module) {
+  main().catch(e => {
+    console.warn(`⚠ update-fwd-monthly skipped (${e.message}) — FWD_SERIES unchanged.`);
+  });
+}
+
+module.exports = { fetchLatestOfficial };
