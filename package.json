@@ -7,7 +7,8 @@
   },
   "scripts": {
     "check": "node scripts/check-syntax.js",
-    "fetch:data": "node scripts/fetch-all.js"
+    "fetch:data": "node scripts/fetch-all.js",
+    "update:fwd": "node scripts/update-fwd-series.js"
   },
   "dependencies": {
     "node-fetch": "^2.7.0",

@@ -194,9 +194,9 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 #metrics.show .mc:nth-child(3),.metric-extra-row.show .mex:nth-child(3),.pm-metrics .mc:nth-child(3),
 .mc-grid .mctx:nth-child(3),#crude-kpis .mc:nth-child(3),#charts.show .chart-card:nth-child(3){animation-delay:.09s}
 #metrics.show .mc:nth-child(4),.pm-metrics .mc:nth-child(4),.mc-grid .mctx:nth-child(4),
-#crude-kpis .mc:nth-child(4),#charts.show .chart-card:nth-child(4){animation-delay:.135s}
+.metric-extra-row.show .mex:nth-child(4),#crude-kpis .mc:nth-child(4),#charts.show .chart-card:nth-child(4){animation-delay:.135s}
 #metrics.show .mc:nth-child(5),.pm-metrics .mc:nth-child(5),.mc-grid .mctx:nth-child(5),
-#charts.show .chart-card:nth-child(5){animation-delay:.18s}
+.metric-extra-row.show .mex:nth-child(5),#charts.show .chart-card:nth-child(5){animation-delay:.18s}
 #metrics.show .mc:nth-child(6),.pm-metrics .mc:nth-child(6),.mc-grid .mctx:nth-child(6),
 #charts.show .chart-card:nth-child(6){animation-delay:.225s}
 #metrics.show .mc:nth-child(7),.mc-grid .mctx:nth-child(7),
@@ -632,7 +632,9 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <div class="mc"><div class="mc-label">Sensex</div><div class="mc-val" id="m-sensex">—</div>
       <div class="mc-sub">Friday close (latest)</div><div class="mc-delta" id="d-sensex"></div></div>
   </div>
-  <!--Metric extra row: Import Cover + Volatility + RBI Repo Rate. Repo rate comes from /.netlify/functions/fetch-gsec; the other two KPIs are computed client-side from records + crude data. -->
+  <!--Metric extra row: Import Cover + Volatility + Repo Rate + forward-book KPIs. Repo rate comes from
+      /.netlify/functions/fetch-gsec; import cover/volatility are computed client-side; the two forward-book
+      cards combine gross reserves (records) with macroData.fxintv (curated forward figure). -->
   <div class="metric-extra-row" id="metric-extras">
     <div class="mex">
       <div class="mex-label"><span data-glossary="Months of import cover = forex reserves (USD) ÷ monthly import bill (USD). RBI's comfort zone is around 9 months.">Import Cover</span></div>
@@ -648,6 +650,16 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
       <div class="mex-label"><span data-glossary="RBI's policy repo rate, set by the Monetary Policy Committee (MPC). Last decision via the official RBI press release.">RBI Repo Rate</span></div>
       <div id="repo-rate" class="mex-val">—</div>
       <div class="mex-detail" id="repo-rate-detail">awaiting fetch-gsec.json</div>
+    </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="RBI's outstanding net position in USD FX forwards, disclosed monthly in the RBI Bulletin. Negative = net forward liabilities (RBI has sold USD forward and must deliver dollars later — a claim on reserves); positive = net forward assets. Aggregate USD figure only — no currency split is published.">RBI Forward Book</span></div>
+      <div id="kpi-fwd-book" class="mex-val">—</div>
+      <div class="mex-detail" id="kpi-fwd-book-sub">awaiting fetch-fx-intervention.json</div>
+    </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="Gross forex reserves plus RBI's net forward position — forwards subtract when RBI is short USD (as now) and add when it is long. Forward commitments reduce the usable firepower of gross reserves, so comparing this net figure with gross reveals the 'hidden' drawdown.">Net Reserves after Forwards</span></div>
+      <div id="kpi-net-res" class="mex-val">—</div>
+      <div class="mex-detail" id="kpi-net-res-sub">awaiting records + forward book</div>
     </div>
   </div>
 
@@ -712,6 +724,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations"><i data-lucide="flag"></i> Events</button></div>
+      <div class="tab-row" id="emRanges" role="group" aria-label="EM peer lookback range" style="display:none"><button class="tab" onclick="sw(this,'em','1mo')">1M</button><button class="tab" onclick="sw(this,'em','3mo')">3M</button><button class="tab on" onclick="sw(this,'em','6mo')">6M</button><button class="tab" onclick="sw(this,'em','1y')">1Y</button></div>
       <div id="events-last-note"></div>
       <div class="chart-wrap"><canvas id="cFx" role="img" aria-label="Line chart of rupee spot rate"></canvas></div>
     </div>
@@ -738,10 +751,10 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
     </div>
 
-    <!-- RBI forward book — curated monthly disclosure from fetch-fx-intervention.js -->
+    <!-- RBI forward book — curated disclosure series from fetch-fx-intervention.js -->
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts, disclosed monthly in the RBI Bulletin. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). RBI publishes no currency split, so this is the aggregate USD figure. Weekly view carries each monthly figure across weeks until the next release; flat stretches = no newer disclosure yet.</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'fwd','week')">Weekly (latest)</button><button class="tab" onclick="sw(this,'fwd','month')">Monthly (all data)</button></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). Disclosures: monthly in the RBI Bulletin (2025+) and half-yearly in RBI's FX reserves reports (2021–2024, figures match across both). Each weekly view steps a released figure across weeks until the next one lands — flat stretches mean no newer disclosure yet. RBI publishes no currency split, so this is the aggregate USD figure. The since-2021 view draws a dashed zero baseline and flags the Apr-2024 week the book turned net short.</div></div></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'fwd','week')">Weekly · recent</button><button class="tab" onclick="sw(this,'fwd','full')">Weekly · since 2021</button><button class="tab" onclick="sw(this,'fwd','month')">Monthly · all figures</button></div>
       <div class="chart-wrap"><canvas id="cFwd" role="img" aria-label="Line chart of RBI net forward position in USD billion"></canvas></div>
     </div>
   </div>
@@ -984,7 +997,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 </footer>
 
 <script>
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week'};
+let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week',em:'6mo'};
 
 /* ─── Static data file ──────────────────────────────────────────
    All fetched RBI weekly records live in public/rbi-data.json, which is
@@ -1189,6 +1202,7 @@ function updateUI(){
   rebuildRupeeEqTable();
   renderImportCover();
   renderVolatility();
+  renderReserveForwardKpis();
   renderCrudeHighlights().catch(()=>{});
 }
 
@@ -1369,8 +1383,12 @@ function rebuildResGold(){
   mkBar('cGold',diff(goldRaw),modes.gold==='usd'?'Δ Gold USD mn':'Δ Gold INR cr');
 }
 async function rebuildFx(){
+  const rngRow = document.getElementById('emRanges');
+  if(rngRow) rngRow.style.display = modes.fx === 'em' ? '' : 'none';
   if(modes.fx === 'em'){
-    const data = await loadEmPeers();
+    const want = modes.em;
+    const data = await loadEmPeers(want);
+    if(modes.em !== want) return; // a newer range click won the race
     if(!data || !data.length){ drawFxBase(); return; }
     if(charts.cFx) charts.cFx.destroy();
     charts.cFx = new Chart(document.getElementById('cFx'), {
@@ -1455,6 +1473,7 @@ function sw(el, group, mode){
   if(!records.length) return;
   if(group==='res' || group==='gold') rebuildResGold();
   else if(group==='fx') rebuildFx();
+  else if(group==='em') rebuildFx();
   else if(group==='idx') rebuildIdxClose();
   else if(group==='idxd') rebuildIdxDelta();
   else if(group==='fwd') renderFwdChart(macroData.fxintv);
@@ -1930,7 +1949,7 @@ const MACRO_ENDPOINTS = {
   reer:   '/.netlify/functions/fetch-reer',
 };
 let macroData  = {};
-let emPeerData = null;
+let emPeerCache = {};
 let fiiHistChart = null;
 
 // Hard-coded macro events registry (Fed + RBI MPC + selected geopolitics).
@@ -2035,6 +2054,7 @@ function renderMacroCards(){
               : null,
               fx.month ? 'RBI Bulletin · as of ' + fwdDate(fx.month) : (fx.source || 'RBI Bulletin · $ bn'));
     renderFwdChart(fx);
+    renderReserveForwardKpis();
 
     // Display last macro event in range as a subtle hint near the FX chart events-tab.
     const lastEvt = MACRO_EVENTS.filter(e => e.date <= new Date().toISOString().slice(0,10)).slice(-1)[0];
@@ -2069,6 +2089,47 @@ function renderImportCover(){
     `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e3).toFixed(2)}B/mo (crude proxy)`;
 }
 
+// FORWARD-BOOK KPIs: gross reserves (records, USD bn) netted against RBI's
+// forward position (macroData.fxintv, USD bn, signed). Runs whenever either
+// input lands — records load (updateUI) or the macro fetch settles
+// (renderMacroCards) — and fills both cards once both are available.
+function renderReserveForwardKpis(){
+  const fwdEl = document.getElementById('kpi-fwd-book');
+  const netEl = document.getElementById('kpi-net-res');
+  if(!fwdEl || !netEl) return;
+  const fx = macroData.fxintv || {};
+  const L  = records.length ? records[records.length - 1] : null;
+  const hasFwd = fx.net_fwd != null;
+  const hasRes = !!(L && L.total_usd != null);
+
+  const fwdSub = document.getElementById('kpi-fwd-book-sub');
+  if(hasFwd){
+    fwdEl.textContent = (fx.net_fwd >= 0 ? '+$' : '−$') + Math.abs(fx.net_fwd).toFixed(2) + 'B';
+    if(fwdSub) fwdSub.textContent =
+      (fx.net_fwd >= 0 ? 'net forward assets (long)' : 'net forward liabilities (short)')
+      + (fx.month ? ' · as of ' + fwdDate(fx.month) : ' · RBI Bulletin');
+  } else if(fwdSub){
+    fwdSub.textContent = 'awaiting fetch-fx-intervention.json';
+  }
+
+  const netSub = document.getElementById('kpi-net-res-sub');
+  if(hasRes && hasFwd){
+    const gross = L.total_usd / 1000;            // USD mn → bn
+    const net   = gross + fx.net_fwd;
+    netEl.textContent = '$' + net.toFixed(1) + 'B';
+    if(netSub){
+      const op  = fx.net_fwd >= 0 ? '+' : '−';
+      const tag = fx.net_fwd >= 0 ? 'fwd assets' : 'fwd book';
+      netSub.textContent = `gross $${gross.toFixed(2)}B ${op} ${tag} $${Math.abs(fx.net_fwd).toFixed(2)}B`
+        + ` · reserves ${fmtDate(L.date)} · fwd ${fx.month ? fwdDate(fx.month) : '—'}`;
+    }
+  } else if(netSub){
+    netEl.textContent = '—';
+    netSub.textContent = !hasRes ? (!hasFwd ? 'awaiting records + forward book' : 'awaiting records')
+                                 : 'awaiting forward book';
+  }
+}
+
 // VOLATILITY: weekly-stdev of USD/INR with 20/60-session window + annualized tier pill
 function renderVolatility(){
   if(records.length < 4) return;
@@ -2098,28 +2159,21 @@ function renderVolatility(){
   }
 }
 
-// EM Peer overlay — load 6mo indexed-to-100 from Yahoo for INR/BRL/IDR/CNY/ZAR
-async function loadEmPeers(){
-  if(emPeerData) return emPeerData;
-  const syms = [
-    { code:'INR', ticker:'INR=X' },
-    { code:'BRL', ticker:'BRL=X' },
-    { code:'IDR', ticker:'IDR=X' },
-    { code:'CNY', ticker:'CNY=X' },
-    { code:'ZAR', ticker:'ZAR=X' },
-  ];
-  const settled = await Promise.allSettled(syms.map(s =>
-    fetch('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(s.ticker) + '?interval=1d&range=6mo')
-      .then(r => r.ok ? r.json() : null).catch(() => null)));
-  emPeerData = syms.map((s, i) => {
-    const json = settled[i].value;
-    const r = json?.chart?.result?.[0];
-    const closes = (r?.indicators?.quote?.[0]?.close || []).filter(v => v != null);
-    if(closes.length < 5) return null;
-    const base = closes[0];
-    return { code: s.code, points: closes.map(v => +(v/base*100).toFixed(2)), dates: (r?.timestamp||[]).map(t => new Date(t*1000).toISOString().slice(0,10)) };
-  }).filter(Boolean);
-  return emPeerData;
+// EM Peer overlay — indexed-to-100 INR/BRL/IDR/CNY/ZAR over a selectable
+// lookback (1M/3M/6M/1Y tabs). Yahoo is fetched SERVER-SIDE by
+// /.netlify/functions/fetch-em-peers (the browser can't call Yahoo directly on
+// arbitrary origins — CORS); each range is cached per session after its first
+// fetch, and the tab falls back to an empty series when the function is
+// unavailable (e.g. static local preview).
+async function loadEmPeers(range){
+  range = range || '6mo';
+  if(emPeerCache[range]) return emPeerCache[range];
+  try {
+    const r = await fetch('/.netlify/functions/fetch-em-peers?range=' + encodeURIComponent(range) + '&interval=1d', { cache: 'no-cache' });
+    const j = r.ok ? await r.json() : null;
+    if(j && Array.isArray(j.peers) && j.peers.length) emPeerCache[range] = j.peers;
+  } catch(_) { /* keep cache empty → EM tab draws its empty state */ }
+  return emPeerCache[range] || [];
 }
 
 // ─── FII + DII 6-month history chart ────────────────────────────────────────
@@ -2161,12 +2215,15 @@ function renderFiiHistoryChart(){
 }
 
 // ─── RBI forward book chart ──────────────────────────────────────────────
-// Fed by macroData.fxintv (fetch-fx-intervention.js): a curated monthly
-// series of RBI's outstanding NET forward position (USD bn, signed).
-// Positive = net forward assets (long dollars); negative = net forward
-// liabilities (short dollars / selling USD forward). RBI discloses the figure
-// monthly in the RBI Bulletin but not through a parseable API, so the series
-// is curated in FWD_SERIES inside the function — same pattern as PM CARES.
+// Fed by macroData.fxintv (fetch-fx-intervention.js): a curated series of
+// RBI's outstanding NET forward position (USD bn, signed). Positive = net
+// forward assets (long dollars); negative = net forward liabilities (short
+// dollars / selling USD forward). Disclosures: monthly in the RBI Bulletin
+// (2025+) and half-yearly in the FX reserves reports (2021-2024), so the
+// series is curated in FWD_SERIES inside the function — same pattern as PM
+// CARES. Tabs: 'week' = stepped weekly on the dashboard's WSS Fridays;
+// 'full' = stepped weekly every Friday since 2021 (shows the long-to-short
+// flip); 'month' = every published figure as sparse points.
 const FWD_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fwdDate(m){
   if(!m || typeof m !== 'string') return '';
@@ -2183,21 +2240,51 @@ function fwdYFmt(v){
   if (v === 0) return '$0';
   return (v > 0 ? '+$' : '-$') + Math.abs(Math.round(v * 10) / 10) + 'B';
 }
-// Weekly view: align the curated monthly disclosures onto the dashboard's
-// weekly (WSS Friday) axis. Each week shows the newest figure whose month-end
-// has passed, carried until the next monthly release steps it (stepped line).
-function fwdWeekSeries(hist){
+// Step a disclosure series (each `date` is a "YYYY-MM" month-end) onto an
+// arbitrary list of week dates: every week shows the newest figure whose
+// month-end has passed, carried until the next release steps it (stepped line).
+function stepDisclosures(hist, dates){
   const monthEnd = m => {
     const [y, mo] = m.split('-').map(Number);
     return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
   };
   const h = hist.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   let idx = -1;
-  return records.map(r => {
-    while (idx + 1 < h.length && monthEnd(h[idx + 1].date) <= r.date) idx++;
+  return dates.map(d => {
+    while (idx + 1 < h.length && monthEnd(h[idx + 1].date) <= d) idx++;
     const p = idx >= 0 ? h[idx] : null;
-    return { date: r.date, v: p ? p.net_fwd : null, p };
+    return { date: d, v: p ? p.net_fwd : null, p };
   });
+}
+// Recent weekly view: align disclosures onto the dashboard's own weekly
+// (WSS Friday) axis so it matches the other charts on the page.
+function fwdWeekSeries(hist){
+  return stepDisclosures(hist, records.map(r => r.date));
+}
+// Full-history weekly view: every Friday from the first week of 2021 (Jan 1
+// 2021 was a Friday, so +7d stays on grid) through the latest WSS Friday, or
+// back to today if the static data file is empty. Pre-2025 disclosures were
+// half-yearly, so the line carries each report figure across weeks until the
+// next report steps it — flat stretches there mean "no newer report yet".
+function fwdAllWeeks(){
+  const DAY = 864e5;
+  const start = Date.UTC(2021, 0, 1);
+  let end;
+  const lastRec = records.length ? records[records.length - 1].date : '';
+  if (lastRec >= '2021-01-01') {
+    const [y, mo, dd] = lastRec.split('-').map(Number);
+    end = Date.UTC(y, mo - 1, dd); // ISO month is 1-indexed; Date.UTC wants 0-indexed
+  } else {
+    const t = new Date();
+    end = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate());
+    end -= ((Math.floor(end / DAY) + 6) % 7) * DAY; // snap to the prior Friday (epoch day 0 = Thursday)
+  }
+  const out = [];
+  for (let d = start; d <= end; d += 7 * DAY) out.push(new Date(d).toISOString().slice(0, 10));
+  return out;
+}
+function fwdFullWeekSeries(hist){
+  return stepDisclosures(hist, fwdAllWeeks());
 }
 function renderFwdChart(fx){
   const ctxEl = document.getElementById('cFwd');
@@ -2220,13 +2307,20 @@ function renderFwdChart(fx){
     scales: axOpts(fwdYFmt),
   };
 
-  if(modes.fwd === 'week'){
-    // Weekly axis = the site's WSS Fridays (records). Repeat the latest figure
-    // whose month-end has passed; the line steps when a new release lands.
-    const series = fwdWeekSeries(hist);
+  if(modes.fwd === 'week' || modes.fwd === 'full'){
+    const isFull = modes.fwd === 'full';
+    // Weekly axes: 'week' rides the site's WSS Fridays (records); 'full' is
+    // every Friday from the first week of 2021 so the long-to-short flip is
+    // visible on a weekly axis. Both repeat the latest figure whose month-end
+    // has passed; the line steps when a new release lands.
+    const series = isFull ? fwdFullWeekSeries(hist) : fwdWeekSeries(hist);
     if(!series.length) return;
     const data  = series.map(s => s.v);
     const labels = series.map(s => wkLabel(s.date));
+    if(isFull){ // ~290 weekly labels over 5.5 years: thin the axis out
+      opt.scales.x.ticks.maxTicksLimit = 10;
+      opt.scales.x.ticks.maxRotation = 0;
+    }
     opt.plugins.tooltip.callbacks = {
       title: items => {
         const s = series[items[0].dataIndex];
@@ -2241,6 +2335,75 @@ function renderFwdChart(fx){
         return tag + ': ' + val + (p && p.approx ? ' ≈' : '');
       },
     };
+    // Full-history axis: first week whose stepped figure is negative — the
+    // week the book turned net short. The stepped line's vertical green drop
+    // through zero lands at exactly this category, so a guide can flag it.
+    const flipIdx = isFull ? series.findIndex(s => s.v != null && s.v < 0) : -1;
+
+    // Guide layer (since-2021 view only): a dashed zero baseline marks the
+    // long/short divide, and a chip + dashed rule flags the Apr-2024 crossing
+    // where the sign flipped. Drawn in afterDatasetsDraw so the guides sit on
+    // top of the line but under any tooltip. All colours come from the theme
+    // tokens already used by this chart (CH.* / tickC / AMB).
+    const fwdGuide = {
+      id: 'fwdGuide',
+      afterDatasetsDraw(chart){
+        const a = chart.chartArea, ctx = chart.ctx;
+        const yS = chart.scales.y, xS = chart.scales.x;
+        ctx.save();
+        const y0 = yS.getPixelForValue(0);
+        if (y0 >= a.top && y0 <= a.bottom){
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = al(tickC, .6);
+          ctx.lineWidth = 1;
+          ctx.moveTo(a.left, y0);
+          ctx.lineTo(a.right, y0);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        if (flipIdx >= 0){
+          const x = xS.getPixelForValue(flipIdx);
+          if (x >= a.left && x <= a.right){
+            const label = 'book turns short';
+            ctx.font = '600 10px system-ui, -apple-system, Segoe UI, sans-serif';
+            const tw = ctx.measureText(label).width;
+            const cw = tw + 14, chh = 15, cy = a.top + 5;
+            let cx = x - cw / 2;
+            cx = Math.max(a.left + 2, Math.min(cx, a.right - cw - 2));
+            // rounded chip
+            ctx.beginPath();
+            ctx.moveTo(cx + 4, cy);
+            ctx.arcTo(cx + cw, cy, cx + cw, cy + chh, 4);
+            ctx.arcTo(cx + cw, cy + chh, cx, cy + chh, 4);
+            ctx.arcTo(cx, cy + chh, cx, cy, 4);
+            ctx.arcTo(cx, cy, cx + cw, cy, 4);
+            ctx.closePath();
+            ctx.fillStyle = CH.tbg;
+            ctx.fill();
+            ctx.strokeStyle = AMB;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            // label
+            ctx.fillStyle = CH.tt;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, cx + cw / 2, cy + chh / 2 + .5);
+            // dashed rule from the chip down to the zero crossing
+            ctx.beginPath();
+            ctx.setLineDash([2, 3]);
+            ctx.strokeStyle = al(AMB, .85);
+            ctx.lineWidth = 1;
+            ctx.moveTo(x, cy + chh);
+            ctx.lineTo(x, y0);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+        ctx.restore();
+      },
+    };
+
     charts.cFwd = new Chart(ctxEl, {
       type: 'line',
       data: { labels, datasets: [{
@@ -2250,13 +2413,24 @@ function renderFwdChart(fx){
         borderColor: AMB, backgroundColor: al(AMB, .06),
         borderWidth: 2, fill: true, tension: 0,
         pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 6,
+        // Sign-segmented line: green while net-long (above zero), red while
+        // net-short (below zero) so the 2021→2024 flip reads at a glance.
+        // Chart.js styles each whole segment — flat run + its step — once,
+        // keyed off the leading point (p0), so the colour boundary lands on
+        // the exact week a new disclosure steps in.
+        segment: {
+          borderColor: ctx => (ctx.p0.parsed.y >= 0 ? G : R),
+          backgroundColor: ctx => (ctx.p0.parsed.y >= 0 ? al(G, .05) : al(R, .05)),
+        },
       }]},
       options: opt,
+      plugins: isFull ? [fwdGuide] : [],
     });
     return;
   }
 
-  // Monthly view: sparse disclosures as reported (Mar '21 anchor + monthly points).
+  // Monthly view: all published disclosures as sparse points (Mar '21 anchor,
+  // half-yearly 2021-2024 reports, monthly Bulletin 2025+).
   const labels = hist.map(p => fwdDate(p.date));
   const data   = hist.map(p => p.net_fwd);
   const ptCol  = hist.map(p => (p.net_fwd >= 0 ? G : R));

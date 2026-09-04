@@ -40,10 +40,15 @@ public/                 → Static site (publish dir)
 netlify/functions/      → Serverless scrapers + APIs
   fetch-data.js           → RBI WSS scraper core (_getFridays, _processOne) - reused by others
   fetch-crude.js          → Heavy pipeline: PPAC + TankerMap AIS + Yahoo prices
-  fetch-fii*.js, fetch-gsec.js, fetch-tax.js, fetch-reer.js, fetch-fx-intervention.js
+  fetch-fii*.js, fetch-gsec.js, fetch-tax.js, fetch-reer.js, fetch-fx-intervention.js,
+  fetch-em-peers.js → server-side Yahoo FX proxy for the EM-peers overlay (browsers
+  can't hit Yahoo directly on arbitrary origins — CORS)
   data-latest.js, data-forex-weekly.js, data-crude-bpd.js → public JSON APIs
   _utils/                 → http.js (shared fetch/parse), cache.js (TTL memo)
 scripts/fetch-all.js    → CLI that regenerates public/rbi-data.json
+scripts/update-fwd-series.js → auto-appends/upgrades FWD_SERIES with the newest
+  official figure from RBI's half-yearly FX reserves report (runs in the same
+  daily cron + deploy build as fetch-all)
 .github/workflows/      → refresh-data.yml (daily cron commit)
 netlify.toml            → Publish/functions config + per-function timeouts
 ```
@@ -52,7 +57,7 @@ netlify.toml            → Publish/functions config + per-function timeouts
 - Git: work on `main`; commit messages are imperative one-liners (e.g. "Speed up load, add collapsible header + animated mobile nav"). No PR workflow - commits go straight to main
 - Do not commit `public/rbi-data.json` manually unless it's the intentional baseline; the Action owns refreshes
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
-- RBI's net forward position (`fetch-fx-intervention.js`) is likewise curated: RBI discloses it monthly in the Bulletin but via no parseable table/API. Add the newest month to `FWD_SERIES` (one entry); the macro tile and `cFwd` history chart read it automatically
+- RBI's net forward position (`fetch-fx-intervention.js`) is likewise curated: RBI discloses it monthly in the Bulletin (2025+) and half-yearly in the FX reserves reports (2021-2024), via no parseable table/API. Monthly Bulletin figures (2025+) are added by hand — one entry per month in `FWD_SERIES`. The half-yearly report figure (Mar/Sep) is added AUTOMATICALLY by `scripts/update-fwd-series.js` (runs in the daily cron + every deploy): it reads the newest report from RBI's Half-Yearly publications index, extracts its I.3 "Forward Outstanding" figure, and appends it if newer than the series tail or upgrades the matching period to the official value. The macro tile, the reserve KPIs, and the `cFwd` chart read it automatically — the chart has three tabs: stepped weekly on the dashboard's own WSS Fridays, stepped weekly every Friday since 2021 (the long-to-short flip), and every published figure as points
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
 
 ## Icons (Lucide)

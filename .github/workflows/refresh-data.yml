@@ -8,6 +8,10 @@ name: Refresh RBI data
 # so a daily run is more than enough to catch it (and re-runs are cheap — the
 # fetch script is incremental and only pulls weeks newer than the newest record
 # already in the file).
+#
+# Also runs scripts/update-fwd-series.js, which appends/upgrades the curated
+# RBI forward-book series whenever the newest half-yearly FX reserves report
+# (published ~May and ~Nov) carries a newer official figure than the series.
 
 on:
   schedule:
@@ -40,15 +44,18 @@ jobs:
       - name: Fetch latest RBI weekly data
         run: npm run fetch:data
 
+      - name: Update forward-book series from the newest RBI report
+        run: npm run update:fwd
+
       - name: Commit updated data (if changed)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/rbi-data.json
+          git add public/rbi-data.json netlify/functions/fetch-fx-intervention.js
           if git diff --cached --quiet; then
             echo "No new data — nothing to commit."
           else
-            git commit -m "chore(data): refresh rbi-data.json"
+            git commit -m "chore(data): refresh rbi-data.json and forward-book series"
             git push
             echo "Pushed refreshed data."
           fi

@@ -2,8 +2,10 @@
   publish = "public"
   functions = "netlify/functions"
   # Regenerate the static data file on every deploy so the site always ships
-  # with the latest RBI weekly reports. See scripts/fetch-all.js.
-  command = "npm run fetch:data"
+  # with the latest RBI weekly reports, and auto-update the curated forward-book
+  # series with the newest official half-yearly FX report figure. See
+  # scripts/fetch-all.js + scripts/update-fwd-series.js.
+  command = "npm run fetch:data && npm run update:fwd"
 
 [functions]
   node_bundler = "esbuild"
@@ -22,6 +24,9 @@
   timeout = 26
 
 [functions.fetch-fx-intervention]
+  timeout = 20
+
+[functions.fetch-em-peers]
   timeout = 20
 
 [functions.fetch-gsec]
