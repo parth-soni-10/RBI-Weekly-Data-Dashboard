@@ -596,7 +596,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <div><strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.</div>
   </div>
   <div class="fetch-panel">
-    <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json</div>
+    <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json + live check</div>
     <div id="log-box" aria-live="polite"></div>
     <button class="btn" id="start-btn" onclick="startFetch()"><i data-lucide="rotate-cw"></i> Reload data</button>
   </div>
@@ -1153,6 +1153,9 @@ async function startFetch() {
       + (fetchedAt ? ` (generated ${fetchedAt.toLocaleString('en-IN')})` : ''));
     updateFooterLink();
     setStatus('done');
+    // Phase 2: also live-check RBI for weeks newer than the file, merge any
+    // found, and re-render. Falls back silently when the function is absent.
+    await mergeLiveUpdates();
   } catch (err) {
     appendLog(`✗ Could not load data: ${err.message}`, 'err');
     setStatus('error');
@@ -1160,6 +1163,73 @@ async function startFetch() {
   btn.disabled = false;
   btn.innerHTML = '<i data-lucide="rotate-cw" aria-hidden="true"></i> Reload data';
   if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+}
+
+// After the static file loads, live-check the Netlify fetch-data function for
+// weeks newer than the newest record in the file, merge them in, and re-render.
+// Falls back silently to file-only when the function isn't deployed (local
+// preview / static hosting). The function processes one week per call via
+// ?weekOffset=, so we page through it; a failed week stops the walk and is
+// retried on the next click (the ?after= anchor only advances past successes).
+async function mergeLiveUpdates() {
+  const latest = records[records.length - 1];
+  if (!latest) return;
+  // The function's ?after= filter compares *publication* Fridays (> after); our
+  // record dates are as-on dates, so anchor on the newest publication Friday
+  // (= as-on + 7 days) to request strictly newer weeks.
+  const pub = rbiPublicationDate(latest.date);
+  const after = `${pub.getFullYear()}-${String(pub.getMonth()+1).padStart(2,'0')}-${String(pub.getDate()).padStart(2,'0')}`;
+  const FN = '.netlify/functions/fetch-data';
+  let added = 0;
+  try {
+    setStatus('running');
+    appendLog(`Checking RBI for weeks newer than ${latest.date}…`);
+    let offset = 0, walked = 0;
+    while (walked < 60) {
+      const res = await fetch(`${FN}?after=${after}&weekOffset=${offset}`, { cache: 'no-store' });
+      if (res.status === 404) {
+        let body = null;
+        try { body = await res.json(); } catch (_) {}
+        if (body && body.done === true) break; // walked past the end - up to date
+        appendLog('ℹ Live check skipped - fetch-data function isn\'t deployed here');
+        return;
+      }
+      if (!res.ok) { appendLog(`⚠ Live check stopped (HTTP ${res.status}) - click Reload to retry`); return; }
+      const j = await res.json();
+      offset = (Number(j.weekIndex) + 1) || (offset + 1);
+      walked++;
+      if (j.done) break;
+      if (j.record && j.record.date) {
+        if (mergeLiveRecord(j.record)) added++;
+      } else if (j.error) {
+        appendLog(`⚠ Skipped week ${j.iso || walked}: ${j.error} - click Reload to retry`);
+        break;
+      }
+    }
+    if (walked >= 60) appendLog('⚠ Stopped after 60 weeks - click Reload to continue');
+    if (added) {
+      records.sort((a, b) => a.date.localeCompare(b.date));
+      updateUI();
+      appendLog(`✓ Merged ${added} newer week${added > 1 ? 's' : ''} from RBI → ${records.length} total`);
+      updateFooterLink();
+    } else {
+      appendLog('✓ Up to date - no newer RBI weeks found');
+    }
+    setStatus('done');
+  } catch (err) {
+    appendLog(`⚠ Live update unavailable: ${err.message}`);
+    setStatus('done');
+  }
+}
+
+// Merge a single live-fetched record into the global set (dedupe by date).
+// Returns true when the record is new; upgrades in place when a same-date
+// record already exists.
+function mergeLiveRecord(rec) {
+  const i = records.findIndex(r => r.date === rec.date);
+  if (i >= 0) { records[i] = Object.assign({}, records[i], rec); return false; }
+  records.push(rec);
+  return true;
 }
 
 // Point the footer's "latest Friday" link at the most recent record we have.

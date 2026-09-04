@@ -26,6 +26,7 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 
 ## Build & Run
 - Regenerate static data: `npm run fetch:data` (incremental - only fetches weeks newer than the newest record in `public/rbi-data.json`)
+- The dashboard's **Reload data** button loads `rbi-data.json`, then live-checks `/.netlify/functions/fetch-data` for weeks newer than the file's newest record (walking `?weekOffset=` pages) and merges them in-memory; falls back to file-only when the function isn't deployed (local preview)
 - Syntax check: `npm run check`
 - Local dev: serve `public/` with any static server; live functions require `netlify dev`
 - Deploy: Netlify (build command `npm run fetch:data` regenerates data on every deploy); the GitHub Action keeps `rbi-data.json` fresh between deploys
