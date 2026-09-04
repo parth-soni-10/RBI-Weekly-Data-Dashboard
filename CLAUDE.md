@@ -47,8 +47,11 @@ netlify/functions/      → Serverless scrapers + APIs
   _utils/                 → http.js (shared fetch/parse), cache.js (TTL memo)
 scripts/fetch-all.js    → CLI that regenerates public/rbi-data.json
 scripts/update-fwd-series.js → auto-appends/upgrades FWD_SERIES with the newest
-  official figure from RBI's half-yearly FX reserves report (runs in the same
-  daily cron + deploy build as fetch-all)
+  official figure from RBI's half-yearly FX reserves report (Mar/Sep; runs in
+  the daily cron + deploy build)
+scripts/update-fwd-monthly.js → auto-appends the newest MONTHLY Bulletin Table 4A
+  forward figure (each issue states its "As on" date); --backfill walks every
+  Bulletin issue 2021→now to fill/verify all month-ends (one-off)
 .github/workflows/      → refresh-data.yml (daily cron commit)
 netlify.toml            → Publish/functions config + per-function timeouts
 ```
@@ -57,7 +60,7 @@ netlify.toml            → Publish/functions config + per-function timeouts
 - Git: work on `main`; commit messages are imperative one-liners (e.g. "Speed up load, add collapsible header + animated mobile nav"). No PR workflow - commits go straight to main
 - Do not commit `public/rbi-data.json` manually unless it's the intentional baseline; the Action owns refreshes
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
-- RBI's net forward position (`fetch-fx-intervention.js`) is likewise curated: RBI discloses it monthly in the Bulletin (2025+) and half-yearly in the FX reserves reports (2021-2024), via no parseable table/API. Monthly Bulletin figures (2025+) are added by hand — one entry per month in `FWD_SERIES`. The half-yearly report figure (Mar/Sep) is added AUTOMATICALLY by `scripts/update-fwd-series.js` (runs in the daily cron + every deploy): it reads the newest report from RBI's Half-Yearly publications index, extracts its I.3 "Forward Outstanding" figure, and appends it if newer than the series tail or upgrades the matching period to the official value. The macro tile, the reserve KPIs, and the `cFwd` chart read it automatically — the chart has three tabs: stepped weekly on the dashboard's own WSS Fridays, stepped weekly every Friday since 2021 (the long-to-short flip), and every published figure as points
+- RBI's net forward position (`fetch-fx-intervention.js`) is AUTO-UPDATED, not hand-curated: month-end figures (Mar-21 → today, all 65 months) come from the RBI Bulletin's Current Statistics table 4A "Maturity Breakdown (by Residual Maturity) of Outstanding Forwards of RBI", a server-rendered BS_ViewBulletin page — `scripts/update-fwd-monthly.js` reads the newest issue on every deploy/daily cron and appends/upgrades `FWD_SERIES` (its `--backfill` flag walks every issue back to May-2021 to fill or verify gaps). `scripts/update-fwd-series.js` does the same for the Mar/Sep half-yearly FX reserves report anchors, which WIN over the Bulletin table at the same date (RBI revised some early figures — Sep-2021 is +49.61bn in the Nov-21 Bulletin but +49.11bn in the report and later Bulletins). Both fail open (slow/blocked RBI never breaks a deploy) and never delete entries. The macro tile, the reserve KPIs, and the `cFwd` chart read the series automatically — chart tabs: stepped weekly on the dashboard's own WSS Fridays, stepped weekly every Friday since 2021 (long-to-short flip + Oct-23 short dip), and every published figure as points
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
 
 ## Icons (Lucide)

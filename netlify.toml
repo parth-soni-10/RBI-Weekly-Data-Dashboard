@@ -2,10 +2,11 @@
   publish = "public"
   functions = "netlify/functions"
   # Regenerate the static data file on every deploy so the site always ships
-  # with the latest RBI weekly reports, and auto-update the curated forward-book
-  # series with the newest official half-yearly FX report figure. See
-  # scripts/fetch-all.js + scripts/update-fwd-series.js.
-  command = "npm run fetch:data && npm run update:fwd"
+  # with the latest RBI weekly reports, and auto-update the forward-book series
+  # with the newest official RBI disclosures: the Bulletin's monthly Table 4A
+  # (update-fwd-monthly.js) + the Mar/Sep half-yearly FX report anchors
+  # (update-fwd-series.js). See scripts/fetch-all.js + scripts/update-fwd-*.js.
+  command = "npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly"
 
 [functions]
   node_bundler = "esbuild"

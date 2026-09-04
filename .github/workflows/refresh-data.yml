@@ -9,9 +9,11 @@ name: Refresh RBI data
 # fetch script is incremental and only pulls weeks newer than the newest record
 # already in the file).
 #
-# Also runs scripts/update-fwd-series.js, which appends/upgrades the curated
-# RBI forward-book series whenever the newest half-yearly FX reserves report
-# (published ~May and ~Nov) carries a newer official figure than the series.
+# Also runs the forward-book updaters, which append/upgrade FWD_SERIES from
+# official RBI disclosures whenever a newer one lands: scripts/update-fwd-series.js
+# (Mar/Sep half-yearly FX reserves reports, published ~May and ~Nov) and
+# scripts/update-fwd-monthly.js (the Bulletin's monthly Table 4A figure, whose
+# page advances with each new Bulletin issue).
 
 on:
   schedule:
@@ -44,8 +46,8 @@ jobs:
       - name: Fetch latest RBI weekly data
         run: npm run fetch:data
 
-      - name: Update forward-book series from the newest RBI report
-        run: npm run update:fwd
+      - name: Update forward-book series (half-yearly report + Bulletin monthly table)
+        run: npm run update:fwd && npm run update:fwd-monthly
 
       - name: Commit updated data (if changed)
         run: |

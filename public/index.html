@@ -753,7 +753,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 
     <!-- RBI forward book — curated disclosure series from fetch-fx-intervention.js -->
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). Disclosures: monthly in the RBI Bulletin (2025+) and half-yearly in RBI's FX reserves reports (2021–2024, figures match across both). Each weekly view steps a released figure across weeks until the next one lands — flat stretches mean no newer disclosure yet. RBI publishes no currency split, so this is the aggregate USD figure. The since-2021 view draws a dashed zero baseline and flags the Apr-2024 week the book turned net short.</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). Month-end figures from the RBI Bulletin's forward-maturity table, cross-checked to RBI's half-yearly FX reserves reports (the two match). Each weekly view steps a released figure across weeks until the next one lands — flat stretches mean no newer disclosure yet. RBI publishes no currency split, so this is the aggregate USD figure. The since-2021 view draws a dashed zero baseline and flags the Apr-2024 week the book turned net short for good.</div></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fwd','week')">Weekly · recent</button><button class="tab" onclick="sw(this,'fwd','full')">Weekly · since 2021</button><button class="tab" onclick="sw(this,'fwd','month')">Monthly · all figures</button></div>
       <div class="chart-wrap"><canvas id="cFwd" role="img" aria-label="Line chart of RBI net forward position in USD billion"></canvas></div>
     </div>
@@ -2215,15 +2215,16 @@ function renderFiiHistoryChart(){
 }
 
 // ─── RBI forward book chart ──────────────────────────────────────────────
-// Fed by macroData.fxintv (fetch-fx-intervention.js): a curated series of
-// RBI's outstanding NET forward position (USD bn, signed). Positive = net
+// Fed by macroData.fxintv (fetch-fx-intervention.js): the auto-updated series
+// of RBI's outstanding NET forward position (USD bn, signed). Positive = net
 // forward assets (long dollars); negative = net forward liabilities (short
-// dollars / selling USD forward). Disclosures: monthly in the RBI Bulletin
-// (2025+) and half-yearly in the FX reserves reports (2021-2024), so the
-// series is curated in FWD_SERIES inside the function — same pattern as PM
-// CARES. Tabs: 'week' = stepped weekly on the dashboard's WSS Fridays;
-// 'full' = stepped weekly every Friday since 2021 (shows the long-to-short
-// flip); 'month' = every published figure as sparse points.
+// dollars / selling USD forward). Month-end figures come from the RBI
+// Bulletin Table 4A (scripts/update-fwd-monthly.js — runs in the daily cron
+// and every deploy) and the Mar/Sep points are cross-checked to the
+// half-yearly FX reserves reports (scripts/update-fwd-series.js). Tabs:
+// 'week' = stepped weekly on the dashboard's WSS Fridays; 'full' = stepped
+// weekly every Friday since 2021 (shows the long-to-short flip); 'month' =
+// every published figure as sparse points.
 const FWD_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fwdDate(m){
   if(!m || typeof m !== 'string') return '';
@@ -2335,10 +2336,18 @@ function renderFwdChart(fx){
         return tag + ': ' + val + (p && p.approx ? ' ≈' : '');
       },
     };
-    // Full-history axis: first week whose stepped figure is negative — the
-    // week the book turned net short. The stepped line's vertical green drop
-    // through zero lands at exactly this category, so a guide can flag it.
-    const flipIdx = isFull ? series.findIndex(s => s.v != null && s.v < 0) : -1;
+    // Full-history axis: the LAST week the stepped figure crossed from
+    // positive to negative — the sustained flip. (With monthly data there are
+    // earlier one-month dips, e.g. Oct–Nov 2023, that recovered; those show as
+    // red blips but the guide flags the crossing that stuck, Apr 2024.)
+    const flipIdx = (() => {
+      if (!isFull) return -1;
+      for (let i = series.length - 1; i > 0; i--) {
+        const v = series[i].v, pv = series[i - 1].v;
+        if (v != null && v < 0 && pv != null && pv >= 0) return i;
+      }
+      return -1;
+    })();
 
     // Guide layer (since-2021 view only): a dashed zero baseline marks the
     // long/short divide, and a chip + dashed rule flags the Apr-2024 crossing
@@ -2429,8 +2438,9 @@ function renderFwdChart(fx){
     return;
   }
 
-  // Monthly view: all published disclosures as sparse points (Mar '21 anchor,
-  // half-yearly 2021-2024 reports, monthly Bulletin 2025+).
+  // Monthly view: all published disclosures as sparse points (monthly RBI
+  // Bulletin Table 4A figures from Mar '21, cross-checked to the half-yearly
+  // reports at Mar/Sep).
   const labels = hist.map(p => fwdDate(p.date));
   const data   = hist.map(p => p.net_fwd);
   const ptCol  = hist.map(p => (p.net_fwd >= 0 ? G : R));
