@@ -52,6 +52,7 @@ netlify.toml            → Publish/functions config + per-function timeouts
 - Git: work on `main`; commit messages are imperative one-liners (e.g. "Speed up load, add collapsible header + animated mobile nav"). No PR workflow - commits go straight to main
 - Do not commit `public/rbi-data.json` manually unless it's the intentional baseline; the Action owns refreshes
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
+- RBI's net forward position (`fetch-fx-intervention.js`) is likewise curated: RBI discloses it monthly in the Bulletin but via no parseable table/API. Add the newest month to `FWD_SERIES` (one entry); the macro tile and `cFwd` history chart read it automatically
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
 
 ## Icons (Lucide)

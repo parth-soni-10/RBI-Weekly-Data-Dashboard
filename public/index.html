@@ -691,7 +691,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
         <div class="mctx-sub" id="inr-reer-sub">RBI DBIE · index</div>
       </div>
       <div class="mctx">
-        <div class="mctx-label" data-glossary="RBI Forward Position of the Rupee, USD bn. Net negative = RBI is selling USD forward; positive = buying. Closest public proxy for FX intervention.">RBI Fwd Position</div>
+        <div class="mctx-label" data-glossary="RBI's outstanding net forward position in USD bn, disclosed monthly in the RBI Bulletin. Positive = net forward assets (RBI buying USD forward); negative = net forward liabilities (RBI selling USD forward). Closest public proxy for FX intervention. Only an aggregate USD figure is published — no currency split exists.">RBI Fwd Position</div>
         <div id="fx-fwd" class="mctx-val">—</div>
         <div class="mctx-sub" id="fx-fwd-sub">RBI Bulletin · $ bn</div>
       </div>
@@ -736,6 +736,13 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
+    </div>
+
+    <!-- RBI forward book — curated monthly disclosure from fetch-fx-intervention.js -->
+    <div class="chart-card span2">
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts, disclosed monthly in the RBI Bulletin. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). RBI publishes no currency split, so this is the aggregate USD figure. Weekly view carries each monthly figure across weeks until the next release; flat stretches = no newer disclosure yet.</div></div></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'fwd','week')">Weekly (latest)</button><button class="tab" onclick="sw(this,'fwd','month')">Monthly (all data)</button></div>
+      <div class="chart-wrap"><canvas id="cFwd" role="img" aria-label="Line chart of RBI net forward position in USD billion"></canvas></div>
     </div>
   </div>
 
@@ -977,7 +984,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 </footer>
 
 <script>
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty'};
+let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week'};
 
 /* ─── Static data file ──────────────────────────────────────────
    All fetched RBI weekly records live in public/rbi-data.json, which is
@@ -1450,6 +1457,7 @@ function sw(el, group, mode){
   else if(group==='fx') rebuildFx();
   else if(group==='idx') rebuildIdxClose();
   else if(group==='idxd') rebuildIdxDelta();
+  else if(group==='fwd') renderFwdChart(macroData.fxintv);
 }
 
 // All crude data fetched live from /.netlify/functions/fetch-crude
@@ -2025,7 +2033,8 @@ function renderMacroCards(){
     setMctxVal('fx-fwd', fx.net_fwd != null
               ? (fx.net_fwd >= 0 ? '+$' : '−$') + Math.abs(fx.net_fwd).toFixed(2) + 'B'
               : null,
-              fx.source || 'RBI Bulletin · $ bn');
+              fx.month ? 'RBI Bulletin · as of ' + fwdDate(fx.month) : (fx.source || 'RBI Bulletin · $ bn'));
+    renderFwdChart(fx);
 
     // Display last macro event in range as a subtle hint near the FX chart events-tab.
     const lastEvt = MACRO_EVENTS.filter(e => e.date <= new Date().toISOString().slice(0,10)).slice(-1)[0];
@@ -2148,6 +2157,133 @@ function renderFiiHistoryChart(){
              grid: { color:gridC }, stacked: true }
       }
     }
+  });
+}
+
+// ─── RBI forward book chart ──────────────────────────────────────────────
+// Fed by macroData.fxintv (fetch-fx-intervention.js): a curated monthly
+// series of RBI's outstanding NET forward position (USD bn, signed).
+// Positive = net forward assets (long dollars); negative = net forward
+// liabilities (short dollars / selling USD forward). RBI discloses the figure
+// monthly in the RBI Bulletin but not through a parseable API, so the series
+// is curated in FWD_SERIES inside the function — same pattern as PM CARES.
+const FWD_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fwdDate(m){
+  if(!m || typeof m !== 'string') return '';
+  const y = +m.slice(0, 4), mo = +m.slice(5, 7);
+  if(!y || !mo) return '';
+  return (FWD_MONTHS[mo - 1] || '') + " '" + String(y % 100).padStart(2, '0');
+}
+function wkLabel(d){
+  if(!d || typeof d !== 'string') return '';
+  const [y, mo, dd] = d.split('-');
+  return (+y && +mo && +dd) ? (+dd) + ' ' + (FWD_MONTHS[+mo - 1] || '') + " '" + String(+y % 100).padStart(2, '0') : d;
+}
+function fwdYFmt(v){
+  if (v === 0) return '$0';
+  return (v > 0 ? '+$' : '-$') + Math.abs(Math.round(v * 10) / 10) + 'B';
+}
+// Weekly view: align the curated monthly disclosures onto the dashboard's
+// weekly (WSS Friday) axis. Each week shows the newest figure whose month-end
+// has passed, carried until the next monthly release steps it (stepped line).
+function fwdWeekSeries(hist){
+  const monthEnd = m => {
+    const [y, mo] = m.split('-').map(Number);
+    return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+  };
+  const h = hist.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  let idx = -1;
+  return records.map(r => {
+    while (idx + 1 < h.length && monthEnd(h[idx + 1].date) <= r.date) idx++;
+    const p = idx >= 0 ? h[idx] : null;
+    return { date: r.date, v: p ? p.net_fwd : null, p };
+  });
+}
+function renderFwdChart(fx){
+  const ctxEl = document.getElementById('cFwd');
+  if(!ctxEl || !fx) return;
+  if(charts.cFwd) charts.cFwd.destroy();
+  let hist = Array.isArray(fx.history) && fx.history.length ? fx.history.slice() : [];
+  if(!hist.length && fx.net_fwd != null) hist = [{ date: fx.month || '', net_fwd: fx.net_fwd }];
+  if(!hist.length) return;
+  hist.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  const opt = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: AMB, borderWidth: 1,
+      },
+    },
+    interaction: { mode: 'index', intersect: false },
+    scales: axOpts(fwdYFmt),
+  };
+
+  if(modes.fwd === 'week'){
+    // Weekly axis = the site's WSS Fridays (records). Repeat the latest figure
+    // whose month-end has passed; the line steps when a new release lands.
+    const series = fwdWeekSeries(hist);
+    if(!series.length) return;
+    const data  = series.map(s => s.v);
+    const labels = series.map(s => wkLabel(s.date));
+    opt.plugins.tooltip.callbacks = {
+      title: items => {
+        const s = series[items[0].dataIndex];
+        return (s.date ? wkLabel(s.date) : '') + (s.p ? ' · figure as of ' + fwdDate(s.p.date) : ' · no figure yet');
+      },
+      label: ctx => {
+        const s = series[ctx.dataIndex];
+        if(s.v == null) return 'No disclosure in range';
+        const p = s.p, v = s.v;
+        const tag = v >= 0 ? 'Net forward assets (long)' : 'Net forward liabilities (short)';
+        const val = (v >= 0 ? '+' : '−') + '$' + Math.abs(v).toFixed(2) + 'B';
+        return tag + ': ' + val + (p && p.approx ? ' ≈' : '');
+      },
+    };
+    charts.cFwd = new Chart(ctxEl, {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: 'Net forward position (USD bn)',
+        data,
+        stepped: 'after',
+        borderColor: AMB, backgroundColor: al(AMB, .06),
+        borderWidth: 2, fill: true, tension: 0,
+        pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 6,
+      }]},
+      options: opt,
+    });
+    return;
+  }
+
+  // Monthly view: sparse disclosures as reported (Mar '21 anchor + monthly points).
+  const labels = hist.map(p => fwdDate(p.date));
+  const data   = hist.map(p => p.net_fwd);
+  const ptCol  = hist.map(p => (p.net_fwd >= 0 ? G : R));
+  opt.plugins.tooltip.callbacks = {
+    title: items => {
+      const p = hist[items[0].dataIndex];
+      return (p.date ? fwdDate(p.date) : '') + (p.approx ? ' (approx.)' : '');
+    },
+    label: ctx => {
+      const v = ctx.parsed.y, p = hist[ctx.dataIndex];
+      const tag = v >= 0 ? 'Net forward assets (long)' : 'Net forward liabilities (short)';
+      const val = (v >= 0 ? '+' : '−') + '$' + Math.abs(v).toFixed(2) + 'B';
+      return tag + ': ' + val + (p.approx ? ' ≈' : '');
+    },
+  };
+  charts.cFwd = new Chart(ctxEl, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Net forward position (USD bn)',
+      data,
+      fill: true,
+      borderColor: AMB, backgroundColor: al(AMB, .09),
+      borderWidth: 2, tension: .25,
+      pointRadius: 3.5, pointHoverRadius: 5,
+      pointBackgroundColor: ptCol, pointBorderColor: ptCol, pointBorderWidth: 1.5,
+    }]},
+    options: opt,
   });
 }
 
