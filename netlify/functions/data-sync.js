@@ -40,7 +40,15 @@ exports.handler = async (event) => {
     // environment; a named store is durable across deploys.
     store = getStore({ name: STORE_NAME });
   } catch (err) {
-    return json(503, { error: `blob store unavailable: ${err.message}` });
+    // Blobs auto-configures only inside the Netlify runtime (deployed site, or
+    // `netlify dev` logged into the linked site). Anywhere else getStore()
+    // throws MissingBlobsEnvironmentError — report it as 503 with a code the
+    // dashboard can turn into one honest log line instead of mystery noise.
+    return json(503, {
+      error: `blob store unavailable: ${err.message}`,
+      code: "BLOB_UNAVAILABLE",
+      hint: "Deploy via Netlify, or run netlify dev logged into the linked site.",
+    });
   }
 
   if (event.httpMethod === "POST") {
