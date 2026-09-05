@@ -366,7 +366,7 @@ html{-webkit-tap-highlight-color:transparent}
 .chart-wrap.compact{height:215px}
 
 /* chart mode tabs */
-.tab-row{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:3px;width:fit-content;margin-bottom:.75rem}
+.tab-row{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:3px;width:fit-content;max-width:100%;overflow-x:auto;margin-bottom:.75rem}
 .tab{
   height:28px;padding:0 .75rem;display:inline-flex;align-items:center;border-radius:calc(var(--r2) - 4px);
   font-size:12px;font-weight:550;letter-spacing:.01em;cursor:pointer;border:none;background:transparent;
@@ -569,6 +569,78 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 /* GSAP-driven section enter suppresses the CSS keyframe (no double-play) */
 .section.gsap-nav{animation:none}
 
+/* ─── Collapsible pipeline log + read-more notes ────────────────────
+   The fetch console and the long methodology notes ship collapsed so
+   first paint is content, not ops text. Native <details> = no JS, full
+   keyboard + screen-reader support. */
+details.pipe-log{flex:1 1 100%;margin-top:.2rem}
+details.pipe-log summary,
+details.read-more summary{
+  cursor:pointer;font-size:11.5px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink3);list-style:none;
+  display:inline-flex;align-items:center;gap:.35rem;
+  border-radius:6px;padding:.3rem .1rem;
+}
+details.pipe-log summary::-webkit-details-marker,
+details.read-more summary::-webkit-details-marker{display:none}
+details.pipe-log summary::before,
+details.read-more summary::before{content:"+";font-family:var(--mono);color:var(--brand)}
+details.pipe-log[open] summary::before,
+details.read-more[open] summary::before{content:"–"}
+details.pipe-log summary:hover,
+details.read-more summary:hover{color:var(--ink)}
+details.read-more{margin-top:.45rem}
+details.read-more .chart-note{margin-top:.35rem}
+
+/* ─── Chart empty states ────────────────────────────────────────────
+   Shown instead of a blank canvas box when a feed has no data yet, so an
+   unreachable endpoint reads as "pending", never as "broken". */
+.chart-empty{
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  min-height:180px;padding:1.2rem;border:1px dashed var(--border2);
+  border-radius:var(--r2);color:var(--ink3);font-size:12.5px;line-height:1.6;
+}
+.chart-empty[hidden]{display:none}
+
+/* ─── Sticky mini-bar ───────────────────────────────────────────────
+   Three headline numbers that persist while scrolling the charts, plus a
+   freshness badge. Top offset is measured from the sticky header in JS
+   (header height varies by breakpoint), so CSS only declares stickiness. */
+#mini-bar{
+  position:sticky;z-index:150;
+  display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r2);box-shadow:var(--shadow-sm);
+  padding:.5rem .95rem;margin-bottom:1rem;font-size:12.5px;
+}
+#mini-bar[hidden]{display:none}
+.mini-item{display:inline-flex;align-items:baseline;gap:.4rem;white-space:nowrap}
+.mini-label{color:var(--ink3);font-size:10.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase}
+.mini-val{font-family:var(--mono);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.mini-fresh{margin-left:auto;font-size:11px;color:var(--ink3);white-space:nowrap}
+.mini-fresh.stale{color:var(--warn-fg);font-weight:650}
+
+/* Macro strip collapse toggle */
+.macro-context h3{justify-content:space-between;flex-wrap:wrap;row-gap:.4rem}
+/* Page-level guard: one wide child (e.g. an unwrapped h3 row) must never
+   widen the whole page on phones; inner table scroll containers are
+   unaffected. overflow-x:clip (not hidden) keeps sticky positioning working. */
+html,body{overflow-x:clip}
+.macro-context.collapsed .mc-grid{display:none}
+
+/* Panel titles must wrap instead of clipping on narrow screens: flex items
+   default to min-width:auto, which blocks shrinking (note + fetch title
+   ran off the edge at 390px). */
+.fetch-panel .panel-label{white-space:normal;min-width:0}
+.note-strip>div{min-width:0}
+.macro-context h3>span{min-width:0}
+
+/* ─── Small phones: dot-only status, relaxed tab rows ─────────────── */
+@media(max-width:430px){
+  #status-text{display:none}
+  .status-pill{padding:0 .55rem}
+}
+
 /* Coarse pointers get a 44px touch target on chart tabs without changing
    the dense desktop layout (design-audit: touch & interaction). */
 @media(pointer:coarse){
@@ -621,19 +693,21 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <i data-lucide="info" aria-hidden="true"></i>
     <div><strong>Note:</strong> The RBI Weekly Statistical Supplement published every Friday reports data <strong>as of the previous Friday</strong> (not the publication week itself). Charts, tables, and metrics below use the "as on" dates.</div>
   </div>
-  <div class="fetch-panel">
-    <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json + live check</div>
-    <div id="log-box" aria-live="polite"></div>
-    <button class="btn" id="start-btn" onclick="reloadData()"><i data-lucide="rotate-cw"></i> Reload data</button>
-  </div>
-
-  <!-- Weekly summary panel — populated by JS after records are loaded -->
+  <!-- Weekly summary panel — first content element, populated by JS after records load -->
   <div id="weekly-summary" class="weekly-summary">
     <div class="panel-label">This week at a glance</div>
     <p id="weekly-summary-text" aria-live="polite">—</p>
     <div class="dl-row mt1">
       <button class="dl" onclick="dlCSV('tab')"><i data-lucide="download"></i> Download 10-week table (CSV)</button>
     </div>
+  </div>
+  <div class="fetch-panel">
+    <div class="panel-label">Data: RBI Weekly Statistical Supplement - rbi-data.json + live check</div>
+    <button class="btn" id="start-btn" onclick="reloadData()"><i data-lucide="rotate-cw"></i> Reload data</button>
+    <details class="pipe-log">
+      <summary>Pipeline log</summary>
+      <div id="log-box" aria-live="polite"></div>
+    </details>
   </div>
 
   <div id="empty">
@@ -690,9 +764,9 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   </div>
 
   <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
-  <div class="macro-context">
-    <h3>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention</h3>
-    <div class="mc-grid">
+  <div class="macro-context" id="macro-context">
+    <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention</span><button class="tab" id="macro-toggle" aria-expanded="true" aria-controls="macro-grid" onclick="return toggleMacro()">Collapse</button></h3>
+    <div class="mc-grid" id="macro-grid">
       <div class="mctx">
         <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net equity flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Equity (today)</div>
         <div id="fpi-equity" class="mctx-val">—</div>
@@ -736,9 +810,17 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     </div>
   </div>
 
+  <!-- Sticky headline bar: three key numbers + freshness, persists while scrolling -->
+  <div id="mini-bar" hidden>
+    <span class="mini-item"><span class="mini-label">Reserves</span><span class="mini-val" id="mini-res">—</span></span>
+    <span class="mini-item"><span class="mini-label">USD/INR</span><span class="mini-val" id="mini-usdinr">—</span></span>
+    <span class="mini-item"><span class="mini-label">Nifty</span><span class="mini-val" id="mini-nifty">—</span></span>
+    <span class="mini-fresh" id="mini-fresh">—</span>
+  </div>
+
   <div id="charts">
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div><button class="tab" onclick="return copyChartCSV('res',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" onclick="return toggleRidge(this)"><i data-lucide="box"></i> 3D ridge</button></div>
       <div class="chart-wrap"><canvas id="cRes" role="img" aria-label="Bar chart of weekly change in foreign exchange reserves"></canvas></div>
       <div class="ridge-wrap" id="ridge-panel">
@@ -748,19 +830,19 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Gold reserves: weekly change</h3><div class="chart-note">Week-on-week Δ</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Gold reserves: weekly change</h3><div class="chart-note">Week-on-week Δ</div></div><button class="tab" onclick="return copyChartCSV('gold',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'gold','usd')">USD mn</button><button class="tab" onclick="sw(this,'gold','inr')">INR cr</button></div>
       <div class="chart-wrap"><canvas id="cGold" role="img" aria-label="Bar chart of weekly change in gold reserves"></canvas></div>
     </div>
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div><button class="tab" onclick="return copyChartCSV('fx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations"><i data-lucide="flag"></i> Events</button></div>
       <div class="tab-row" id="emRanges" role="group" aria-label="EM peer lookback range" style="display:none"><button class="tab" onclick="sw(this,'em','1mo')">1M</button><button class="tab" onclick="sw(this,'em','3mo')">3M</button><button class="tab on" onclick="sw(this,'em','6mo')">6M</button><button class="tab" onclick="sw(this,'em','1y')">1Y</button></div>
       <div id="events-last-note"></div>
       <div class="chart-wrap"><canvas id="cFx" role="img" aria-label="Line chart of rupee spot rate"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div><button class="tab" onclick="return copyChartCSV('idx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'idx','nifty')">Nifty 50</button><button class="tab" onclick="sw(this,'idx','sensex')">Sensex</button><button class="tab" onclick="sw(this,'idx','both')">Both (%)</button></div>
       <div class="chart-wrap"><canvas id="cIdx" role="img" aria-label="Line chart of Nifty 50 and Sensex closing prices"></canvas></div>
     </div>
@@ -780,13 +862,15 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
+      <div class="chart-empty" id="fii-empty" hidden>Awaiting the NSDL feed — the 6-month daily flow chart appears here once live data (or the curated fallback) arrives.</div>
     </div>
 
     <!-- RBI forward book — curated disclosure series from fetch-fx-intervention.js -->
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><div class="chart-note">Outstanding net forward contracts. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). Month-end figures from the RBI Bulletin's forward-maturity table, cross-checked to RBI's half-yearly FX reserves reports (the two match). Each weekly view steps a released figure across weeks until the next one lands — flat stretches mean no newer disclosure yet. RBI publishes no currency split, so this is the aggregate USD figure. The since-2021 view draws a dashed zero baseline and flags the Apr-2024 week the book turned net short for good.</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI forward book: net position (USD bn)</h3><details class="read-more"><summary>How to read this</summary><div class="chart-note">Outstanding net forward contracts. Above zero = net forward assets (RBI buying USD forward); below = net forward liabilities (RBI selling USD forward). Month-end figures from the RBI Bulletin's forward-maturity table, cross-checked to RBI's half-yearly FX reserves reports (the two match). Each weekly view steps a released figure across weeks until the next one lands — flat stretches mean no newer disclosure yet. RBI publishes no currency split, so this is the aggregate USD figure. The since-2021 view draws a dashed zero baseline and flags the Apr-2024 week the book turned net short for good.</div></details></div></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fwd','week')">Weekly · recent</button><button class="tab" onclick="sw(this,'fwd','full')">Weekly · since 2021</button><button class="tab" onclick="sw(this,'fwd','month')">Monthly · all figures</button></div>
       <div class="chart-wrap"><canvas id="cFwd" role="img" aria-label="Line chart of RBI net forward position in USD billion"></canvas></div>
+      <div class="chart-empty" id="fwd-empty" hidden>Awaiting the forward-book series — the chart appears here once fetch-fx-intervention returns month-end figures.</div>
     </div>
   </div>
 
@@ -1153,20 +1237,22 @@ const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!
    instant final state the CSS already renders. */
 const prefersReducedMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canAnimate = () => !prefersReducedMotion() && !!window.gsap;
-/* Animated number setter. First paint counts from 0; later updates tween
-   from the previously shown value (kept in dataset.v). Non-numeric or
-   null targets render instantly as '—' — the dashboard's empty-value
-   convention — never as a tween artifact. */
+/* Animated number setter. First paint renders instantly (a data dashboard
+   must never flash wrong numbers); later live updates tween from the
+   previously shown value (kept in dataset.v). Non-numeric or null targets
+   render instantly as '—' — the dashboard's empty-value convention — never
+   as a tween artifact. */
 function countUp(el, target, format){
   if(!el) return;
   if(target == null || isNaN(Number(target))){ el.textContent = '—'; el.dataset.v = ''; return; }
   const fmtFn = format || (n => fmt(n, 0));
   const to = Number(target);
-  const from = el.dataset.v === '' || el.dataset.v == null ? 0 : Number(el.dataset.v);
+  const seen = el.dataset.v !== undefined && el.dataset.v !== '';
+  const from = seen ? Number(el.dataset.v) : to;
   el.dataset.v = String(to);
-  if(!canAnimate() || from === to){ el.textContent = fmtFn(to); return; }
+  if(!canAnimate() || !seen || from === to){ el.textContent = fmtFn(to); return; }
   const o = { v: from };
-  window.gsap.to(o, { v: to, duration: .5, ease: 'power1.out', overwrite: 'auto',
+  window.gsap.to(o, { v: to, duration: .35, ease: 'power1.out', overwrite: 'auto',
     onUpdate(){ el.textContent = fmtFn(o.v); },
     onComplete(){ el.textContent = fmtFn(to); } });
 }
@@ -1287,9 +1373,10 @@ async function mergeLiveUpdates() {
         try { body = await res.json(); } catch (_) {}
         if (body && body.done === true) break; // walked past the end - up to date
         appendLog('ℹ Live check skipped - fetch-data function isn\'t deployed here');
+        setStatus('done');
         return;
       }
-      if (!res.ok) { appendLog(`⚠ Live check stopped (HTTP ${res.status}) - click Reload to retry`); return; }
+      if (!res.ok) { appendLog(`⚠ Live check stopped (HTTP ${res.status}) - click Reload to retry`); setStatus('done'); return; }
       const j = await res.json();
       offset = (Number(j.weekIndex) + 1) || (offset + 1);
       walked++;
@@ -1607,7 +1694,118 @@ function updateUI(){
   renderImportCover();
   renderVolatility();
   renderReserveForwardKpis();
+  updateMiniBar();
   renderCrudeHighlights().catch(()=>{});
+}
+
+/* ─── Sticky mini-bar + freshness badge ─────────────────────────────
+   Three headline numbers that stay visible while scrolling the charts.
+   Freshness compares the latest as-on Friday against today: green-ish
+   neutral under 10 days, amber .stale beyond that. The sticky offset is
+   measured from the live header height (it varies by breakpoint). */
+function updateMiniBar(){
+  const bar = document.getElementById('mini-bar');
+  if(!bar || !records.length) return;
+  const L = records[records.length-1];
+  const setMini = (id, val, dec=0) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = (val == null ? '—' : fmt(val, dec));
+  };
+  setMini('mini-res', L.total_usd);
+  setMini('mini-usdinr', L.usd_inr, 2);
+  setMini('mini-nifty', L.nifty, 1);
+  const fresh = document.getElementById('mini-fresh');
+  if(fresh){
+    const days = Math.max(0, Math.round((Date.now() - new Date(L.date + 'T00:00:00').getTime()) / 864e5));
+    fresh.textContent = `as of ${fmtDate(L.date)} · ${days === 0 ? 'today' : days + 'd old'}`;
+    fresh.classList.toggle('stale', days > 10);
+  }
+  bar.hidden = false;
+  positionMiniBar();
+}
+function positionMiniBar(){
+  const bar = document.getElementById('mini-bar');
+  const header = document.querySelector('header');
+  if(bar && header) bar.style.top = (header.offsetHeight + 8) + 'px';
+}
+window.addEventListener('resize', positionMiniBar);
+
+/* ─── Macro strip collapse ──────────────────────────────────────────
+   The 8-tile macro grid collapses behind a toggle; the choice persists in
+   localStorage so returning users keep their preferred density. */
+function toggleMacro(){
+  const box = document.getElementById('macro-context');
+  const btn = document.getElementById('macro-toggle');
+  const collapsed = box.classList.toggle('collapsed');
+  if(btn){ btn.textContent = collapsed ? 'Expand' : 'Collapse'; btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); }
+  try { localStorage.setItem('rbi-macro', collapsed ? 'collapsed' : 'open'); } catch(e){}
+  return false;
+}
+(function initMacroToggle(){
+  let collapsed = false;
+  try { collapsed = localStorage.getItem('rbi-macro') === 'collapsed'; } catch(e){}
+  if(!collapsed) return;
+  const box = document.getElementById('macro-context');
+  const btn = document.getElementById('macro-toggle');
+  if(box) box.classList.add('collapsed');
+  if(btn){ btn.textContent = 'Expand'; btn.setAttribute('aria-expanded', 'false'); }
+})();
+
+/* ─── Per-chart Copy CSV ────────────────────────────────────────────
+   Copies the underlying weekly figures (not the rendered pixels) so a
+   journalist gets citable numbers in one click. Uses the Clipboard API
+   with a textarea fallback; the button label confirms briefly. */
+function copyChartCSV(kind, btn){
+  if(!records.length) return false;
+  const cols = {
+    res:  ['date', 'total_usd', 'total_inr'],
+    gold: ['date', 'gold_usd', 'gold_inr'],
+    fx:   ['date', 'usd_inr', 'eur_inr'],
+    idx:  ['date', 'nifty', 'sensex'],
+  }[kind] || ['date', 'total_usd'];
+  const lines = [cols.join(',')].concat(records.map(r =>
+    cols.map(c => (r[c] == null ? '' : r[c])).join(',')));
+  const csv = lines.join('\n');
+  const done = ok => {
+    if(!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    // Clipboard writes can hang on a permission prompt (notably headless or
+    // first-visit); race an 800ms timeout into the textarea fallback so the
+    // button always answers instead of stalling on its original label.
+    let settled = false;
+    Promise.race([navigator.clipboard.writeText(csv), new Promise((_, rej) => setTimeout(rej, 800))])
+      .then(() => { settled = true; done(true); },
+            () => { if(!settled){ settled = true; fallbackCopy(); } });
+  } else fallbackCopy();
+  function fallbackCopy(){
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = csv;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done(!!ok);
+    } catch(e){ done(false); }
+  }
+  return false;
+}
+
+/* ─── Chart empty states ────────────────────────────────────────────
+   Toggle between a canvas wrap and its .chart-empty fallback so a feed
+   with no data reads as "pending", never as a broken blank box. */
+function setChartEmpty(canvasId, emptyId, empty){
+  const canvas = document.getElementById(canvasId);
+  const note = document.getElementById(emptyId);
+  const wrap = canvas && canvas.closest('.chart-wrap');
+  if(wrap) wrap.hidden = !!empty;
+  if(note) note.hidden = !empty;
 }
 
 function rebuildTable(){
@@ -1744,7 +1942,7 @@ function ttOpts(label){
 }
 function axOpts(fmt){
   return {
-    x: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { color: gridC } },
+    x: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { color: gridC } },
     y: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: fmt }, grid: { color: gridC } },
   };
 }
@@ -2270,7 +2468,7 @@ async function renderCrudeSection() {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: true, labels: { color: CH.legend, font: { size: 11 } } } },
           scales: {
-            x: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' } }, grid: { color: CH.grid } },
+            x: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' }, autoSkip: true, maxTicksLimit: 8 }, grid: { color: CH.grid } },
             y: { ticks: { color: CH.tick, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => '$' + v.toFixed(0) }, grid: { color: CH.grid } }
           }
         }
@@ -2855,15 +3053,16 @@ async function persistEmToBlob(range, peers) {
 // ─── FII + DII 6-month history chart ────────────────────────────────────────
 function renderFiiHistoryChart(){
   const fiih = macroData.fiih;
-  if(!fiih || !fiih.series || !fiih.series.length) return;
+  const ctxEl   = document.getElementById('cFiiHist');
+  if(!ctxEl) return;
+  if(!fiih || !fiih.series || !fiih.series.length){ setChartEmpty('cFiiHist', 'fii-empty', true); return; }
   const series = fiih.series.slice(-180); // ~6 months of trading days
   const labels  = series.map(r => (r.date || '').slice(5));
   const eq      = series.map(r => r.fii_equity_cr || 0);
   const debt    = series.map(r => r.fii_debt_cr   || 0);
   const dii     = series.map(r => r.dii_equity_cr || 0);
-  const ctxEl   = document.getElementById('cFiiHist');
-  if(!ctxEl) return;
   if(fiiHistChart) fiiHistChart.destroy();
+  setChartEmpty('cFiiHist', 'fii-empty', false);
   fiiHistChart = new Chart(ctxEl, {
     type: 'bar',
     data: {
@@ -2882,7 +3081,7 @@ function renderFiiHistoryChart(){
                    callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toLocaleString('en-IN')} ₹ cr` } }
       },
       scales: {
-        x: { ticks: { color:tickC, font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, maxTicksLimit: 24 }, grid: { color:gridC }, stacked: true },
+        x: { ticks: { color:tickC, font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, autoSkip:true, maxTicksLimit: 12 }, grid: { color:gridC }, stacked: true },
         y: { ticks: { color:tickC, font:{size:9.5,family:'Inter',weight:'500'}, callback: v => (v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0)) },
              grid: { color:gridC }, stacked: true }
       }
@@ -2965,11 +3164,13 @@ function fwdFullWeekSeries(hist){
 }
 function renderFwdChart(fx){
   const ctxEl = document.getElementById('cFwd');
-  if(!ctxEl || !fx) return;
+  if(!ctxEl) return;
+  if(!fx){ setChartEmpty('cFwd', 'fwd-empty', true); return; }
   if(charts.cFwd) charts.cFwd.destroy();
   let hist = Array.isArray(fx.history) && fx.history.length ? fx.history.slice() : [];
   if(!hist.length && fx.net_fwd != null) hist = [{ date: fx.month || '', net_fwd: fx.net_fwd }];
-  if(!hist.length) return;
+  if(!hist.length){ setChartEmpty('cFwd', 'fwd-empty', true); return; }
+  setChartEmpty('cFwd', 'fwd-empty', false);
   hist.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
   const opt = {
@@ -3239,7 +3440,7 @@ function renderPmCares(){
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:CH.legend, font:{ family:'Inter', size:11 } } } },
       scales:{
-        x:{ ticks:{ color:CH.tick, font:{ family:'Inter', size:11 } }, grid:{ display:false } },
+        x:{ ticks:{ color:CH.tick, font:{ family:'Inter', size:11 }, autoSkip:true, maxTicksLimit:10 }, grid:{ display:false } },
         y:{ beginAtZero:true, ticks:{ color:CH.tick, font:{ family:'Inter', size:10 } }, grid:{ color:CH.grid } }
       }
     }
