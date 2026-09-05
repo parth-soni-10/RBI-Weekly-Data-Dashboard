@@ -19,6 +19,7 @@
 </script>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -36,6 +37,12 @@
   --font:'Inter',system-ui,-apple-system,sans-serif;
   --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,monospace;
   --fs-body:14px;
+  /* ── Motion tokens (genjutsu motion-principles) ──
+     fast = hover/press feedback · normal = card + section movement ·
+     slow = first-paint storytelling only. Every transition below should
+     reference these; nothing animates layout properties (width/height). */
+  --dur-fast:150ms;--dur-normal:300ms;--dur-slow:500ms;
+  --ease-out:cubic-bezier(.2,.9,.3,1);--ease-spring:cubic-bezier(.2,.8,.25,1);
 }
 /* ── Dark (default) ─────────────────────────────────────────────────── */
 html{color-scheme:dark}
@@ -549,6 +556,25 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   .crude-hl-item:first-child{border-top:none;margin-top:0}
 }
 
+/* ─── 3D reserves ridge (lazy Three.js view) ─────────────────────────
+   Hidden panel inside the reserves chart card. The canvas gets a fixed
+   height so opening it never shifts layout (CLS-safe); the fallback note
+   shows only when WebGL is unavailable. */
+.ridge-wrap{display:none;margin-top:.75rem}
+.ridge-wrap.open{display:block}
+.ridge-stage{position:relative;height:260px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;background:var(--surface2)}
+.ridge-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y}
+.ridge-note{font-size:11px;color:var(--ink3);margin-top:.4rem}
+.ridge-close{margin-top:.5rem}
+/* GSAP-driven section enter suppresses the CSS keyframe (no double-play) */
+.section.gsap-nav{animation:none}
+
+/* Coarse pointers get a 44px touch target on chart tabs without changing
+   the dense desktop layout (design-audit: touch & interaction). */
+@media(pointer:coarse){
+  .tab{min-height:44px}
+}
+
 /* ═══════════ Reduced motion ═══════════ */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -713,8 +739,13 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   <div id="charts">
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" onclick="return toggleRidge(this)"><i data-lucide="box"></i> 3D ridge</button></div>
       <div class="chart-wrap"><canvas id="cRes" role="img" aria-label="Bar chart of weekly change in foreign exchange reserves"></canvas></div>
+      <div class="ridge-wrap" id="ridge-panel">
+        <div class="ridge-stage" id="ridge-stage" role="img" aria-label="Interactive 3D bar ridge of total forex reserves by week. Drag to rotate."></div>
+        <div class="ridge-note" id="ridge-note">Drag to rotate · scroll to zoom · Esc closes</div>
+        <button class="tab ridge-close" onclick="return toggleRidge(document.getElementById('ridge-toggle'), true)">Close 3D view</button>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Gold reserves: weekly change</h3><div class="chart-note">Week-on-week Δ</div></div></div>
@@ -1011,8 +1042,16 @@ const DATA_URL = 'rbi-data.json';
 const SYNC_URL = '.netlify/functions/data-sync';
 
 function showSection(name, el) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-'+name).classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active','gsap-nav'));
+  const sec = document.getElementById('sec-'+name);
+  sec.classList.add('active');
+  // GSAP section enter (Subtle tier: 300ms power1.out). The gsap-nav class
+  // suppresses the CSS keyframe so the two never double-play; without GSAP
+  // the CSS sectionIn animation is the fallback and this block is a no-op.
+  if(canAnimate()){
+    sec.classList.add('gsap-nav');
+    window.gsap.fromTo(sec, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, ease: 'power1.out', overwrite: 'auto', clearProps: 'opacity,transform' });
+  }
   document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
   if(name==='table' && records.length){
@@ -1104,6 +1143,33 @@ initHeaderShadow();
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
 const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!m||!d) return s; return new Date(y, m-1, d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); };
+
+/* ─── Motion layer (genjutsu: gsap + motion-principles + css-native) ──
+   Interaction thesis for this dashboard: "terminal calm" — motion only
+   ever confirms a data arrival (count-up, section enter). No ambient
+   movers, no scroll choreography; the page is a dense instrument, not a
+   story. GSAP is progressive enhancement: when the CDN is blocked or the
+   user prefers reduced motion, every setter below degrades to the same
+   instant final state the CSS already renders. */
+const prefersReducedMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canAnimate = () => !prefersReducedMotion() && !!window.gsap;
+/* Animated number setter. First paint counts from 0; later updates tween
+   from the previously shown value (kept in dataset.v). Non-numeric or
+   null targets render instantly as '—' — the dashboard's empty-value
+   convention — never as a tween artifact. */
+function countUp(el, target, format){
+  if(!el) return;
+  if(target == null || isNaN(Number(target))){ el.textContent = '—'; el.dataset.v = ''; return; }
+  const fmtFn = format || (n => fmt(n, 0));
+  const to = Number(target);
+  const from = el.dataset.v === '' || el.dataset.v == null ? 0 : Number(el.dataset.v);
+  el.dataset.v = String(to);
+  if(!canAnimate() || from === to){ el.textContent = fmtFn(to); return; }
+  const o = { v: from };
+  window.gsap.to(o, { v: to, duration: .5, ease: 'power1.out', overwrite: 'auto',
+    onUpdate(){ el.textContent = fmtFn(o.v); },
+    onComplete(){ el.textContent = fmtFn(to); } });
+}
 const diff = arr => arr.map((v,i)=>i===0?null:(v!=null&&arr[i-1]!=null?v-arr[i-1]:null));
 
 /* Shared table-cell rendering used by the 10-week, equity, and rupee tables:
@@ -1522,7 +1588,7 @@ function updateUI(){
   records.sort((a,b)=>a.date.localeCompare(b.date));
   const L=records[records.length-1], P=records.length>1?records[records.length-2]:null;
   const set=(id,val,did,dval,dec=0)=>{
-    document.getElementById(id).textContent=fmt(val,dec);
+    countUp(document.getElementById(id), val, n=>fmt(n,dec));
     if(did) document.getElementById(did).innerHTML=fmtD(dval,dec);
   };
   set('m-res-usd', L.total_usd,'d-res-usd', P?L.total_usd-P.total_usd:null);
@@ -1817,6 +1883,223 @@ function sw(el, group, mode){
   else if(group==='fwd') renderFwdChart(macroData.fxintv);
 }
 
+/* ─── 3D reserves ridge (threejs skills, vanilla adaptation) ──────
+   Opt-in WebGL view of the last 26 weeks of total reserves as a bar
+   ridge you can drag to orbit. three.js loads lazily on first open so the
+   default 2D dashboard pays zero bytes for it; the UMD r128 build needs no
+   bundler (no-importmap, works with the zero-build-step constraint).
+   Covers the skill pack's core loop: scene + camera + lights, BoxGeometry
+   ridge, Lambert materials, raycast hover readout, rAF loop that pauses
+   when hidden, and full dispose-on-close (no GPU leak across toggles).
+   No WebGL → same data paints as a 2D canvas silhouette (canvas-generative
+   fallback). Reduced motion → one static frame, drag re-renders on demand. */
+let ridge = null;
+function toggleRidge(btn, forceClose){
+  const panel = document.getElementById('ridge-panel');
+  const open = forceClose ? false : !panel.classList.contains('open');
+  if(btn){ btn.classList.toggle('on', open); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  if(open){
+    if(!records.length){ document.getElementById('ridge-note').textContent = 'Load data first — then the ridge has weeks to stand on.'; }
+    panel.classList.add('open');
+    openRidge().catch(()=>{});
+    const closeBtn = panel.querySelector('.ridge-close');
+    if(closeBtn) closeBtn.focus({ preventScroll: true });
+  } else {
+    panel.classList.remove('open');
+    closeRidge();
+    if(btn) btn.focus({ preventScroll: true });
+  }
+  return false;
+}
+function ridgeWeeks(){
+  return records.filter(r => r.total_usd != null).slice(-26);
+}
+function loadThree(){
+  if(window.THREE) return Promise.resolve();
+  if(loadThree.p) return loadThree.p;
+  loadThree.p = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    s.defer = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('three.js CDN unreachable'));
+    document.head.appendChild(s);
+  });
+  return loadThree.p;
+}
+async function openRidge(){
+  const stage = document.getElementById('ridge-stage');
+  const note = document.getElementById('ridge-note');
+  const weeks = ridgeWeeks();
+  if(!weeks.length){ note.textContent = 'No reserve weeks to show yet.'; return; }
+  if(ridge) closeRidge();
+  try { await loadThree(); }
+  catch(e){ paintRidgeFallback(stage, note, weeks); return; }
+  if(!window.WebGLRenderingContext){ paintRidgeFallback(stage, note, weeks); return; }
+  try { buildRidge(stage, note, weeks); }
+  catch(e){ paintRidgeFallback(stage, note, weeks); }
+}
+/* 2D fallback: same dataset, flat silhouette — no WebGL required. */
+function paintRidgeFallback(stage, note, weeks){
+  stage.innerHTML = '';
+  const cv = document.createElement('canvas');
+  const W = stage.clientWidth || 600, H = 260;
+  cv.width = W; cv.height = H;
+  stage.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const cs = getComputedStyle(document.documentElement);
+  const vals = weeks.map(w => w.total_usd);
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = (hi - lo) || 1;
+  ctx.clearRect(0, 0, W, H);
+  ctx.beginPath();
+  vals.forEach((v, i) => {
+    const x = 14 + (W - 28) * (i / Math.max(vals.length - 1, 1));
+    const y = H - 26 - (H - 70) * ((v - lo) / span);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.strokeStyle = cs.getPropertyValue('--brand').trim() || '#e9b949';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.lineTo(W - 14, H); ctx.lineTo(14, H); ctx.closePath();
+  ctx.fillStyle = 'rgba(233,185,73,.12)';
+  ctx.fill();
+  ctx.fillStyle = cs.getPropertyValue('--ink3').trim() || '#72829c';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.fillText(fmtDate(weeks[0].date) + ' → ' + fmtDate(weeks[weeks.length-1].date), 14, H - 8);
+  note.textContent = '2D fallback (WebGL unavailable) · ' + weeks.length + ' weeks · latest $' + (vals[vals.length-1]/1000).toFixed(1) + 'B';
+  ridge = { fallback: true };
+}
+function buildRidge(stage, note, weeks){
+  const cs = getComputedStyle(document.documentElement);
+  const css = n => (cs.getPropertyValue(n) || '').trim();
+  stage.innerHTML = '';
+  const W = stage.clientWidth || 600, H = 260;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(W, H, false);
+  stage.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, W / H, .1, 200);
+  camera.position.set(0, 9, 20);
+  camera.lookAt(0, 1.5, 0);
+  scene.add(new THREE.AmbientLight(0xffffff, .55));
+  const key = new THREE.DirectionalLight(0xffffff, .85);
+  key.position.set(6, 12, 8);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x88aaff, .3);
+  rim.position.set(-8, 6, -6);
+  scene.add(rim);
+  const vals = weeks.map(w => w.total_usd);
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = (hi - lo) || 1;
+  const group = new THREE.Group();
+  const bw = Math.min(1.1, 22 / vals.length);
+  const geo = new THREE.BoxGeometry(bw, 1, bw);
+  const matUp = new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--pos') || '#3ecf8e') });
+  const matDn = new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--neg') || '#fb7d7d') });
+  const gridMat = new THREE.LineBasicMaterial({ color: new THREE.Color(css('--chart-grid') || '#223'), transparent: true, opacity: .9 });
+  const bars = [];
+  vals.forEach((v, i) => {
+    const h = .6 + 7 * ((v - lo) / span);
+    const up = i === 0 || v >= vals[i-1];
+    const m = new THREE.Mesh(geo, up ? matUp : matDn);
+    m.position.set((i - (vals.length - 1) / 2) * (bw + .28), h / 2, 0);
+    m.scale.y = h;
+    m.userData = { date: weeks[i].date, val: v };
+    group.add(m);
+    bars.push(m);
+  });
+  const gridGeo = new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(-14, 0, -3), new THREE.Vector3(14, 0, -3),
+     new THREE.Vector3(-14, 0, -3), new THREE.Vector3(-14, 0, 3),
+     new THREE.Vector3(14, 0, 3), new THREE.Vector3(-14, 0, 3)]);
+  group.add(new THREE.LineSegments(gridGeo, gridMat));
+  scene.add(group);
+  const ray = new THREE.Raycaster();
+  const ptr = new THREE.Vector2();
+  let rotY = -.5, rotX = .12, tRotY = rotY, tRotX = rotX, dist = 21, tDist = dist;
+  let raf = 0, alive = true, dragging = false, px = 0, py = 0;
+  const still = prefersReducedMotion();
+  function render(){
+    group.rotation.y += (tRotY - group.rotation.y) * .12;
+    group.rotation.x += (tRotX - group.rotation.x) * .12;
+    camera.position.z += (tDist - camera.position.z) * .12;
+    camera.lookAt(0, 1.5, 0);
+    renderer.render(scene, camera);
+  }
+  function loop(){
+    if(!alive) return;
+    // Idle drift only when motion is welcome and nobody is interacting.
+    if(!still && !dragging && !document.hidden) tRotY += .0016;
+    render();
+    raf = requestAnimationFrame(loop);
+  }
+  function pick(ev){
+    const r = renderer.domElement.getBoundingClientRect();
+    ptr.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    ptr.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    ray.setFromCamera(ptr, camera);
+    const hit = ray.intersectObjects(bars)[0];
+    if(hit){
+      const { date, val } = hit.object.userData;
+      note.textContent = fmtDate(date) + ' · $' + (val/1000).toFixed(2) + 'B total reserves';
+    }
+  }
+  const onDown = e => { dragging = true; px = e.clientX; py = e.clientY; };
+  const onMove = e => {
+    if(dragging){
+      tRotY += (e.clientX - px) * .008;
+      tRotX = Math.max(-.2, Math.min(.9, tRotX + (e.clientY - py) * .005));
+      px = e.clientX; py = e.clientY;
+      if(still) render();
+    } else if(e.pointerType === 'mouse') pick(e);
+  };
+  const onUp = () => { dragging = false; };
+  const onWheel = e => { e.preventDefault(); tDist = Math.max(12, Math.min(34, tDist + e.deltaY * .02)); if(still) render(); };
+  const onKey = e => { if(e.key === 'Escape') toggleRidge(document.getElementById('ridge-toggle'), true); };
+  const onVis = () => { if(document.hidden){ cancelAnimationFrame(raf); raf = 0; } else if(alive && !raf && !still){ loop(); } };
+  const onResize = () => {
+    const w = stage.clientWidth || 600;
+    camera.aspect = w / H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, H, false);
+    if(still) render();
+  };
+  renderer.domElement.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('resize', onResize);
+  note.textContent = weeks.length + ' weeks · $' + (vals[0]/1000).toFixed(1) + 'B → $' + (vals[vals.length-1]/1000).toFixed(1) + 'B · drag to orbit, hover a bar';
+  render();
+  if(!still) loop();
+  ridge = { renderer, scene, group, geo, mats: [matUp, matDn, gridMat, gridGeo], rafGetter: () => raf,
+    dispose(){
+      alive = false;
+      cancelAnimationFrame(raf);
+      renderer.domElement.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      renderer.domElement.removeEventListener('wheel', onWheel);
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('resize', onResize);
+      group.traverse(o => { if(o.geometry && o.geometry !== geo) o.geometry.dispose(); });
+      geo.dispose();
+      [matUp, matDn, gridMat].forEach(m => m.dispose());
+      gridGeo.dispose();
+      renderer.dispose();
+      if(renderer.domElement.parentNode === stage) stage.removeChild(renderer.domElement);
+    } };
+}
+function closeRidge(){
+  if(ridge && ridge.dispose) ridge.dispose();
+  ridge = null;
+  document.getElementById('ridge-panel').classList.remove('open');
+  const t = document.getElementById('ridge-toggle');
+  if(t){ t.classList.remove('on'); t.setAttribute('aria-expanded', 'false'); }
+}
 // All crude data fetched live from /.netlify/functions/fetch-crude
 // (PPAC monthly data + TankerMap AIS + Yahoo Finance prices, server-side).
 let crudeData = null;
