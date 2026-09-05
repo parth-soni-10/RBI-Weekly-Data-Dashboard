@@ -1418,21 +1418,45 @@ async function mergeLiveUpdates() {
 let syncBlob = null;
 // Blob-persistence circuit breaker (per page load): once data-sync answers
 // 503/404 (or is unreachable), every later sync read/write in this session
-// skips its fetch and stays silent — one honest log line instead of the same
-// warning repeated by each of the merged/forward/PM CARES/EM saves.
+// stops fetching the function — one honest log line instead of the same
+// warning repeated by each of the merged/forward/PM CARES/EM saves. Reads and
+// writes then route to a per-browser localStorage mirror (same payload shape
+// as the blob), so the merge cache still survives reloads here; it just isn't
+// shared across visitors until the blob store is back.
 let syncDown = null;
 function markSyncDown(reason){
   if(syncDown) return syncDown;
   syncDown = reason || 'unreachable';
-  appendLog(`ℹ Blob persistence unavailable (${syncDown}) — file + live-check only, no cross-visit memory`);
+  appendLog(`ℹ Blob persistence unavailable (${syncDown}) — using this browser's local cache instead (no cross-visit memory)`);
   return syncDown;
+}
+// Per-browser mirror of the sync payload — localStorage backing for when the
+// Netlify Blob store is unavailable (local preview, static hosting, or a 503).
+const SYNC_LOCAL_KEY = 'rbi-sync-cache-v1';
+function syncLocalRead(){
+  try {
+    const raw = localStorage.getItem(SYNC_LOCAL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(_){ return null; }
+}
+// Merge a patch into the local mirror without wiping keys the caller didn't
+// send (same merge semantics the data-sync POST uses server-side).
+function syncLocalWrite(patch){
+  try {
+    const cur = syncLocalRead() || {};
+    localStorage.setItem(SYNC_LOCAL_KEY, JSON.stringify(Object.assign({}, cur, patch)));
+  } catch(_){ /* storage unavailable or full — the session cache still works */ }
 }
 // PM CARES rows restored from the blob (defensive fallback only — the inline
 // PMCARES array is the source of truth and always wins when present).
 let pmcaresData = null;
 
+// Read the merged records previously persisted by data-sync (Netlify Blob).
+// Falls back to the localStorage mirror when the function is unavailable, and
+// to null when there's nothing saved anywhere — callers fall back to file +
+// live check.
 async function loadSyncRecords() {
-  if(syncDown) return null;
+  if(syncDown){ syncBlob = syncLocalRead(); return syncBlob; }
   try {
     const res = await fetch(SYNC_URL, { cache: 'no-store' });
     if (!res.ok) {
@@ -1446,14 +1470,18 @@ async function loadSyncRecords() {
         } catch(_){}
         markSyncDown(reason);
       }
-      return null;
+      syncBlob = syncLocalRead();
+      return syncBlob;
     }
     const j = await res.json();
-    syncBlob = (j && Array.isArray(j.records)) ? j : null;
+    // An empty blob (records: null) still gives way to any locally cached
+    // payload — the browser's own saves are as good a source as the store's.
+    syncBlob = (j && Array.isArray(j.records)) ? j : syncLocalRead();
     return syncBlob;
   } catch (err) {
     markSyncDown('data-sync function not deployed here');
-    return null;
+    syncBlob = syncLocalRead();
+    return syncBlob;
   }
 }
 
@@ -1481,18 +1509,24 @@ async function refreshLiveSeries() {
 // the inline array stays the source of truth). Records + saved forward/em ride
 // along so the write never loses them.
 async function savePmcaresToBlob() {
-  if(syncDown) return;
+  const rows = pmRows();
+  if (!rows.length) return;
+  const pmcares = { rows, checkedAt: new Date().toISOString() };
+  const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
+  const em = (syncBlob && syncBlob.em) ? syncBlob.em : undefined;
+  // Blob down → keep the durable mirror in this browser's local cache instead.
+  if(syncDown){
+    syncLocalWrite(Object.assign({ records, pmcares }, fwd ? { forward: fwd } : {}, em ? { em } : {}));
+    if (syncBlob) syncBlob.pmcares = pmcares;
+    return;
+  }
   try {
-    const rows = pmRows();
-    if (!rows.length) return;
-    const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
-    const em = (syncBlob && syncBlob.em) ? syncBlob.em : undefined;
     const res = await fetch(SYNC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records, ...(fwd ? { forward: fwd } : {}), ...(em ? { em } : {}), pmcares: { rows, checkedAt: new Date().toISOString() } }),
+      body: JSON.stringify({ records, ...(fwd ? { forward: fwd } : {}), ...(em ? { em } : {}), pmcares }),
     });
-    if (res.ok && syncBlob) syncBlob.pmcares = { rows, checkedAt: new Date().toISOString() };
+    if (res.ok && syncBlob) syncBlob.pmcares = pmcares;
     if (res.ok) appendLog('✓ PM CARES data saved to blob');
     else appendLog(`⚠ Could not save PM CARES data (HTTP ${res.status})`);
   } catch (err) {
@@ -1567,7 +1601,8 @@ async function checkForwardLive() {
 // the same POST (the blob stores one payload) so the write never loses the
 // weekly merge.
 async function saveForwardToBlob(forward) {
-  if(syncDown) return;
+  // Blob down → cache the figure in this browser's local mirror instead.
+  if(syncDown){ syncLocalWrite({ records, forward }); return; }
   try {
     const res = await fetch(SYNC_URL, {
       method: 'POST',
@@ -1656,7 +1691,9 @@ async function refreshCrudeData() {
 // Write the current merged records back through data-sync so repeat reloads
 // restore them instead of re-scraping the same weeks from RBI.
 async function persistSyncRecords() {
-  if(syncDown) return;
+  // Blob down → save into this browser's local mirror so the next reload in
+  // this browser still restores the merged weeks without re-scraping RBI.
+  if(syncDown){ syncLocalWrite({ records }); return; }
   try {
     const res = await fetch(SYNC_URL, {
       method: 'POST',
@@ -3064,11 +3101,16 @@ async function loadEmPeers(range){
 // repeat reloads restore it instead of re-fetching from Yahoo. Records and the
 // saved forward figure ride along so the write never loses them.
 async function persistEmToBlob(range, peers) {
-  if(syncDown) return;
+  const em = Object.assign({}, (syncBlob && syncBlob.em) || {});
+  em[range] = { peers, fetchedAt: new Date().toISOString() };
+  const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
+  // Blob down → cache the payload in this browser's local mirror instead.
+  if(syncDown){
+    syncLocalWrite(Object.assign({ records, em }, fwd ? { forward: fwd } : {}));
+    if (syncBlob) syncBlob.em = em; // keep the in-session copy current
+    return;
+  }
   try {
-    const em = Object.assign({}, (syncBlob && syncBlob.em) || {});
-    em[range] = { peers, fetchedAt: new Date().toISOString() };
-    const fwd = (syncBlob && syncBlob.forward) ? syncBlob.forward : undefined;
     const res = await fetch(SYNC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
