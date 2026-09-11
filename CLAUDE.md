@@ -1,7 +1,7 @@
 # RBI Weekly Dashboard - Project Instructions
 
 ## Overview
-Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, gold, rupee spot, equity markets), live crude-oil import estimates, macro context tiles (FII flows, G-Sec yield, REER, FX intervention, tax), and a curated PM CARES Fund section. Served from Netlify: a single-file frontend in `public/` plus serverless scrapers.
+Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, gold, rupee spot, equity markets), live crude-oil import estimates, macro context tiles (FII flows, G-Sec yield, REER, FX intervention, tax), a "world's biggest borrower countries" ranking (World Bank QEDS, India highlighted), and a curated PM CARES Fund section. Served from Netlify: a single-file frontend in `public/` plus serverless scrapers.
 
 ## Tech Stack
 - Language: JavaScript (Node >= 18), zero build step, vanilla HTML/CSS/JS frontend
@@ -9,6 +9,7 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 - Charts: Chart.js 4.4.1 (CDN, loaded with `defer`); fonts Inter + DM Mono (Google Fonts)
 - Hosting: Netlify (static publish + Functions, esbuild bundler)
 - Deps: `node-fetch` (^2.7), `node-xlsx` (^0.23) - both used by the scrapers
+- External-debt ranking: `netlify/functions/fetch-external-debt.js` + `scripts/fetch-debt-rankings.js` → World Bank **Quarterly External Debt Statistics** (QEDS; IMF SDDS source 22 indicator `DT.DOD.DECT.CD.AR.US`, merged with GDDS source 23 `DT.DOD.DECT.CD.TL.US`; api.worldbank.org, official country submissions, no key needed). Scope: SDDS/GDDS reporters INCLUDING high-income economies → USA #1 (~$30T, 2026Q1), UK #2, China #14; India ~#23 (~$763B, 2026Q1). (The annual IDS series `DT.DOD.DECT.CD` excludes high-income reporters and tops out at China — do not mix the two.) Serves `top_borrowers` (12), `india` (rank + ±2 rank `neighbours` + quarterly `history`), `scope_note`; 6h in-process memo, `?refresh=1` busts it (frontend uses that on Reload), curated FALLBACK_* arrays (verified 2026-09-11) when the API fails
 - Scheduling: GitHub Actions cron (`refresh-data.yml`, daily 00:30 UTC)
 
 ## Code Style
@@ -25,7 +26,7 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 - Frontend changes: verify by serving `public/` and loading the page - tables/charts render from `rbi-data.json`; macro + crude tiles need the Netlify functions (use `netlify dev` or accept graceful fallbacks locally)
 
 ## Build & Run
-- Regenerate static data: `npm run fetch:data` (incremental - only fetches weeks newer than the newest record in `public/rbi-data.json`)
+- Regenerate static data: `npm run fetch:data` (incremental - only fetches weeks newer than the newest record in `public/rbi-data.json`) and `npm run fetch:debt` (rewrites `public/external-debt.json` from the live World Bank API; fails open to the curated fallback, never deletes the file). Both run in the deploy build AND the daily cron, so every run re-pulls the sources
 - The dashboard's **Reload data** button loads `rbi-data.json`, then live-checks `/.netlify/functions/fetch-data` for weeks newer than the file's newest record (walking `?weekOffset=` pages) and merges them in-memory; the merged set is persisted via `/.netlify/functions/data-sync` (Netlify Blob) and restored on the next reload, so repeat reloads never re-scrape the same weeks. The blob also stores the newest official forward figure found (`forward` key, with `checkedAt`; reused while under 3 days old), per-range EM-peers payloads (`em` key, with per-range `fetchedAt`; reused while under 12h old), and a durable mirror of the curated PM CARES rows (`pmcares` key — the inline `PMCARES` array stays the source of truth; the blob copy is a defensive fallback). Writes that omit a key preserve the existing saved value, so the weekly/forward/em/pmcares persists never clobber each other. It also refreshes all macro cards (FII flows/history, G-Sec, tax, REER, forward source — `fetchAllMacro` with the HTTP cache busted), live-checks the forward book via `/.netlify/functions/fetch-fwd-latest` (re-runs the Bulletin Table 4A discovery/parse from `scripts/update-fwd-monthly.js`, appends in-memory when newer than the series tail), and busts the EM-peers per-range cache (`fetch-em-peers` refetches the active range). The heavy crude-oil tile (`fetch-crude`) also refreshes on an explicit Reload click — fire-and-forget in the background so it never blocks the other checks (the initial page load skips it to avoid a double scrape). Falls back to file-only when the functions aren't deployed (local preview)
 - Syntax check: `npm run check`
 - Local dev: serve `public/` with any static server; live functions require `netlify dev`
@@ -36,17 +37,22 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 public/                 → Static site (publish dir)
   index.html              → The entire frontend (markup + CSS + JS inline)
   rbi-data.json           → Committed RBI weekly records (regenerated + auto-committed)
+  external-debt.json      → Committed World Bank QEDS borrower ranking (regenerated + auto-committed)
   _redirects              → Clean /data/*.json URLs → Netlify functions
   embed/                  → Standalone chart embeds
 netlify/functions/      → Serverless scrapers + APIs
   fetch-data.js           → RBI WSS scraper core (_getFridays, _processOne) - reused by others
   fetch-crude.js          → Heavy pipeline: PPAC + TankerMap AIS + Yahoo prices
   fetch-fii*.js, fetch-gsec.js, fetch-tax.js, fetch-reer.js, fetch-fx-intervention.js,
+  fetch-external-debt.js → World Bank QEDS biggest-borrower ranking (see above)
   fetch-em-peers.js → server-side Yahoo FX proxy for the EM-peers overlay (browsers
   can't hit Yahoo directly on arbitrary origins — CORS)
   data-latest.js, data-forex-weekly.js, data-crude-bpd.js → public JSON APIs
   _utils/                 → http.js (shared fetch/parse), cache.js (TTL memo)
 scripts/fetch-all.js    → CLI that regenerates public/rbi-data.json
+scripts/fetch-debt-rankings.js → CLI that regenerates public/external-debt.json
+  (World Bank QEDS ranking; reuses fetch-external-debt's _buildPayload so parsing
+  stays in one place — same pattern as fetch-all.js reusing fetch-data internals)
 scripts/update-fwd-series.js → auto-appends/upgrades FWD_SERIES with the newest
   official figure from RBI's half-yearly FX reserves report (Mar/Sep; runs in
   the daily cron + deploy build)
@@ -63,6 +69,7 @@ netlify.toml            → Publish/functions config + per-function timeouts
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
 - RBI's net forward position (`fetch-fx-intervention.js`) is AUTO-UPDATED, not hand-curated: month-end figures (Mar-21 → today, all 65 months) come from the RBI Bulletin's Current Statistics table 4A "Maturity Breakdown (by Residual Maturity) of Outstanding Forwards of RBI", a server-rendered BS_ViewBulletin page — `scripts/update-fwd-monthly.js` reads the newest issue on every deploy/daily cron and appends/upgrades `FWD_SERIES` (its `--backfill` flag walks every issue back to May-2021 to fill or verify gaps). `scripts/update-fwd-series.js` does the same for the Mar/Sep half-yearly FX reserves report anchors, which WIN over the Bulletin table at the same date (RBI revised some early figures — Sep-2021 is +49.61bn in the Nov-21 Bulletin but +49.11bn in the report and later Bulletins). Both fail open (slow/blocked RBI never breaks a deploy) and never delete entries. The macro tile, the reserve KPIs, and the `cFwd` chart read the series automatically — chart tabs: stepped weekly on the dashboard's own WSS Fridays, stepped weekly every Friday since 2021 (long-to-short flip + Oct-23 short dip), and every published figure as points
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
+- The borrower tiles/chart live on `debtData` (loaded by `loadExternalDebt` inside `fetchAllMacro`, static-file fallback `external-debt.json` for local previews), NOT in `macroData`; rendered by `renderExternalDebt()`/`renderDebtChart()` with tab group `debt` (top/india/history) wired through `sw()`
 
 ## Icons (Lucide)
 - Icons come from a vendored copy of Lucide (`public/lucide.min.js`, pinned 0.462.0). Add `<i data-lucide="name"></i>` to markup; `lucide.createIcons()` runs at end of `<body>`.

@@ -761,6 +761,16 @@ html,body{overflow-x:clip}
       <div id="kpi-net-res" class="mex-val">—</div>
       <div class="mex-detail" id="kpi-net-res-sub">awaiting records + forward book</div>
     </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="India's total gross external-debt stock (all sectors, current US$), quarterly, from the World Bank's Quarterly External Debt Statistics — the IMF SDDS/GDDS channel through which India (via RBI) reports. Latest published quarter, currently 2026Q1.">India External Debt</span></div>
+      <div id="kpi-ext-debt" class="mex-val">—</div>
+      <div class="mex-detail" id="kpi-ext-debt-sub">awaiting World Bank QEDS</div>
+    </div>
+    <div class="mex">
+      <div class="mex-label"><span data-glossary="Where India's external debt ranks among all economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income economies). The USA is #1 (~$30T) and the UK #2; India sits in the low-#20s. Each economy's latest published quarter is used.">India Borrower Rank</span></div>
+      <div id="kpi-ext-debt-rank" class="mex-val">—</div>
+      <div class="mex-detail" id="kpi-ext-debt-rank-sub">awaiting World Bank QEDS</div>
+    </div>
   </div>
 
   <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
@@ -863,6 +873,14 @@ html,body{overflow-x:clip}
       <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
       <div class="chart-empty" id="fii-empty" hidden>Awaiting the NSDL feed — the 6-month daily flow chart appears here once live data (or the curated fallback) arrives.</div>
+    </div>
+
+    <!-- World's biggest borrowers — World Bank QEDS ranking via fetch-external-debt.js -->
+    <div class="chart-card span2">
+      <div class="chart-hdr"><div><h3 class="chart-title">World's biggest borrower countries (external-debt stock, USD)</h3><div class="chart-note">Among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS — incl. high-income economies: USA #1, UK #2, China #14). Each bar uses that economy's latest published quarter; India highlighted. <a class="accent-link" href="https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1" target="_blank" rel="noopener">World Bank QEDS API</a></div></div><button class="tab" onclick="return copyDebtCSV(this)" title="Copy the borrower ranking as CSV">Copy CSV</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'debt','top')">Top 12</button><button class="tab" onclick="sw(this,'debt','india')">India vs neighbours</button><button class="tab" onclick="sw(this,'debt','history')">India history</button></div>
+      <div class="chart-wrap"><canvas id="cDebt" role="img" aria-label="Bar chart of the world's biggest borrower countries by external-debt stock, India highlighted"></canvas></div>
+      <div class="chart-empty" id="debt-empty" hidden>Awaiting the World Bank QEDS ranking — the biggest-borrower chart appears here once fetch-external-debt returns data.</div>
     </div>
 
     <!-- RBI forward book — curated disclosure series from fetch-fx-intervention.js -->
@@ -1112,7 +1130,7 @@ html,body{overflow-x:clip}
 </footer>
 
 <script>
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week',em:'6mo'};
+let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week',em:'6mo',debt:'top'};
 
 /* ─── Static data file ──────────────────────────────────────────
    All fetched RBI weekly records live in public/rbi-data.json, which is
@@ -2143,6 +2161,7 @@ function sw(el, group, mode){
   else if(group==='idx') rebuildIdxClose();
   else if(group==='idxd') rebuildIdxDelta();
   else if(group==='fwd') renderFwdChart(macroData.fxintv);
+  else if(group==='debt') renderDebtChart();
 }
 
 /* ─── 3D reserves ridge (threejs skills, vanilla adaptation) ──────
@@ -2830,8 +2849,24 @@ const MACRO_ENDPOINTS = {
   gsec:   '/.netlify/functions/fetch-gsec',
   tax:    '/.netlify/functions/fetch-tax',
   reer:   '/.netlify/functions/fetch-reer',
+  debt:   '/.netlify/functions/fetch-external-debt',
 };
 let macroData  = {};
+// World's biggest-borrower ranking (World Bank QEDS): loaded with the macro
+// cards, plus a static-file fallback (external-debt.json, regenerated on
+// every deploy/cron) for local previews without the Netlify functions.
+let debtData = null;
+async function loadExternalDebt(noStore){
+  const url = MACRO_ENDPOINTS.debt;
+  try {
+    const r = await fetch(url, noStore ? { cache: 'no-store' } : { cache: 'default' });
+    if (r.ok) { debtData = await r.json(); return; }
+  } catch (_) { /* fall through to the static file */ }
+  try {
+    const r = await fetch('external-debt.json', { cache: 'no-cache' });
+    if (r.ok) debtData = await r.json();
+  } catch (_) { /* both failed — tiles stay '—' */ }
+}
 let emPeerCache = {};
 let emMeta = {}; // range → fetchedAt (ISO) of the cached EM payload
 let fiiHistChart = null;
@@ -2873,6 +2908,9 @@ async function fetchAllMacro(noStore){
   for (let i = 0; i < keys.length; i++) {
     macroData[keys[i]] = settled[i].status === 'fulfilled' ? settled[i].value : null;
   }
+  // The borrower ranking goes to its own store (it also has a static-file
+  // fallback and feeds the chart card); keep it out of macroData.
+  await loadExternalDebt(noStore);
   return true;
 }
 
@@ -2957,6 +2995,9 @@ function renderMacroCards(){
     setMctxVal('inr-reer', reer.latest != null ? reer.latest.toFixed(1) : null,
                reer.latest_date ? `${reer.source} · ${reer.latest_date}` : (reer.source || 'unavailable'));
 
+    // Borrower KPI tiles + the biggest-borrowers chart (own loader, own store).
+    renderExternalDebt();
+
     setMctxVal('fx-fwd', fx.net_fwd != null
               ? (fx.net_fwd >= 0 ? '+$' : '−$') + Math.abs(fx.net_fwd).toFixed(2) + 'B'
               : null,
@@ -3036,6 +3077,146 @@ function renderReserveForwardKpis(){
     netSub.textContent = !hasRes ? (!hasFwd ? 'awaiting records + forward book' : 'awaiting records')
                                  : 'awaiting forward book';
   }
+}
+
+/* ─── World's biggest borrowers (World Bank QEDS) ──────────────────────
+   Renders the two borrower KPI tiles + the ranking chart card from
+   debtData (fetch-external-debt, with the static external-debt.json
+   regenerated on every deploy/cron as fallback). Chart tabs: top-12
+   ranking, India vs the top 3, India's own history since 2008. */
+function debtTopRows(){
+  const d = debtData;
+  if(!d || !d.top_borrowers || !d.top_borrowers.length) return [];
+  if(modes.debt === 'india'){
+    // India sits in the low-#20s of ~135 QEDS reporters, so the tab shows its
+    // rank neighbours (±2) instead of an unreachable top 3.
+    const nb = (d.india && d.india.neighbours) || [];
+    return nb.length ? nb : (d.india ? [d.india] : []);
+  }
+  return d.top_borrowers.slice(0, 12);
+}
+
+function renderDebtChart(){
+  const d = debtData;
+  const el = document.getElementById('cDebt');
+  if(!el) return;
+  const rows = debtTopRows();
+  if(!rows.length){ setChartEmpty('cDebt', 'debt-empty', true); return; }
+  setChartEmpty('cDebt', 'debt-empty', false);
+
+  let labels, values, colors;
+  if(modes.debt === 'history'){
+    const hist = ((d.india && d.india.history) || []).slice(-20);
+    labels = hist.map(h => h.date);
+    values = hist.map(h => h.value_bn);
+    colors = hist.map(() => BLUE);
+  } else {
+    labels = rows.map(t => t.iso3);
+    values = rows.map(t => t.value_bn);
+    colors = rows.map(t => t.iso3 === 'IND' ? G : BLUE);
+  }
+
+  const tipName = {};
+  (d.top_borrowers || []).forEach(t => { tipName[t.iso3] = t; });
+  if(d.india){
+    tipName[d.india.iso3] = d.india;
+    (d.india.neighbours || []).forEach(t => { tipName[t.iso3] = t; });
+  }
+
+  if(charts.cDebt) charts.cDebt.destroy();
+  charts.cDebt = new Chart(el, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'External debt (USD bn)', data: values, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y', // horizontal bars: country names stay readable
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1,
+          callbacks: { label: ctx => {
+            const t = tipName[String(ctx.label).trim()] || {};
+            const who = (modes.debt === 'history') ? 'India' : (t.name || ctx.label);
+            const per = t.period ? ' · ' + t.period : '';
+            const v = ctx.parsed.x != null ? ctx.parsed.x : ctx.parsed.y;
+            return `${who}${per}: $${v >= 1000 ? (v/1000).toFixed(2) + 'T' : v.toLocaleString('en-IN') + 'B'}`;
+          } }
+        },
+      },
+      scales: modes.debt === 'history'
+        ? { x: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: gridC } },
+            y: { beginAtZero: true, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v >= 1000 ? (v/1000).toFixed(1) + 'T' : v + 'B' }, grid: { color: gridC } } }
+        : { x: { beginAtZero: true, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v >= 1000 ? (v/1000).toFixed(1) + 'T' : v + 'B' }, grid: { color: gridC } },
+            y: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '600' }, autoSkip: false }, grid: { color: gridC } } },
+    },
+  });
+}
+
+// $762.8B reads better than $0.76T; $30.20T beats $30,197.0B.
+function fmtDebtUsd(v){
+  return v >= 1000 ? '$' + (v/1000).toFixed(2) + 'T' : '$' + v.toFixed(1) + 'B';
+}
+
+function renderExternalDebt(){
+  const d = debtData;
+  if(!d || !d.top_borrowers || !d.top_borrowers.length) return;
+  const ind = d.india || {};
+  const fallback = d.status === 'static fallback';
+
+  const debtEl = document.getElementById('kpi-ext-debt');
+  if(debtEl && ind.value_bn != null){
+    debtEl.textContent = fmtDebtUsd(ind.value_bn);
+    const sub = document.getElementById('kpi-ext-debt-sub');
+    if(sub) sub.textContent = `World Bank QEDS · ${ind.period || d.as_of_period}` + (fallback ? ' · fallback' : '');
+  }
+  const rankEl = document.getElementById('kpi-ext-debt-rank');
+  if(rankEl && ind.rank != null){
+    rankEl.textContent = '#' + ind.rank;
+    const top = d.top_borrowers[0] || {};
+    const sub = document.getElementById('kpi-ext-debt-rank-sub');
+    if(sub) sub.textContent = top.name
+      ? `of ${d.ranked_count} reporters · #1 ${top.name} ${fmtDebtUsd(top.value_bn)}`
+      : `of ${d.ranked_count} reporters`;
+  }
+  renderDebtChart();
+}
+
+function copyDebtCSV(btn){
+  const d = debtData;
+  if(!d || !d.top_borrowers || !d.top_borrowers.length) return false;
+  const lines = ['rank,country,iso3,external_debt_usd_bn,reference_quarter']
+    .concat(d.top_borrowers.map(t => [t.rank, `"${t.name}"`, t.iso3, t.value_bn, t.period].join(',')));
+  if(d.india && d.india.history && d.india.history.length){
+    lines.push('', 'india_external_debt_usd_bn,quarter');
+    d.india.history.forEach(h => lines.push(`${h.value_bn},${h.date}`));
+  }
+  const csv = lines.join('\n');
+  const done = ok => {
+    if(!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    let settled = false;
+    Promise.race([navigator.clipboard.writeText(csv), new Promise((_, rej) => setTimeout(rej, 800))])
+      .then(() => { settled = true; done(true); },
+            () => { if(!settled){ settled = true; fallbackCopy(); } });
+  } else fallbackCopy();
+  function fallbackCopy(){
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = csv;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done(!!ok);
+    } catch(e){ done(false); }
+  }
+  return false;
 }
 
 // VOLATILITY: weekly-stdev of USD/INR with 20/60-session window + annualized tier pill

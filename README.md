@@ -23,11 +23,12 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 - **Weekly change** — whether each number moved up or down versus the previous week
 - **Charts and tables** — trend lines for the last 10 weeks, plus a searchable history
 - **Extra context** — crude-oil import estimates, investor (FII) flow, interest rates, and more
+- **World's biggest borrowers** — a quarterly cross-country ranking of external-debt stocks from the World Bank's Quarterly External Debt Statistics (countries' official IMF SDDS/GDDS submissions), with India's rank highlighted — the USA borrows the most, India sits in the low-#20s
 - **A PM CARES section** — a snapshot of the COVID-era relief fund from its audited accounts
 
 ## How it stays up to date
 
-The data refreshes automatically. A small automated job checks for the latest RBI report each day and updates the dashboard on its own — no manual work needed.
+The data refreshes automatically. A small automated job checks for the latest RBI report each day — and re-pulls the World Bank borrower ranking — updating the dashboard on its own. The ranking is also refreshed from the live World Bank API on every deploy, and the in-page Reload button always bypasses caches.
 
 ## Run it locally
 

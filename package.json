@@ -8,6 +8,7 @@
   "scripts": {
     "check": "node scripts/check-syntax.js",
     "fetch:data": "node scripts/fetch-all.js",
+    "fetch:debt": "node scripts/fetch-debt-rankings.js",
     "update:fwd": "node scripts/update-fwd-series.js",
     "update:fwd-monthly": "node scripts/update-fwd-monthly.js"
   },

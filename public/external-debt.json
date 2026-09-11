@@ -1,0 +1,266 @@
+{
+  "fetched_at": "2026-09-11T09:34:09.775Z",
+  "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS (gross external debt position, all sectors, USD)",
+  "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
+  "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US",
+  "status": "ok",
+  "scope_note": "Gross external-debt stock ranking among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income economies). Each economy's latest published quarter is used, so vintages differ by up to a few quarters. The annual IDS series — which excludes high-income reporters — tops out at China instead; QEDS shows the USA and UK far ahead.",
+  "as_of_period": "2026Q1",
+  "worldbank_lastupdated": "2026-08-07",
+  "ranked_count": 135,
+  "sdds_count": 129,
+  "gdds_count": 60,
+  "top_borrowers": [
+    {
+      "rank": 1,
+      "iso3": "USA",
+      "name": "United States",
+      "value_bn": 30197,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 2,
+      "iso3": "GBR",
+      "name": "United Kingdom",
+      "value_bn": 11182.9,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 3,
+      "iso3": "FRA",
+      "name": "France",
+      "value_bn": 9233.4,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 4,
+      "iso3": "DEU",
+      "name": "Germany",
+      "value_bn": 8125.5,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 5,
+      "iso3": "NLD",
+      "name": "Netherlands",
+      "value_bn": 4868.8,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 6,
+      "iso3": "JPN",
+      "name": "Japan",
+      "value_bn": 4765.1,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 7,
+      "iso3": "LUX",
+      "name": "Luxembourg",
+      "value_bn": 4048.4,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 8,
+      "iso3": "IRL",
+      "name": "Ireland",
+      "value_bn": 3888.6,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 9,
+      "iso3": "CAN",
+      "name": "Canada",
+      "value_bn": 3471.7,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 10,
+      "iso3": "ESP",
+      "name": "Spain",
+      "value_bn": 3284.8,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 11,
+      "iso3": "ITA",
+      "name": "Italy",
+      "value_bn": 3263.3,
+      "period": "2026Q1"
+    },
+    {
+      "rank": 12,
+      "iso3": "SGP",
+      "name": "Singapore",
+      "value_bn": 2580.7,
+      "period": "2026Q1"
+    }
+  ],
+  "india": {
+    "rank": 23,
+    "iso3": "IND",
+    "name": "India",
+    "value_bn": 762.8,
+    "period": "2026Q1",
+    "neighbours": [
+      {
+        "rank": 21,
+        "iso3": "BRA",
+        "name": "Brazil",
+        "value_bn": 855.6,
+        "period": "2026Q1"
+      },
+      {
+        "rank": 22,
+        "iso3": "KOR",
+        "name": "Korea, Rep.",
+        "value_bn": 774.4,
+        "period": "2026Q1"
+      },
+      {
+        "rank": 23,
+        "iso3": "IND",
+        "name": "India",
+        "value_bn": 762.8,
+        "period": "2026Q1"
+      },
+      {
+        "rank": 24,
+        "iso3": "GRC",
+        "name": "Greece",
+        "value_bn": 687.2,
+        "period": "2026Q1"
+      },
+      {
+        "rank": 25,
+        "iso3": "DNK",
+        "name": "Denmark",
+        "value_bn": 686.9,
+        "period": "2026Q1"
+      }
+    ],
+    "history": [
+      {
+        "date": "2018Q4",
+        "value_bn": 521.3
+      },
+      {
+        "date": "2019Q1",
+        "value_bn": 543.1
+      },
+      {
+        "date": "2019Q2",
+        "value_bn": 556.9
+      },
+      {
+        "date": "2019Q3",
+        "value_bn": 557.5
+      },
+      {
+        "date": "2019Q4",
+        "value_bn": 563.9
+      },
+      {
+        "date": "2020Q1",
+        "value_bn": 558.2
+      },
+      {
+        "date": "2020Q2",
+        "value_bn": 555.2
+      },
+      {
+        "date": "2020Q3",
+        "value_bn": 556.9
+      },
+      {
+        "date": "2020Q4",
+        "value_bn": 563.8
+      },
+      {
+        "date": "2021Q1",
+        "value_bn": 573.7
+      },
+      {
+        "date": "2021Q2",
+        "value_bn": 575.3
+      },
+      {
+        "date": "2021Q3",
+        "value_bn": 603
+      },
+      {
+        "date": "2021Q4",
+        "value_bn": 613
+      },
+      {
+        "date": "2022Q1",
+        "value_bn": 619.1
+      },
+      {
+        "date": "2022Q2",
+        "value_bn": 613
+      },
+      {
+        "date": "2022Q3",
+        "value_bn": 605.8
+      },
+      {
+        "date": "2022Q4",
+        "value_bn": 611.7
+      },
+      {
+        "date": "2023Q1",
+        "value_bn": 624.3
+      },
+      {
+        "date": "2023Q2",
+        "value_bn": 629
+      },
+      {
+        "date": "2023Q3",
+        "value_bn": 637.1
+      },
+      {
+        "date": "2023Q4",
+        "value_bn": 648.7
+      },
+      {
+        "date": "2024Q1",
+        "value_bn": 668.8
+      },
+      {
+        "date": "2024Q2",
+        "value_bn": 681.5
+      },
+      {
+        "date": "2024Q3",
+        "value_bn": 713
+      },
+      {
+        "date": "2024Q4",
+        "value_bn": 718.6
+      },
+      {
+        "date": "2025Q1",
+        "value_bn": 736.4
+      },
+      {
+        "date": "2025Q2",
+        "value_bn": 746.8
+      },
+      {
+        "date": "2025Q3",
+        "value_bn": 747.2
+      },
+      {
+        "date": "2025Q4",
+        "value_bn": 767.4
+      },
+      {
+        "date": "2026Q1",
+        "value_bn": 762.8
+      }
+    ]
+  },
+  "generated_by": "scripts/fetch-debt-rankings.js"
+}

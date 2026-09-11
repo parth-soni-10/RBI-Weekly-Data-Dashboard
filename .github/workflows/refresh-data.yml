@@ -13,7 +13,9 @@ name: Refresh RBI data
 # official RBI disclosures whenever a newer one lands: scripts/update-fwd-series.js
 # (Mar/Sep half-yearly FX reserves reports, published ~May and ~Nov) and
 # scripts/update-fwd-monthly.js (the Bulletin's monthly Table 4A figure, whose
-# page advances with each new Bulletin issue).
+# page advances with each new Bulletin issue) — plus fetch-debt-rankings.js,
+# which re-pulls the World Bank external-debt ranking (biggest-borrower tiles
+# + chart) from the live api.worldbank.org on every run.
 
 on:
   schedule:
@@ -49,11 +51,14 @@ jobs:
       - name: Update forward-book series (half-yearly report + Bulletin monthly table)
         run: npm run update:fwd && npm run update:fwd-monthly
 
+      - name: Refresh World Bank external-debt ranking (biggest-borrower tiles)
+        run: npm run fetch:debt
+
       - name: Commit updated data (if changed)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/rbi-data.json netlify/functions/fetch-fx-intervention.js
+          git add public/rbi-data.json public/external-debt.json netlify/functions/fetch-fx-intervention.js
           if git diff --cached --quiet; then
             echo "No new data — nothing to commit."
           else
