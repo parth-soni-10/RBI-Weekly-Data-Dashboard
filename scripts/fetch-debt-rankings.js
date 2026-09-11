@@ -3,8 +3,10 @@
  * fetch-debt-rankings.js — regenerate public/external-debt.json.
  *
  * Pulls the world's biggest-borrower ranking (gross external-debt stock,
- * World Bank Quarterly External Debt Statistics, SDDS+GDDS) from the live
- * World Bank API and writes it as a static file the dashboard ships with.
+ * World Bank Quarterly External Debt Statistics, SDDS+GDDS) plus each
+ * economy's official FX reserves (WDI FI.RES.TOTL.CD, for debt-cover
+ * ratios) from the live World Bank API and writes it as a static file the
+ * dashboard ships with.
  * Runs on every deploy (netlify.toml build command) and in the daily GitHub
  * cron (refresh-data.yml), so every run re-pulls the authenticated source.
  *

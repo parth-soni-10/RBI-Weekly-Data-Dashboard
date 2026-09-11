@@ -23,7 +23,7 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 - **Weekly change** — whether each number moved up or down versus the previous week
 - **Charts and tables** — trend lines for the last 10 weeks, plus a searchable history
 - **Extra context** — crude-oil import estimates, investor (FII) flow, interest rates, and more
-- **World's biggest borrowers** — a quarterly cross-country ranking of external-debt stocks from the World Bank's Quarterly External Debt Statistics (countries' official IMF SDDS/GDDS submissions), with India's rank highlighted — the USA borrows the most, India sits in the low-#20s
+- **World's biggest borrowers** — a quarterly cross-country ranking of external-debt stocks from the World Bank's Quarterly External Debt Statistics (countries' official IMF SDDS/GDDS submissions), with India's rank highlighted — the USA borrows the most, India sits in the low-#20s — plus a debt-to-reserves cover comparison (India's tile uses the dashboard's own weekly RBI reserves), India's short- vs long-term maturity split, and India's borrower rank reconstructed quarter by quarter since 2021
 - **A PM CARES section** — a snapshot of the COVID-era relief fund from its audited accounts
 
 ## How it stays up to date

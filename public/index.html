@@ -762,7 +762,7 @@ html,body{overflow-x:clip}
       <div class="mex-detail" id="kpi-net-res-sub">awaiting records + forward book</div>
     </div>
     <div class="mex">
-      <div class="mex-label"><span data-glossary="India's total gross external-debt stock (all sectors, current US$), quarterly, from the World Bank's Quarterly External Debt Statistics — the IMF SDDS/GDDS channel through which India (via RBI) reports. Latest published quarter, currently 2026Q1.">India External Debt</span></div>
+      <div class="mex-label"><span data-glossary="India's total gross external-debt stock (all sectors, current US$), quarterly, from the World Bank's Quarterly External Debt Statistics — the IMF SDDS/GDDS channel through which India (via RBI) reports. Latest published quarter, currently 2026Q1. The sub-line shows debt cover: external debt ÷ FX reserves, using the dashboard's own fresher RBI weekly reserves when loaded (else the World Bank's annual figure) — lower = more comfortable.">India External Debt</span></div>
       <div id="kpi-ext-debt" class="mex-val">—</div>
       <div class="mex-detail" id="kpi-ext-debt-sub">awaiting World Bank QEDS</div>
     </div>
@@ -877,8 +877,8 @@ html,body{overflow-x:clip}
 
     <!-- World's biggest borrowers — World Bank QEDS ranking via fetch-external-debt.js -->
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">World's biggest borrower countries (external-debt stock, USD)</h3><div class="chart-note">Among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS — incl. high-income economies: USA #1, UK #2, China #14). Each bar uses that economy's latest published quarter; India highlighted. <a class="accent-link" href="https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1" target="_blank" rel="noopener">World Bank QEDS API</a></div></div><button class="tab" onclick="return copyDebtCSV(this)" title="Copy the borrower ranking as CSV">Copy CSV</button></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'debt','top')">Top 12</button><button class="tab" onclick="sw(this,'debt','india')">India vs neighbours</button><button class="tab" onclick="sw(this,'debt','history')">India history</button></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">World's biggest borrower countries (external-debt stock, USD)</h3><div class="chart-note">Among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS — incl. high-income economies: USA #1, UK #2, China #14). Each bar uses that economy's latest published quarter; India highlighted. "Debt vs reserves" shows external debt ÷ FX reserves (WDI 2025; India's line uses the live RBI weekly figure), dashed amber = India's cover. "Maturity split" stacks India's short- vs long-term external debt (QEDS), line = short-term share of total. "Rank since 2021" rebuilds India's borrower rank each quarter from the full QEDS panel (rank counts that quarter's reporters; the newest quarter is still filling in). <a class="accent-link" href="https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1" target="_blank" rel="noopener">World Bank QEDS API</a></div></div><button class="tab" onclick="return copyDebtCSV(this)" title="Copy the borrower ranking as CSV">Copy CSV</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'debt','top')">Top 12</button><button class="tab" onclick="sw(this,'debt','india')">India vs neighbours</button><button class="tab" onclick="sw(this,'debt','cover')">Debt vs reserves</button><button class="tab" onclick="sw(this,'debt','maturity')">Maturity split</button><button class="tab" onclick="sw(this,'debt','rank')">Rank since 2021</button><button class="tab" onclick="sw(this,'debt','history')">India history</button></div>
       <div class="chart-wrap"><canvas id="cDebt" role="img" aria-label="Bar chart of the world's biggest borrower countries by external-debt stock, India highlighted"></canvas></div>
       <div class="chart-empty" id="debt-empty" hidden>Awaiting the World Bank QEDS ranking — the biggest-borrower chart appears here once fetch-external-debt returns data.</div>
     </div>
@@ -1776,6 +1776,7 @@ function updateUI(){
   renderImportCover();
   renderVolatility();
   renderReserveForwardKpis();
+  renderExternalDebt(); // borrower tile: swaps WB reserves for the fresher RBI weekly figure
   updateMiniBar();
   renderCrudeHighlights().catch(()=>{});
 }
@@ -2857,7 +2858,10 @@ let macroData  = {};
 // every deploy/cron) for local previews without the Netlify functions.
 let debtData = null;
 async function loadExternalDebt(noStore){
-  const url = MACRO_ENDPOINTS.debt;
+  // noStore (explicit Reload) also appends ?refresh=1 so the function busts
+  // its own 6h in-process memo and re-pulls the World Bank API — not just the
+  // browser cache.
+  const url = noStore ? MACRO_ENDPOINTS.debt + '?refresh=1' : MACRO_ENDPOINTS.debt;
   try {
     const r = await fetch(url, noStore ? { cache: 'no-store' } : { cache: 'default' });
     if (r.ok) { debtData = await r.json(); return; }
@@ -3124,6 +3128,144 @@ function renderDebtChart(){
   }
 
   if(charts.cDebt) charts.cDebt.destroy();
+  if(modes.debt === 'rank'){
+    // India's borrower rank, quarter by quarter (full QEDS panel, ±2 rank
+    // neighbours per point). Y-axis inverted: #1 sits at the top.
+    const rh = ((d.india && d.india.rank_history) || []).slice(-21);
+    if(!rh.length){ setChartEmpty('cDebt', 'debt-empty', true); return; }
+    setChartEmpty('cDebt', 'debt-empty', false);
+    const ranks = rh.map(p => p.rank);
+    charts.cDebt = new Chart(el, {
+      type: 'line',
+      data: {
+        labels: rh.map(p => p.period),
+        datasets: [{
+          label: "India's borrower rank (inverted — #1 on top)",
+          data: ranks,
+          borderColor: G, backgroundColor: G + '18', fill: true,
+          tension: .3, pointRadius: 3, pointBackgroundColor: G, borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1,
+            callbacks: {
+              label: ctx => {
+                const p = rh[ctx.dataIndex] || {};
+                return `#${p.rank} of ${p.reporters} reporters · debt $${(p.value_bn || 0).toLocaleString('en-IN')}bn`;
+              },
+              afterBody: items => {
+                const p = rh[items[0].dataIndex];
+                if(!p || !p.neighbours) return [];
+                return p.neighbours
+                  .filter(n => n.iso3 !== 'IND')
+                  .map(n => `${n.iso3} #${n.rank}: $${(n.value_bn || 0).toLocaleString('en-IN')}bn`);
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: tickC, font: { size: 9.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: gridC } },
+          y: { reverse: true, suggestedMin: Math.min(...ranks) - 1, suggestedMax: Math.max(...ranks) + 1,
+               ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, stepSize: 2, callback: v => '#' + v }, grid: { color: gridC } },
+        },
+      },
+    });
+    return;
+  }
+  if(modes.debt === 'maturity'){
+    // India's short- vs long-term external debt (QEDS SDDS): stacked bars,
+    // with the short-term share of total on a right-hand % axis.
+    const hist = ((d.india && d.india.history) || []).filter(h => h.st_bn != null).slice(-20);
+    if(!hist.length){ setChartEmpty('cDebt', 'debt-empty', true); return; }
+    setChartEmpty('cDebt', 'debt-empty', false);
+    charts.cDebt = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: hist.map(h => h.date),
+        datasets: [
+          { label: 'Long-term', data: hist.map(h => h.lt_bn), backgroundColor: BLUE, borderRadius: 3, borderSkipped: false, stack: 'mat' },
+          { label: 'Short-term', data: hist.map(h => h.st_bn), backgroundColor: AMB, borderRadius: 3, borderSkipped: false, stack: 'mat' },
+          { type: 'line', label: 'Short-term share (%, right)', data: hist.map(h => h.st_share_pct),
+            borderColor: G, backgroundColor: G, yAxisID: 'y1', tension: .3, pointRadius: 2.5, borderWidth: 2 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { color: CH.legend, font: { size: 10.5, family: 'Inter', weight: '500' }, boxWidth: 10 } },
+          tooltip: {
+            backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1,
+            callbacks: { label: ctx => ctx.dataset.yAxisID === 'y1'
+              ? `Short-term share: ${ctx.parsed.y.toFixed(1)}%`
+              : `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('en-IN')}bn` } },
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: tickC, font: { size: 9.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: gridC } },
+          y: { stacked: true, beginAtZero: true, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v + 'B' }, grid: { color: gridC } },
+          y1: { position: 'right', beginAtZero: true, suggestedMax: 40, grid: { display: false }, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v + '%' } },
+        },
+      },
+    });
+    return;
+  }
+  if(modes.debt === 'cover'){
+    // Debt ÷ reserves cover: horizontal bars per economy, India's own ratio
+    // (live RBI weekly reserves when loaded) drawn as a dashed amber line.
+    const rows = d.top_borrowers
+      .filter(t => t.reserves_bn != null && t.reserves_bn > 0)
+      .map(t => ({ ...t, cover: t.value_bn / t.reserves_bn }));
+    if(!rows.length){ setChartEmpty('cDebt', 'debt-empty', true); return; }
+    const indCover = debtCoverRatio();
+    charts.cDebt = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: rows.map(t => t.iso3),
+        datasets: [{
+          label: 'External debt ÷ reserves (×)',
+          data: rows.map(t => +t.cover.toFixed(2)),
+          backgroundColor: rows.map(t => t.iso3 === 'IND' ? G : BLUE),
+          borderRadius: 4, borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1,
+            callbacks: { label: ctx => {
+              const t = rows[ctx.dataIndex] || {};
+              const tag = (t.iso3 === 'IND' && indCover != null) ? ' (live RBI reserves)' : '';
+              return `${t.name || ctx.label}${tag}: ${t.value_bn.toLocaleString('en-IN')}B debt ÷ ${t.reserves_bn.toLocaleString('en-IN')}B reserves = ${ctx.parsed.x.toFixed(2)}×`;
+            } } },
+        },
+        scales: {
+          // Log x-axis: Luxembourg (~1300×) and Ireland (~280×) — financial hubs
+          // with small reserves — would otherwise crush every other bar.
+          x: { type: 'logarithmic', ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => (v === 1 || v === 10 || v === 100 || v === 1000 ? v + '×' : '') }, grid: { color: gridC } },
+          y: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '600' }, autoSkip: false }, grid: { color: gridC } },
+        },
+      },
+    });
+    // India's cover as a dashed amber vertical line (Chart.js v4: second
+    // dataset on a horizontal bar chart renders as a vertical line at that x).
+    if(indCover != null){
+      charts.cDebt.data.datasets.push({
+        label: 'India (live reserves)',
+        data: rows.map(() => indCover),
+        type: 'line',
+        borderColor: AMB, borderWidth: 1.5, borderDash: [6, 4],
+        pointRadius: 0, fill: false,
+      });
+      charts.cDebt.update('none');
+    }
+    return;
+  }
   charts.cDebt = new Chart(el, {
     type: 'bar',
     data: { labels, datasets: [{ label: 'External debt (USD bn)', data: values, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
@@ -3144,7 +3286,7 @@ function renderDebtChart(){
         },
       },
       scales: modes.debt === 'history'
-        ? { x: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: gridC } },
+        ? { x: { type: 'category', ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: gridC } },
             y: { beginAtZero: true, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v >= 1000 ? (v/1000).toFixed(1) + 'T' : v + 'B' }, grid: { color: gridC } } }
         : { x: { beginAtZero: true, ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '500' }, callback: v => v >= 1000 ? (v/1000).toFixed(1) + 'T' : v + 'B' }, grid: { color: gridC } },
             y: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '600' }, autoSkip: false }, grid: { color: gridC } } },
@@ -3157,6 +3299,16 @@ function fmtDebtUsd(v){
   return v >= 1000 ? '$' + (v/1000).toFixed(2) + 'T' : '$' + v.toFixed(1) + 'B';
 }
 
+// Debt-cover helpers: India's ratio prefers the dashboard's own fresher RBI
+// weekly reserves (records); other economies use the World Bank annual figure.
+function debtCoverRatio(){
+  const d = debtData;
+  if(!d || !d.india || d.india.value_bn == null) return null;
+  const L = records.length ? records[records.length - 1] : null;
+  const resBn = (L && L.total_usd != null) ? L.total_usd / 1000 : d.india.reserves_bn;
+  return resBn > 0 ? d.india.value_bn / resBn : null;
+}
+
 function renderExternalDebt(){
   const d = debtData;
   if(!d || !d.top_borrowers || !d.top_borrowers.length) return;
@@ -3167,7 +3319,17 @@ function renderExternalDebt(){
   if(debtEl && ind.value_bn != null){
     debtEl.textContent = fmtDebtUsd(ind.value_bn);
     const sub = document.getElementById('kpi-ext-debt-sub');
-    if(sub) sub.textContent = `World Bank QEDS · ${ind.period || d.as_of_period}` + (fallback ? ' · fallback' : '');
+    if(sub){
+      const cover = debtCoverRatio();
+      const L = records.length ? records[records.length - 1] : null;
+      const liveRes = !!(L && L.total_usd != null);
+      const resTxt = liveRes
+        ? `$${(L.total_usd / 1000).toFixed(1)}B RBI ${fmtDate(L.date)}`
+        : (ind.reserves_bn != null ? `$${ind.reserves_bn.toFixed(1)}B WB ${ind.reserves_year}` : null);
+      sub.textContent = `World Bank QEDS · ${ind.period || d.as_of_period}`
+        + (cover != null ? ` · cover ${cover.toFixed(2)}× of ${resTxt}` : '')
+        + (fallback ? ' · fallback' : '');
+    }
   }
   const rankEl = document.getElementById('kpi-ext-debt-rank');
   if(rankEl && ind.rank != null){
@@ -3184,11 +3346,26 @@ function renderExternalDebt(){
 function copyDebtCSV(btn){
   const d = debtData;
   if(!d || !d.top_borrowers || !d.top_borrowers.length) return false;
-  const lines = ['rank,country,iso3,external_debt_usd_bn,reference_quarter']
-    .concat(d.top_borrowers.map(t => [t.rank, `"${t.name}"`, t.iso3, t.value_bn, t.period].join(',')));
+  const lines = ['rank,country,iso3,external_debt_usd_bn,reference_quarter,reserves_usd_bn,reserves_year,debt_cover_ratio']
+    .concat(d.top_borrowers.map(t => [t.rank, `"${t.name}"`, t.iso3, t.value_bn, t.period,
+                                      t.reserves_bn ?? '', t.reserves_year ?? '',
+                                      (t.reserves_bn != null && t.reserves_bn > 0) ? (t.value_bn / t.reserves_bn).toFixed(2) : ''].join(',')));
   if(d.india && d.india.history && d.india.history.length){
     lines.push('', 'india_external_debt_usd_bn,quarter');
     d.india.history.forEach(h => lines.push(`${h.value_bn},${h.date}`));
+    // Maturity split (absent short-term figures render as empty cells).
+    lines.push('', 'india_quarter,total_usd_bn,short_term_usd_bn,long_term_usd_bn,short_term_share_pct');
+    d.india.history.forEach(h => lines.push([
+      h.date, h.total_bn ?? h.value_bn, h.st_bn ?? '', h.lt_bn ?? '', h.st_share_pct ?? '',
+    ].join(',')));
+    // Reconstructed rank history (reporters = economies reporting that quarter).
+    if(d.india.rank_history && d.india.rank_history.length){
+      lines.push('', 'india_quarter,borrower_rank,reporters_that_quarter,india_debt_usd_bn,rank_neighbours');
+      d.india.rank_history.forEach(p => lines.push([
+        p.period, p.rank, p.reporters, p.value_bn,
+        `"${(p.neighbours || []).map(n => `${n.iso3}#${n.rank}`).join(' ')}"`,
+      ].join(',')));
+    }
   }
   const csv = lines.join('\n');
   const done = ok => {
