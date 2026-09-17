@@ -1,10 +1,10 @@
 {
-  "fetched_at": "2026-09-16T04:59:43.379Z",
+  "fetched_at": "2026-09-17T05:01:55.283Z",
   "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS — curated fallback",
   "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
   "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US",
   "status": "static fallback",
-  "error": "HTTP 400 on https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.TL.US?format=json&source=23&per_page=30000&date=2021Q1:2026Q4 — showing last-known curated figures",
+  "error": "HTTP 400 on https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.TL.US?format=json&source=23&per_page=400&mrnev=1 — showing last-known curated figures",
   "scope_note": "Gross external-debt stock ranking among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income economies). Each economy's latest published quarter is used, so vintages differ by up to a few quarters. The annual IDS series — which excludes high-income reporters — tops out at China instead; QEDS shows the USA and UK far ahead.",
   "as_of_period": "2026Q1",
   "worldbank_lastupdated": "2026-08-07",
