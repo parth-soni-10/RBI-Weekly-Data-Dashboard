@@ -1,8 +1,8 @@
 {
-  "fetched_at": "2026-09-18T04:54:42.665Z",
+  "fetched_at": "2026-09-19T04:46:35.928Z",
   "source": "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
   "generated_by": "scripts/fetch-all.js",
-  "count": 37,
+  "count": 38,
   "records": [
     {
       "date": "2025-12-26",
@@ -410,6 +410,17 @@
       "eur_inr": 109.78299713134766,
       "nifty": 23897.69921875,
       "sensex": 76515.4296875
+    },
+    {
+      "date": "2026-09-11",
+      "total_usd": 780782,
+      "total_inr": 7460261,
+      "gold_usd": 111225,
+      "gold_inr": 1062723,
+      "usd_inr": 95.69450378417969,
+      "eur_inr": 110.73100280761719,
+      "nifty": 23398.099609375,
+      "sensex": 74781.7578125
     }
   ]
 }

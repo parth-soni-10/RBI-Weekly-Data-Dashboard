@@ -1,9 +1,10 @@
 {
-  "fetched_at": "2026-09-18T04:54:54.050Z",
-  "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS (gross external debt position, all sectors, USD) + WDI reserves (FI.RES.TOTL.CD)",
+  "fetched_at": "2026-09-19T04:46:53.399Z",
+  "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS — curated fallback",
   "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
-  "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US + FI.RES.TOTL.CD",
-  "status": "ok",
+  "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US",
+  "status": "static fallback",
+  "error": "HTTP 400 on https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.TL.US?format=json&source=23&per_page=30000&date=2021Q1:2026Q4 — showing last-known curated figures",
   "scope_note": "Gross external-debt stock ranking among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income economies). Each economy's latest published quarter is used, so vintages differ by up to a few quarters. The annual IDS series — which excludes high-income reporters — tops out at China instead; QEDS shows the USA and UK far ahead.",
   "as_of_period": "2026Q1",
   "worldbank_lastupdated": "2026-08-07",
@@ -179,70 +180,6 @@
       }
     ],
     "history": [
-      {
-        "date": "2018Q4",
-        "value_bn": 521.3,
-        "total_bn": 521.3,
-        "st_bn": 103.9,
-        "lt_bn": 417.4,
-        "st_share_pct": 19.9
-      },
-      {
-        "date": "2019Q1",
-        "value_bn": 543.1,
-        "total_bn": 543.1,
-        "st_bn": 108.4,
-        "lt_bn": 434.7,
-        "st_share_pct": 20
-      },
-      {
-        "date": "2019Q2",
-        "value_bn": 556.9,
-        "total_bn": 556.9,
-        "st_bn": 109.7,
-        "lt_bn": 447.2,
-        "st_share_pct": 19.7
-      },
-      {
-        "date": "2019Q3",
-        "value_bn": 557.5,
-        "total_bn": 557.5,
-        "st_bn": 109.1,
-        "lt_bn": 448.4,
-        "st_share_pct": 19.6
-      },
-      {
-        "date": "2019Q4",
-        "value_bn": 563.9,
-        "total_bn": 563.9,
-        "st_bn": 106.8,
-        "lt_bn": 457.1,
-        "st_share_pct": 18.9
-      },
-      {
-        "date": "2020Q1",
-        "value_bn": 558.2,
-        "total_bn": 558.2,
-        "st_bn": 106.9,
-        "lt_bn": 451.3,
-        "st_share_pct": 19.2
-      },
-      {
-        "date": "2020Q2",
-        "value_bn": 555.2,
-        "total_bn": 555.2,
-        "st_bn": 105,
-        "lt_bn": 450.2,
-        "st_share_pct": 18.9
-      },
-      {
-        "date": "2020Q3",
-        "value_bn": 556.9,
-        "total_bn": 556.9,
-        "st_bn": 102.8,
-        "lt_bn": 454.1,
-        "st_share_pct": 18.5
-      },
       {
         "date": "2020Q4",
         "value_bn": 563.8,
@@ -425,694 +362,127 @@
         "period": "2021Q1",
         "rank": 26,
         "reporters": 124,
-        "value_bn": 573.7,
-        "neighbours": [
-          {
-            "rank": 24,
-            "iso3": "DNK",
-            "value_bn": 597.9
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 587.7
-          },
-          {
-            "rank": 26,
-            "iso3": "IND",
-            "value_bn": 573.7
-          },
-          {
-            "rank": 27,
-            "iso3": "KOR",
-            "value_bn": 568.1
-          },
-          {
-            "rank": 28,
-            "iso3": "PRT",
-            "value_bn": 481.9
-          }
-        ]
+        "value_bn": 573.7
       },
       {
         "period": "2021Q2",
         "rank": 27,
         "reporters": 122,
-        "value_bn": 575.3,
-        "neighbours": [
-          {
-            "rank": 25,
-            "iso3": "MEX",
-            "value_bn": 615.4
-          },
-          {
-            "rank": 26,
-            "iso3": "KOR",
-            "value_bn": 608.5
-          },
-          {
-            "rank": 27,
-            "iso3": "IND",
-            "value_bn": 575.3
-          },
-          {
-            "rank": 28,
-            "iso3": "PRT",
-            "value_bn": 496.4
-          },
-          {
-            "rank": 29,
-            "iso3": "RUS",
-            "value_bn": 474.1
-          }
-        ]
+        "value_bn": 575.3
       },
       {
         "period": "2021Q3",
         "rank": 27,
         "reporters": 121,
-        "value_bn": 603,
-        "neighbours": [
-          {
-            "rank": 25,
-            "iso3": "MEX",
-            "value_bn": 614.5
-          },
-          {
-            "rank": 26,
-            "iso3": "DNK",
-            "value_bn": 611.7
-          },
-          {
-            "rank": 27,
-            "iso3": "IND",
-            "value_bn": 603
-          },
-          {
-            "rank": 28,
-            "iso3": "RUS",
-            "value_bn": 497
-          },
-          {
-            "rank": 29,
-            "iso3": "PRT",
-            "value_bn": 481.5
-          }
-        ]
+        "value_bn": 603
       },
       {
         "period": "2021Q4",
         "rank": 24,
         "reporters": 122,
-        "value_bn": 613,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 630.7
-          },
-          {
-            "rank": 23,
-            "iso3": "GRC",
-            "value_bn": 628.5
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 613
-          },
-          {
-            "rank": 25,
-            "iso3": "MEX",
-            "value_bn": 602.1
-          },
-          {
-            "rank": 26,
-            "iso3": "FIN",
-            "value_bn": 592.3
-          }
-        ]
+        "value_bn": 613
       },
       {
         "period": "2022Q1",
         "rank": 25,
         "reporters": 120,
-        "value_bn": 619.1,
-        "neighbours": [
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 651.4
-          },
-          {
-            "rank": 24,
-            "iso3": "GRC",
-            "value_bn": 625.4
-          },
-          {
-            "rank": 25,
-            "iso3": "IND",
-            "value_bn": 619.1
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 604.4
-          },
-          {
-            "rank": 27,
-            "iso3": "DNK",
-            "value_bn": 569.7
-          }
-        ]
+        "value_bn": 619.1
       },
       {
         "period": "2022Q2",
         "rank": 24,
         "reporters": 120,
-        "value_bn": 613,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 661.8
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 633.3
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 613
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 582.5
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 581.9
-          }
-        ]
+        "value_bn": 613
       },
       {
         "period": "2022Q3",
         "rank": 24,
         "reporters": 121,
-        "value_bn": 605.8,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 646.1
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 617.6
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 605.8
-          },
-          {
-            "rank": 25,
-            "iso3": "MEX",
-            "value_bn": 571.7
-          },
-          {
-            "rank": 26,
-            "iso3": "GRC",
-            "value_bn": 544.9
-          }
-        ]
+        "value_bn": 605.8
       },
       {
         "period": "2022Q4",
         "rank": 24,
         "reporters": 122,
-        "value_bn": 611.7,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 673.3
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 616.6
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 611.7
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 584.1
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 582.6
-          }
-        ]
+        "value_bn": 611.7
       },
       {
         "period": "2023Q1",
         "rank": 24,
         "reporters": 120,
-        "value_bn": 624.3,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 672.9
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 670.6
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 624.3
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 599.3
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 594.2
-          }
-        ]
+        "value_bn": 624.3
       },
       {
         "period": "2023Q2",
         "rank": 24,
         "reporters": 121,
-        "value_bn": 629,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "FIN",
-            "value_bn": 683.9
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 672.7
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 629
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 604.5
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 596.5
-          }
-        ]
+        "value_bn": 629
       },
       {
         "period": "2023Q3",
         "rank": 24,
         "reporters": 123,
-        "value_bn": 637.1,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 657.5
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 637.7
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 637.1
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 587.4
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 583
-          }
-        ]
+        "value_bn": 637.1
       },
       {
         "period": "2023Q4",
         "rank": 24,
         "reporters": 123,
-        "value_bn": 648.7,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 677.3
-          },
-          {
-            "rank": 23,
-            "iso3": "FIN",
-            "value_bn": 651.8
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 648.7
-          },
-          {
-            "rank": 25,
-            "iso3": "GRC",
-            "value_bn": 612.2
-          },
-          {
-            "rank": 26,
-            "iso3": "MEX",
-            "value_bn": 594
-          }
-        ]
+        "value_bn": 648.7
       },
       {
         "period": "2024Q1",
         "rank": 24,
         "reporters": 123,
-        "value_bn": 668.8,
-        "neighbours": [
-          {
-            "rank": 22,
-            "iso3": "FIN",
-            "value_bn": 672
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 670.5
-          },
-          {
-            "rank": 24,
-            "iso3": "IND",
-            "value_bn": 668.8
-          },
-          {
-            "rank": 25,
-            "iso3": "MEX",
-            "value_bn": 609.5
-          },
-          {
-            "rank": 26,
-            "iso3": "GRC",
-            "value_bn": 596
-          }
-        ]
+        "value_bn": 668.8
       },
       {
         "period": "2024Q2",
         "rank": 22,
         "reporters": 123,
-        "value_bn": 681.5,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "BRA",
-            "value_bn": 742.2
-          },
-          {
-            "rank": 21,
-            "iso3": "NOR",
-            "value_bn": 726.3
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 681.5
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 664.8
-          },
-          {
-            "rank": 24,
-            "iso3": "FIN",
-            "value_bn": 642.1
-          }
-        ]
+        "value_bn": 681.5
       },
       {
         "period": "2024Q3",
         "rank": 22,
         "reporters": 120,
-        "value_bn": 713,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "BRA",
-            "value_bn": 766.6
-          },
-          {
-            "rank": 21,
-            "iso3": "NOR",
-            "value_bn": 750
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 713
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 703.9
-          },
-          {
-            "rank": 24,
-            "iso3": "FIN",
-            "value_bn": 690.1
-          }
-        ]
+        "value_bn": 713
       },
       {
         "period": "2024Q4",
         "rank": 21,
         "reporters": 118,
-        "value_bn": 718.6,
-        "neighbours": [
-          {
-            "rank": 19,
-            "iso3": "AUT",
-            "value_bn": 793.1
-          },
-          {
-            "rank": 20,
-            "iso3": "NOR",
-            "value_bn": 735.3
-          },
-          {
-            "rank": 21,
-            "iso3": "IND",
-            "value_bn": 718.6
-          },
-          {
-            "rank": 22,
-            "iso3": "BRA",
-            "value_bn": 717.9
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 677.8
-          }
-        ]
+        "value_bn": 718.6
       },
       {
         "period": "2025Q1",
         "rank": 22,
         "reporters": 117,
-        "value_bn": 736.4,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "NOR",
-            "value_bn": 761
-          },
-          {
-            "rank": 21,
-            "iso3": "BRA",
-            "value_bn": 745.8
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 736.4
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 687.9
-          },
-          {
-            "rank": 24,
-            "iso3": "FIN",
-            "value_bn": 644.7
-          }
-        ]
+        "value_bn": 736.4
       },
       {
         "period": "2025Q2",
         "rank": 22,
         "reporters": 117,
-        "value_bn": 746.8,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "NOR",
-            "value_bn": 795.7
-          },
-          {
-            "rank": 21,
-            "iso3": "BRA",
-            "value_bn": 766.9
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 746.8
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 739.6
-          },
-          {
-            "rank": 24,
-            "iso3": "FIN",
-            "value_bn": 722.3
-          }
-        ]
+        "value_bn": 746.8
       },
       {
         "period": "2025Q3",
         "rank": 22,
         "reporters": 117,
-        "value_bn": 747.2,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "NOR",
-            "value_bn": 810.5
-          },
-          {
-            "rank": 21,
-            "iso3": "BRA",
-            "value_bn": 804.2
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 747.2
-          },
-          {
-            "rank": 23,
-            "iso3": "KOR",
-            "value_bn": 741.8
-          },
-          {
-            "rank": 24,
-            "iso3": "GRC",
-            "value_bn": 685.9
-          }
-        ]
+        "value_bn": 747.2
       },
       {
         "period": "2025Q4",
         "rank": 23,
         "reporters": 113,
-        "value_bn": 767.4,
-        "neighbours": [
-          {
-            "rank": 21,
-            "iso3": "BRA",
-            "value_bn": 819.5
-          },
-          {
-            "rank": 22,
-            "iso3": "KOR",
-            "value_bn": 770.2
-          },
-          {
-            "rank": 23,
-            "iso3": "IND",
-            "value_bn": 767.4
-          },
-          {
-            "rank": 24,
-            "iso3": "GRC",
-            "value_bn": 694
-          },
-          {
-            "rank": 25,
-            "iso3": "DNK",
-            "value_bn": 690.6
-          }
-        ]
+        "value_bn": 767.4
       },
       {
         "period": "2026Q1",
         "rank": 22,
         "reporters": 104,
-        "value_bn": 762.8,
-        "neighbours": [
-          {
-            "rank": 20,
-            "iso3": "BRA",
-            "value_bn": 855.6
-          },
-          {
-            "rank": 21,
-            "iso3": "KOR",
-            "value_bn": 774.4
-          },
-          {
-            "rank": 22,
-            "iso3": "IND",
-            "value_bn": 762.8
-          },
-          {
-            "rank": 23,
-            "iso3": "GRC",
-            "value_bn": 687.2
-          },
-          {
-            "rank": 24,
-            "iso3": "DNK",
-            "value_bn": 686.9
-          }
-        ]
+        "value_bn": 762.8
       }
     ]
   },
