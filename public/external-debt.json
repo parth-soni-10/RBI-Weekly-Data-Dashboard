@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-09-20T05:03:59.982Z",
+  "fetched_at": "2026-09-21T05:10:26.414Z",
   "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS (gross external debt position, all sectors, USD) + WDI reserves (FI.RES.TOTL.CD)",
   "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
   "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US + FI.RES.TOTL.CD",
