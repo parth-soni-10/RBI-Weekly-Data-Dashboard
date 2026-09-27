@@ -23,6 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="vibe.css">
 <style>
 /* ══════════════════════════════════════════════════════════════════════
    RBI Weekly Dashboard — design system
@@ -1244,7 +1245,22 @@ initHeaderShadow();
 
 const fmt = (n,d=0) => n==null ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtD = (n,d=0) => { if(n==null) return ''; const s=n>=0?'+':'',c=n>=0?'up':'dn'; return `<span class="${c}">${s}${fmt(n,d)}</span>`; };
-const fmtDate = s => { if(!s) return '—'; const [y,m,d]=s.split('-'); if(!y||!m||!d) return s; return new Date(y, m-1, d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); };
+/* Escape a value before it can become HTML. Everything this page takes from
+   outside the file — above all the shared data-sync blob, which is a public
+   cache anyone can post to — reaches the DOM through escHtml, fmt or fmtDate,
+   and none of the three ever echoes a raw string back. */
+const escHtml = v => String(v == null ? '' : v).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* Only a real date is formatted. Anything else renders as the dashboard's
+   empty-value dash instead of being echoed back verbatim, which is what made a
+   record whose "date" was markup executable before. */
+const fmtDate = s => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s == null ? '' : s)); // ISO day, optional time
+  const d = m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
+  return d && !isNaN(d.getTime())
+    ? d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
+    : '—';
+};
 
 /* ─── Motion layer (genjutsu: gsap + motion-principles + css-native) ──
    Interaction thesis for this dashboard: "terminal calm" — motion only
@@ -1293,7 +1309,7 @@ function rbiPublicationDate(dateStr){
 }
 function setStatus(s){
   document.getElementById('status-dot').className='dot '+s;
-  document.getElementById('status-text').textContent=s==='running'?'Fetching...':s==='done'?'Complete':s==='error'?'Error':'Idle';
+  document.getElementById('status-text').textContent=s==='running'?'Fetching…':s==='done'?'Complete':s==='error'?'Error':'Idle';
 }
 function appendLog(msg, cls=''){
   const box=document.getElementById('log-box');
@@ -1367,8 +1383,10 @@ async function mergeLiveUpdates() {
     if (blob && Array.isArray(blob.records) && blob.records.length) {
       let fromBlob = 0;
       for (const rec of blob.records) {
-        if (rec && rec.date && mergeLiveRecord(rec)) fromBlob++;
-        if (rec && rec.date && (!blobNewest || rec.date > blobNewest)) blobNewest = rec.date;
+        const clean = cleanLiveRecord(rec);
+        if (!clean) continue; // malformed, or a "date" that is not a date
+        if (mergeLiveRecord(clean)) fromBlob++;
+        if (!blobNewest || clean.date > blobNewest) blobNewest = clean.date;
       }
       if (fromBlob) {
         records.sort((a, b) => a.date.localeCompare(b.date));
@@ -1728,10 +1746,32 @@ async function persistSyncRecords() {
 // Merge a single live-fetched record into the global set (dedupe by date).
 // Returns true when the record is new; upgrades in place when a same-date
 // record already exists.
+/* Shape-check a record before it joins the series. The blob is a shared cache
+   anyone can write to, so nothing about a stored record is trusted: the date
+   must be a real ISO day (a record whose "date" is markup is exactly how a
+   payload reached the table before), numbers must be finite, and every string
+   is stripped of angle brackets and capped. */
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function cleanLiveRecord(rec){
+  if(!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+  const date = typeof rec.date === 'string' ? rec.date : '';
+  if(!ISO_DAY_RE.test(date) || isNaN(new Date(date).getTime())) return null;
+  const out = { date };
+  for(const k of Object.keys(rec)){
+    if(k === 'date' || !/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+    const v = rec[k];
+    if(typeof v === 'number' && isFinite(v)) out[k] = v;
+    else if(typeof v === 'string') out[k] = v.replace(/[<>]/g,'').slice(0,400);
+    else if(v === null || typeof v === 'boolean') out[k] = v;
+  }
+  return out;
+}
 function mergeLiveRecord(rec) {
-  const i = records.findIndex(r => r.date === rec.date);
-  if (i >= 0) { records[i] = Object.assign({}, records[i], rec); return false; }
-  records.push(rec);
+  const clean = cleanLiveRecord(rec);
+  if (!clean) return false;
+  const i = records.findIndex(r => r.date === clean.date);
+  if (i >= 0) { records[i] = Object.assign({}, records[i], clean); return false; }
+  records.push(clean);
   return true;
 }
 
@@ -2424,7 +2464,7 @@ function setCrudeStatus(state, msg) {
   const el = document.getElementById('crude-fetch-status');
   if (!el) return;
   const map = {
-    loading: { cls: 'warn',  txt: 'Fetching live crude data...' },
+    loading: { cls: 'warn',  txt: 'Fetching live crude data…' },
     done:    { cls: 'ok',    txt: 'Live crude data loaded'       },
     error:   { cls: 'err',   txt: `Crude fetch failed: ${msg}`   },
   };
@@ -2469,11 +2509,11 @@ async function renderCrudeHighlights() {
 async function renderCrudeSection() {
   // show loading state immediately
   const kpiDiv = document.getElementById('crude-kpis');
-  if (kpiDiv) kpiDiv.innerHTML = '<div class="kpi-msg">Loading live crude data...</div>';
+  if (kpiDiv) kpiDiv.innerHTML = '<div class="kpi-msg">Loading live crude data…</div>';
 
   let c;
   try { c = await loadCrudeData(); } catch(e) {
-    if (kpiDiv) kpiDiv.innerHTML = `<div class="kpi-msg err">Failed to load crude data: ${e.message}</div>`;
+    if (kpiDiv) kpiDiv.innerHTML = `<div class="kpi-msg err">Failed to load crude data: ${escHtml(e.message)}</div>`;
     return;
   }
 
@@ -2491,7 +2531,7 @@ async function renderCrudeSection() {
       const indiaBound = c.tankers.length;
 
       kpiDiv.innerHTML = [
-        latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${fmtDate(latest.date)} · ${latest.methodology}</div></div>` : '',
+        latest ? `<div class="mc"><div class="mc-label">Latest Est. BPD</div><div class="mc-val">${latest.barrels_per_day.toLocaleString()}</div><div class="mc-sub">${fmtDate(latest.date)} · ${escHtml(latest.methodology)}</div></div>` : '',
         avg    ? `<div class="mc"><div class="mc-label">Avg BPD (window)</div><div class="mc-val">${avg.toLocaleString()}</div><div class="mc-sub">${daily.length} days</div></div>` : '',
         totalArr ? `<div class="mc"><div class="mc-label">Tanker Arrivals</div><div class="mc-val">${totalArr.toLocaleString()}</div><div class="mc-sub">in window</div></div>` : '',
         indiaBound ? `<div class="mc"><div class="mc-label">India-Bound Now</div><div class="mc-val">${indiaBound}</div><div class="mc-sub">AIS tracked</div></div>` : '',
@@ -2642,7 +2682,7 @@ async function renderCrudeSection() {
         const isActive = (p.crude_arrivals || 0) > 0 || (p.in_port || 0) > 0;
         const tr       = document.createElement('tr');
         if (!isActive) tr.style.opacity = '0.5';
-        tr.innerHTML = `<td>${p.name}</td>`
+        tr.innerHTML = `<td>${escHtml(p.name)}</td>`
           + `<td class="num">${p.crude_arrivals || 0}</td>`
           + `<td class="num">${p.in_port || 0}</td>`
           + `<td class="num">${p.expected || 0}</td>`
@@ -2663,12 +2703,12 @@ async function renderCrudeSection() {
       tankersBody.innerHTML = '';
       c.tankers.forEach(v => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${v.name || '—'}</td>`
-          + `<td>${v.vessel_class || v.class || '—'}</td>`
+        tr.innerHTML = `<td>${escHtml(v.name || '—')}</td>`
+          + `<td>${escHtml(v.vessel_class || v.class || '—')}</td>`
           + `<td class="num">${(v.dwt||0).toLocaleString()}</td>`
           + `<td class="num">${(v.barrels_est||0).toLocaleString()}</td>`
-          + `<td>${v.origin || '—'}</td>`
-          + `<td>${v.destination || v.dest || '—'}</td>`;
+          + `<td>${escHtml(v.origin || '—')}</td>`
+          + `<td>${escHtml(v.destination || v.dest || '—')}</td>`;
         tankersBody.appendChild(tr);
       });
     }
@@ -3819,8 +3859,14 @@ const PMCARES = [
 
 // Resolve the PM CARES rows: the inline curated array is the source of truth;
 // the blob mirror (pmcaresData) only fills in if the deploy ships without it.
+let pmCsvMode = false;
 function pmRows(){
-  return (PMCARES && PMCARES.length) ? PMCARES : (pmcaresData || []);
+  const rows = (PMCARES && PMCARES.length) ? PMCARES : (pmcaresData || []);
+  if(!pmCsvMode) return rows;
+  pmCsvMode = false; // one-shot: only the CSV read below sees neutralised text
+  return rows.map(r=>Object.assign({}, r, {
+    fy: csvCellText(r.fy), relief: csvCellText(r.relief), note: csvCellText(r.note)
+  }));
 }
 
 function renderPmCares(){
@@ -3835,17 +3881,19 @@ function renderPmCares(){
 
   // table
   const body = document.getElementById('pmcares-body');
+  // Rows can come from the shared blob, so every text field is escaped and only
+  // numbers are printed as themselves.
   body.innerHTML = rows.map(r=>
     `<tr>
-      <td class="date-cell">FY ${r.fy}</td>
+      <td class="date-cell">FY ${escHtml(r.fy)}</td>
       <td>${fmt(r.open,2)}</td>
       <td>${fmt(r.recap,2)}</td>
       <td>${fmt(r.int,2)}</td>
       <td>${fmt(r.disp,2)}</td>
       <td>${fmt(r.close,2)}</td>
-      <td title="${r.calnote}"><span class="cal-chip">${r.cal}</span></td>
-      <td title="${r.relnote}"><span class="rel-chip">${r.relief}</span></td>
-      <td class="note-cell">${r.note}</td>
+      <td title="${escHtml(r.calnote)}"><span class="cal-chip">${escHtml(r.cal)}</span></td>
+      <td title="${escHtml(r.relnote)}"><span class="rel-chip">${escHtml(r.relief)}</span></td>
+      <td class="note-cell">${escHtml(r.note)}</td>
     </tr>`
   ).join('');
 
@@ -3875,7 +3923,15 @@ function renderPmCares(){
   });
 }
 
+/* A downloaded CSV is opened in a spreadsheet, where a cell beginning with
+   = + - @ is evaluated as a formula — and these rows can arrive through the
+   shared blob. Prefixing the value keeps it text. */
+function csvCellText(v){
+  const s = String(v == null ? '' : v);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
 function dlPmCaresCSV(){
+  pmCsvMode = true; // the pmRows() read below returns formula-neutralised text
   const header = 'financial_year,opening_balance,receipts,interest_earned,disbursed,closing_balance,calamities_emdat_cy,relief_to_calamities,highlights';
   const rows = pmRows().map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'"\"')}"`].join(','));
   const csv = header + '\n' + rows.join('\n');
@@ -3912,5 +3968,22 @@ function dlPmCaresCSV(){
   syncIcon();
 })();
 </script>
+  <!-- Vibe-coding stack strip (shadcn/ui, Aceternity, Magic UI, HyperUI, DaisyUI) -->
+  <aside class="vibe-strip pointer-events-none fixed inset-x-0 bottom-0 z-[80] hidden justify-center pb-3 sm:flex" aria-label="Built with">
+    <div class="pointer-events-auto relative overflow-hidden rounded-full border border-black/10 bg-white/85 px-4 py-2 shadow-lg backdrop-blur dark:border-white/10 dark:bg-neutral-900/85">
+      <svg class="pointer-events-none absolute -top-10 left-2 h-24 w-24 opacity-0 motion-safe:animate-[spotlight_3.5s_ease-in_.4s_forwards]" viewBox="0 0 3787 2842" fill="none" aria-hidden="true">
+        <g filter="url(#vibe-strip-spotlight)"><ellipse cx="1924.71" cy="273.501" rx="1924.71" ry="273.501" transform="matrix(-0.822377 -0.568943 -0.568943 0.822377 3631.88 2291.09)" fill="#4f46e5" fillOpacity="0.18"></ellipse></g>
+        <defs><filter id="vibe-strip-spotlight" x="0.860352" y="0.838989" width="3785.16" height="2840.26" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB"><feFlood floodOpacity="0" result="BackgroundImageFix"></feFlood><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend><feGaussianBlur stdDeviation="151" result="effect1_foregroundBlur"></feGaussianBlur></filter></defs>
+      </svg>
+      <p class="relative z-[2] flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-700 dark:text-neutral-300">
+        <span class="hidden sm:inline font-medium">Built with</span>
+        <span class="badge badge-sm badge-outline">shadcn/ui</span>
+        <span class="badge badge-sm badge-outline">Aceternity UI</span>
+        <span class="badge badge-sm badge-outline">Magic UI</span>
+        <span class="badge badge-sm badge-outline">HyperUI</span>
+        <span class="badge badge-sm badge-outline badge-success">DaisyUI</span>
+      </p>
+    </div>
+  </aside>
 </body>
 </html>

@@ -45,6 +45,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Syntax-check every function/script, and run the data-sync regression
+      # tests. Both run before any data is fetched: a cache whose write path is
+      # broken must not be republished, and the tests are the only thing that
+      # pins the validation that keeps a record's "date" from executing.
+      - name: Syntax check
+        run: npm run check
+
+      - name: Test
+        run: npm test
+
       - name: Fetch latest RBI weekly data
         run: npm run fetch:data
 
