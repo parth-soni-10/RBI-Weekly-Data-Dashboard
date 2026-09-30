@@ -392,6 +392,9 @@ html{-webkit-tap-highlight-color:transparent}
 .mc-sub,.mctx-sub{font-size:10.5px;color:var(--ink3);margin-top:.3rem;font-family:var(--mono);letter-spacing:0}
 .mex-detail{font-size:10px;color:var(--ink3);margin-top:.35rem;font-family:var(--mono)}
 .mc-delta{font-size:11px;margin-top:.45rem;font-family:var(--mono);font-weight:500;letter-spacing:-.01em}
+.mc-delta .w52{color:var(--ink3);font-weight:400;letter-spacing:0}
+/* KPI sparkline: a tiny trend line under each headline card */
+.mc canvas.spark{display:block;width:100%;height:26px;margin-top:.4rem}
 .up{color:var(--pos)}
 .dn{color:var(--neg)}
 .mctx-sub{font-family:var(--font);font-size:11px}
@@ -2032,6 +2035,7 @@ function updateUI(){
   set('m-eur-inr', L.eur_inr,  'd-eur-inr', P?+(L.eur_inr-P.eur_inr).toFixed(2):null,2);
   set('m-nifty',   L.nifty,    'd-nifty',   P?+(L.nifty-P.nifty).toFixed(1):null,1);
   set('m-sensex',  L.sensex,   'd-sensex',  P?+(L.sensex-P.sensex).toFixed(1):null,1);
+  renderSparklines();
   rebuildCharts();
   renderWeeklySummary();
   rebuildTable();
@@ -2047,6 +2051,75 @@ function updateUI(){
   updatePrintVintage();
   cmpEnsureDefaults(); fillCompareSelects(); renderCompare();
   renderCrudeHighlights().catch(()=>{});
+}
+
+/* ─── KPI sparklines + 52-week context ──────────────────────────
+   Each headline card gains a tiny trend line (plain 2d canvas, no
+   Chart.js instance — eight cards don't need eight charts) and its
+   week-on-week delta line gains a "52w" percent for the same metric a
+   year ago. Drawn on every updateUI so merged weeks refresh them. */
+const SPARK_METRICS = [
+  ['m-res-usd', 'total_usd'], ['m-res-inr', 'total_inr'],
+  ['m-gold-usd', 'gold_usd'], ['m-gold-inr', 'gold_inr'],
+  ['m-usd-inr', 'usd_inr'],   ['m-eur-inr', 'eur_inr'],
+  ['m-nifty', 'nifty'],       ['m-sensex', 'sensex'],
+];
+function renderSparklines(){
+  if(!records.length) return;
+  const cs = getComputedStyle(document.documentElement);
+  const upC = (cs.getPropertyValue('--pos-c') || '#2fb67c').trim();
+  const dnC = (cs.getPropertyValue('--neg-c') || '#f97070').trim();
+  const gridC = (cs.getPropertyValue('--border') || 'rgba(148,163,184,.2)').trim();
+  for(const [id, key] of SPARK_METRICS){
+    const valEl = document.getElementById(id);
+    if(!valEl) continue;
+    const card = valEl.closest('.mc');
+    if(!card) continue;
+    const series = records.map(r => r[key]).filter(v => v != null);
+    // 52-week percent for the delta line
+    const last = series[series.length - 1];
+    const back = series[Math.max(0, series.length - 1 - 52)];
+    const p52 = (last != null && back) ? (last - back) / Math.abs(back) * 100 : null;
+    const deltaEl = document.getElementById(id.replace(/^m-/, 'd-'));
+    if(deltaEl && p52 != null && isFinite(p52)){
+      let w52 = deltaEl.querySelector('.w52');
+      if(!w52){ w52 = document.createElement('span'); w52.className = 'w52'; deltaEl.appendChild(w52); }
+      w52.textContent = ` · 52w ${p52 >= 0 ? '+' : '−'}${Math.abs(p52).toFixed(1)}%`;
+    }
+    // Sparkline canvas (created once per card)
+    let cv = card.querySelector('canvas.spark');
+    if(!cv){
+      cv = document.createElement('canvas');
+      cv.className = 'spark';
+      cv.setAttribute('aria-hidden', 'true');
+      card.appendChild(cv);
+    }
+    const w = cv.clientWidth || card.clientWidth - 24;
+    const h = 26;
+    if(!w) continue;
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    if(series.length < 2) continue;
+    const lo = Math.min(...series), hi = Math.max(...series), span = (hi - lo) || 1;
+    const px = i => 2 + (w - 4) * (i / (series.length - 1));
+    const py = v => h - 4 - (h - 8) * ((v - lo) / span);
+    ctx.strokeStyle = gridC;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(2, h - 4); ctx.lineTo(w - 2, h - 4);
+    ctx.stroke();
+    const trendUp = last >= series[0];
+    ctx.strokeStyle = trendUp ? upC : dnC;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    series.forEach((v, i) => { const x = px(i), y = py(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = trendUp ? upC : dnC;
+    ctx.beginPath();
+    ctx.arc(px(series.length - 1), py(last), 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 /* ─── Sticky mini-bar + freshness badge ─────────────────────────────
