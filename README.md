@@ -29,6 +29,7 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 - **Zoomable charts** — Ctrl + scroll to zoom, drag to pan, double-click to reset on every time-series chart; pinch on touch
 - **Longer tables & full history** — switch the weekly tables between 10 / 26 / 52 weeks and download the whole fetched history as CSV
 - **Compare any two weeks** — a dedicated tab where you pick two Fridays and every headline metric shows its absolute and percent move between them, with a shareable link and CSV download
+- **New-week alerts** — when a live check finds a freshly published RBI week, a toast slides in and a small header badge appears; click either to jump straight to the updated numbers
 - **Little conveniences** — a share button (copies a one-line snapshot with the link where native sharing isn't available), a print/PDF view of the active tab, the latest reserves and USD/INR shown right in the browser-tab title, a 1-year level view for reserves, and a quiet auto-refresh every 30 minutes while the tab is open
 
 ## How it stays up to date

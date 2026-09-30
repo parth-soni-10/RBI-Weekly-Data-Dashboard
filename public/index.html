@@ -682,6 +682,43 @@ details.read-more .chart-note{margin-top:.35rem}
 .mini-fresh{margin-left:auto;font-size:11px;color:var(--ink3);white-space:nowrap}
 .mini-fresh.stale{color:var(--warn-fg);font-weight:650}
 
+/* ─── New-week toast + header badge ─────────────────────────────
+   When the live check merges a newer RBI week, say so out loud: a
+   slide-in toast (auto-dismisses) plus a small header badge that
+   persists until clicked. Clicking either jumps to the dashboard. */
+#toast-zone{position:fixed;right:1rem;bottom:1rem;z-index:400;display:flex;flex-direction:column;gap:.5rem;max-width:min(360px,calc(100vw - 2rem))}
+.new-week-toast{
+  display:flex;gap:.6rem;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--brand-line);border-left:3px solid var(--brand);
+  border-radius:var(--r2);box-shadow:var(--shadow-lg);padding:.7rem .8rem;
+  cursor:pointer;animation:toastIn .35s var(--ease-out) both;
+}
+.new-week-toast.leaving{animation:toastOut .25s ease-in both}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(6px)}}
+.new-week-toast>div{min-width:0}
+.new-week-toast .lucide{width:16px;height:16px;color:var(--brand);flex-shrink:0;margin-top:2px}
+.new-week-toast strong{display:block;font-size:12.5px;color:var(--ink);font-weight:650}
+.new-week-toast span{display:block;font-size:11.5px;color:var(--ink2);line-height:1.55;margin-top:.15rem}
+.new-week-toast .toast-x{
+  margin-left:auto;flex-shrink:0;border:none;background:none;color:var(--ink3);cursor:pointer;
+  font-size:14px;line-height:1;padding:2px 5px;border-radius:6px;font-family:var(--font);
+}
+.new-week-toast .toast-x:hover{color:var(--ink);background:var(--row-hover)}
+.new-week-badge{
+  height:34px;display:inline-flex;align-items:center;gap:.4rem;padding:0 .75rem;
+  background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:var(--pill);
+  color:var(--brand2);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .18s,border-color .18s;
+  animation:cardIn .4s var(--ease-spring) both;
+}
+.new-week-badge:hover{background:var(--brand-line)}
+.new-week-badge .lucide{width:13px;height:13px}
+.new-week-badge[hidden]{display:none}
+@media(max-width:900px){
+  .new-week-badge{order:2}
+}
+
 /* Macro strip collapse toggle */
 .macro-context h3{justify-content:space-between;flex-wrap:wrap;row-gap:.4rem}
 /* Page-level guard: one wide child (e.g. an unwrapped h3 row) must never
@@ -747,6 +784,9 @@ html,body{overflow-x:clip}
     </span>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>
+    </button>
+    <button class="new-week-badge" id="new-week-badge" type="button" hidden onclick="return gotoNewWeek()">
+      <i data-lucide="calendar-plus"></i><span id="new-week-badge-text">New week</span>
     </button>
     <div class="status-pill" role="status">
       <i data-lucide="activity"></i>
@@ -1541,6 +1581,7 @@ async function mergeLiveUpdates() {
       updateUI();
       appendLog(`✓ Merged ${added} newer week${added > 1 ? 's' : ''} from RBI → ${records.length} total`);
       updateFooterLink();
+      notifyNewWeek(records[records.length - 1], added);
     } else {
       appendLog('✓ Up to date - no newer RBI weeks found');
     }
@@ -3289,6 +3330,57 @@ setInterval(() => {
   if(btn && !btn.disabled) reloadData();
 }, 30 * 60 * 1000);
 
+/* ─── New-week toast + header badge ───────────────────────────────
+   The live check usually merges weeks silently; when it finds a newer
+   RBI week than the shipped file, say so: a slide-in toast (auto-
+   dismisses in 8s) plus a header badge that persists until clicked.
+   Clicking either jumps to the dashboard and the headline numbers. */
+let newWeekNotifiedFor = null;
+function showToast(title, body, onclick){
+  const zone = document.getElementById('toast-zone');
+  if(!zone) return;
+  zone.querySelectorAll('.new-week-toast').forEach(t => t.remove()); // one at a time
+  const el = document.createElement('div');
+  el.className = 'new-week-toast';
+  el.innerHTML = `<i data-lucide="calendar-plus" aria-hidden="true"></i><div><strong>${escHtml(title)}</strong><span>${escHtml(body)}</span></div>` +
+    `<button class="toast-x" type="button" aria-label="Dismiss">×</button>`;
+  const dismiss = () => {
+    if(!el.isConnected) return;
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), prefersReducedMotion() ? 0 : 240);
+  };
+  el.addEventListener('click', e => {
+    if(e.target.closest('.toast-x')){ dismiss(); return; }
+    if(onclick) onclick();
+    dismiss();
+  });
+  zone.appendChild(el);
+  if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  setTimeout(dismiss, 8000);
+}
+function notifyNewWeek(rec, count){
+  if(!rec || !rec.date || rec.date === newWeekNotifiedFor) return;
+  newWeekNotifiedFor = rec.date;
+  showToast('New week published',
+    `RBI week as on ${fmtDate(rec.date)} is in — ${count > 1 ? count + ' newer weeks merged' : 'live-checked just now'}.`,
+    gotoNewWeek);
+  const b = document.getElementById('new-week-badge');
+  if(b){
+    b.hidden = false;
+    const t = document.getElementById('new-week-badge-text');
+    if(t) t.textContent = 'New: ' + fmtDate(rec.date);
+    if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  }
+}
+function gotoNewWeek(){
+  const link = document.querySelector('.nav-link[onclick*="\'dashboard\'"]');
+  if(link) showSection('dashboard', link);
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  const b = document.getElementById('new-week-badge');
+  if(b) b.hidden = true;
+  return false;
+}
+
 // Native share (mobile) with a clipboard fallback that copies a one-line
 // snapshot + link; the button only shows where the Web Share API exists.
 async function shareDashboard(){
@@ -4414,6 +4506,7 @@ function dlPmCaresCSV(){
   URL.revokeObjectURL(a.href);
 }
 </script>
+<div id="toast-zone" aria-live="polite"></div>
 <script src="lucide.min.js"></script>
 <script>
 /* Theme toggle: flips the CSS token set, persists the choice, then refreshes
