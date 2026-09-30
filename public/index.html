@@ -286,6 +286,30 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 .err{color:var(--neg)}
 .warn{color:var(--warn-fg)}
 
+/* ─── Compare-any-two-weeks ─────────────────────────────────── */
+.cmp-picker{
+  display:flex;gap:.8rem;align-items:flex-end;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);
+  box-shadow:var(--shadow-sm);padding:1rem 1.1rem;margin-bottom:1.1rem;
+}
+.cmp-pick{min-width:200px;flex:1 1 200px}
+.cmp-pick .panel-label{margin-bottom:.45rem}
+.cmp-select{
+  width:100%;height:38px;padding:0 .7rem;border-radius:var(--r2);
+  background:var(--surface2);border:1px solid var(--border2);color:var(--ink);
+  font-family:var(--font);font-size:13px;font-weight:550;cursor:pointer;
+  transition:border-color .18s;
+}
+.cmp-select:hover{border-color:var(--brand-line)}
+.cmp-select:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.cmp-quick{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:3px}
+.cmp-summary{font-size:13.5px;color:var(--ink2);line-height:1.75;margin-bottom:1.1rem}
+.cmp-summary strong{color:var(--ink);font-weight:600}
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:.7rem;margin-bottom:.4rem}
+.cmp-grid .mc{animation:none}
+.cmp-delta-big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:500;margin-top:.45rem;letter-spacing:-.01em}
+.cmp-delta-big .pct{font-size:11px;color:var(--ink3);margin-left:.3rem;font-weight:400}
+
 /* ─── Buttons ────────────────────────────────────────────────────────── */
 .btn{
   height:36px;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;
@@ -711,6 +735,7 @@ html,body{overflow-x:clip}
     <nav class="nav-links" id="site-nav" aria-label="Primary">
       <a class="nav-link active" href="#sec-dashboard" onclick="return showSection('dashboard',this)"><i data-lucide="layout-dashboard"></i>Dashboard</a>
       <a class="nav-link" href="#sec-table" onclick="return showSection('table',this)"><i data-lucide="table-2"></i>10-Week Table</a>
+      <a class="nav-link" href="#sec-compare" onclick="return showSection('compare',this)"><i data-lucide="git-compare"></i>Compare</a>
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
       <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
     </nav>
@@ -1002,6 +1027,44 @@ html,body{overflow-x:clip}
   </div>
 </div>
 
+<!-- Compare any two weeks: pick two Fridays, every headline metric shows its move between them -->
+<div class="section" id="sec-compare">
+  <div class="note-strip">
+    <i data-lucide="git-compare" aria-hidden="true"></i>
+    <div><strong>Compare any two weeks:</strong> pick two Fridays and every headline metric shows its move between them — absolute change and percent. The comparison is shareable: the two weeks ride the page URL. USD/INR and EUR/INR rise when the rupee weakens.</div>
+  </div>
+  <div class="cmp-picker">
+    <div class="cmp-pick">
+      <label class="panel-label" for="cmp-from">From week</label>
+      <select id="cmp-from" class="cmp-select" onchange="return onCompareChange('from')"></select>
+    </div>
+    <button class="dl" id="cmp-swap" type="button" title="Swap the two weeks" onclick="return swapCompare()"><i data-lucide="arrow-left-right"></i> Swap</button>
+    <div class="cmp-pick">
+      <label class="panel-label" for="cmp-to">To week</label>
+      <select id="cmp-to" class="cmp-select" onchange="return onCompareChange('to')"></select>
+    </div>
+    <div class="cmp-quick" role="group" aria-label="Quick comparison ranges">
+      <button class="tab" onclick="return quickCompare(4)" title="Latest week vs 4 weeks earlier">4W</button>
+      <button class="tab" onclick="return quickCompare(13)" title="Latest week vs 13 weeks earlier">13W</button>
+      <button class="tab" onclick="return quickCompare(26)" title="Latest week vs 26 weeks earlier">26W</button>
+      <button class="tab" onclick="return quickCompare(52)" title="Latest week vs 52 weeks earlier">52W</button>
+    </div>
+  </div>
+  <div id="cmp-empty" class="tbl-empty">Load data first — comparisons need at least one weekly record.</div>
+  <div id="cmp-body" hidden>
+    <p id="cmp-summary" class="cmp-summary" aria-live="polite"></p>
+    <div class="cmp-grid" id="cmp-grid"></div>
+    <div class="tbl-wrap mt1">
+      <div class="tbl-header"><h2>Every metric, side by side</h2>
+        <div class="hdr-actions"><button class="dl" onclick="dlCompareCSV()"><i data-lucide="download"></i> Download as CSV</button></div>
+      </div>
+      <div class="tbl-scroll">
+        <table><thead><tr><th>Metric</th><th class="th-sep" id="cmp-th-from">From</th><th id="cmp-th-to">To</th><th>Change</th><th>Change %</th></tr></thead><tbody id="cmp-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="section" id="sec-crude">
   <div class="tbl-intro">
     <p><strong>India Crude Oil Import Data</strong> - Live reconciled daily estimates: PPAC official monthly data (scraped live) + AIS tanker tracking via TankerMap + Brent/WTI spot prices from Yahoo Finance. All data fetched on demand, no static files required.</p>
@@ -1210,6 +1273,7 @@ function showSection(name, el) {
     rebuildRupeeEqTable();
   }
   if(name==='crude') renderCrudeSection().catch(()=>{});
+  if(name==='compare' && records.length){ cmpEnsureDefaults(); fillCompareSelects(); renderCompare(); }
   hashSave();
   return false;
 }
@@ -1867,6 +1931,7 @@ function updateUI(){
   renderExternalDebt(); // borrower tile: swaps WB reserves for the fresher RBI weekly figure
   updateMiniBar();
   updateDocTitle();
+  cmpEnsureDefaults(); fillCompareSelects(); renderCompare();
   renderCrudeHighlights().catch(()=>{});
 }
 
@@ -3003,7 +3068,8 @@ function hashSave(){
     const tab = document.querySelector('.section.active')?.id?.replace('sec-','') || 'dashboard';
     const parts = [];
     for(const k in modes) parts.push(k + ':' + modes[k]);
-    const newHash = '#tab=' + tab + '&modes=' + parts.join(',');
+    let newHash = '#tab=' + tab + '&modes=' + parts.join(',');
+    if(cmpFrom && cmpTo) newHash += '&cmp=' + cmpFrom + '>' + cmpTo;
     if(location.hash !== newHash) history.replaceState(null, '', newHash);
   } catch(_) {}
 }
@@ -3037,6 +3103,12 @@ function hashLoad(){
     });
     if(records.length) rebuildCharts();
   }
+  if(params.cmp){
+    // '>' arrives percent-encoded (%3E) when the hash is set via location.hash
+    // or copied through the address bar — decode before matching.
+    const m = decodeURIComponent(String(params.cmp)).match(/^(\d{4}-\d{2}-\d{2})>(\d{4}-\d{2}-\d{2})$/);
+    if(m){ cmpFrom = m[1]; cmpTo = m[2]; }
+  }
 }
 
 // Initial wiring on page load
@@ -3048,6 +3120,137 @@ window.addEventListener('DOMContentLoaded', () => {
    The three weekly tables were hard-capped at 10 rows; the fetched file
    holds years. A small range toggle grows all three tables together and
    keeps the headings honest. */
+/* ─── Compare any two weeks ───────────────────────────────────────
+   Pick two Fridays; every headline metric renders its absolute and
+   percent move between them, as cards plus a side-by-side table. The
+   chosen pair rides the page hash (&cmp=from>to) so a comparison is
+   shareable; the default is the latest week vs ~one year earlier.
+   FX pairs invert the wording: a falling rate = a stronger rupee. */
+let cmpFrom = null, cmpTo = null;
+
+const CMP_METRICS = [
+  { key:'total_usd', label:'Forex reserves', unit:' USD mn', dec:0, pct:true },
+  { key:'total_inr', label:'Reserves (₹)',   unit:' ₹ cr',   dec:0, pct:true },
+  { key:'gold_usd',  label:'Gold reserves',  unit:' USD mn', dec:0, pct:true },
+  { key:'gold_inr',  label:'Gold (₹)',       unit:' ₹ cr',   dec:0, pct:true },
+  { key:'usd_inr',   label:'USD/INR',        unit:'',        dec:2, pct:'fx' },
+  { key:'eur_inr',   label:'EUR/INR',        unit:'',        dec:2, pct:'fx' },
+  { key:'nifty',     label:'Nifty 50',       unit:'',        dec:1, pct:true },
+  { key:'sensex',    label:'Sensex',         unit:'',        dec:1, pct:true },
+];
+
+const cmpWeeks = () => records.filter(r => CMP_METRICS.some(m => r[m.key] != null));
+const cmpDelta = (b, a) => (a != null && b != null) ? b - a : null;
+const cmpPct   = (b, a) => (a != null && b != null && a !== 0) ? (b - a) / Math.abs(a) * 100 : null;
+
+function cmpEnsureDefaults(){
+  const weeks = cmpWeeks();
+  if(!weeks.length) return;
+  if(!cmpFrom || !weeks.some(w => w.date === cmpFrom)) cmpFrom = weeks[Math.max(0, weeks.length - 53)].date;
+  if(!cmpTo   || !weeks.some(w => w.date === cmpTo))   cmpTo   = weeks[weeks.length - 1].date;
+}
+
+function fillCompareSelects(){
+  const f = document.getElementById('cmp-from'), t = document.getElementById('cmp-to');
+  if(!f || !t) return;
+  const opts = cmpWeeks().map(w => `<option value="${w.date}">${fmtDate(w.date)}</option>`).reverse().join('');
+  f.innerHTML = opts; t.innerHTML = opts;
+  f.value = cmpFrom; t.value = cmpTo;
+}
+
+function renderCompare(){
+  const body = document.getElementById('cmp-body'), empty = document.getElementById('cmp-empty');
+  const A = (cmpFrom && records.find(r => r.date === cmpFrom)) || null;
+  const B = (cmpTo && records.find(r => r.date === cmpTo)) || null;
+  if(!A || !B){ if(empty) empty.style.display = ''; if(body) body.hidden = true; return; }
+  if(empty) empty.style.display = 'none';
+  if(body) body.hidden = false;
+  const thF = document.getElementById('cmp-th-from'), thT = document.getElementById('cmp-th-to');
+  if(thF) thF.textContent = fmtDate(cmpFrom);
+  if(thT) thT.textContent = fmtDate(cmpTo);
+  // One-line story: reserves move + rupee move.
+  const dRes = cmpDelta(B.total_usd, A.total_usd), pRes = cmpPct(B.total_usd, A.total_usd);
+  const dFx  = cmpDelta(B.usd_inr, A.usd_inr);
+  let sum = `Between <strong>${fmtDate(cmpFrom)}</strong> and <strong>${fmtDate(cmpTo)}</strong>`;
+  if(dRes != null){
+    sum += `, forex reserves ${dRes >= 0 ? 'rose' : 'fell'} by <strong>${fmt(Math.abs(dRes))} USD mn</strong>` +
+      (pRes != null ? ` (${dRes >= 0 ? '+' : '−'}${Math.abs(pRes).toFixed(2)}%)` : '');
+  } else {
+    sum += ', reserves were not reported for both weeks';
+  }
+  if(dFx != null) sum += ` and the rupee ${dFx > 0 ? 'weakened' : dFx < 0 ? 'strengthened' : 'held'} ${fmt(Math.abs(dFx),2)} against the dollar`;
+  const sumEl = document.getElementById('cmp-summary');
+  if(sumEl) sumEl.innerHTML = sum + '.';
+  // Metric cards.
+  const grid = document.getElementById('cmp-grid');
+  if(grid) grid.innerHTML = CMP_METRICS.map(m => {
+    const d = cmpDelta(B[m.key], A[m.key]), p = cmpPct(B[m.key], A[m.key]);
+    const dir = d == null ? '' : d >= 0 ? 'up' : 'dn';
+    const arrow = d == null ? '' : d >= 0 ? '▲' : '▼';
+    const pTxt = p == null ? '' : `<span class="pct">${p >= 0 ? '+' : ''}${p.toFixed(2)}%</span>`;
+    let note = '';
+    if(d != null && m.pct === 'fx') note = d > 0 ? 'rupee weaker' : d < 0 ? 'rupee stronger' : 'unchanged';
+    return `<div class="mc">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-val">${fmt(B[m.key], m.dec)}${m.unit}</div>
+      <div class="mc-sub">from ${fmt(A[m.key], m.dec)}${m.unit}</div>
+      <div class="cmp-delta-big ${dir}">${d == null ? '—' : `${arrow} ${d >= 0 ? '+' : '−'}${fmt(Math.abs(d), m.dec)}${m.unit}`}${pTxt}</div>
+      ${note ? `<div class="mc-sub">${note}</div>` : ''}
+    </div>`;
+  }).join('');
+  // Side-by-side table.
+  const tb = document.getElementById('cmp-tbody');
+  if(tb) tb.innerHTML = CMP_METRICS.map(m => {
+    const d = cmpDelta(B[m.key], A[m.key]), p = cmpPct(B[m.key], A[m.key]);
+    const cls = d == null ? '' : d >= 0 ? 'up' : 'dn';
+    return `<tr>
+      <td class="date-cell">${m.label}</td>
+      <td>${fmt(A[m.key], m.dec)}</td>
+      <td>${fmt(B[m.key], m.dec)}</td>
+      <td class="${cls}">${d == null ? '—' : `${d >= 0 ? '+' : '−'}${fmt(Math.abs(d), m.dec)}${m.unit}`}</td>
+      <td class="${cls}">${p == null ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function onCompareChange(which){
+  const f = document.getElementById('cmp-from'), t = document.getElementById('cmp-to');
+  if(!f || !t) return false;
+  if(which === 'from') cmpFrom = f.value; else cmpTo = t.value;
+  renderCompare(); hashSave();
+  return false;
+}
+function swapCompare(){
+  const x = cmpFrom; cmpFrom = cmpTo; cmpTo = x;
+  fillCompareSelects(); renderCompare(); hashSave();
+  return false;
+}
+function quickCompare(back){
+  const weeks = cmpWeeks();
+  if(!weeks.length) return false;
+  cmpTo = weeks[weeks.length - 1].date;
+  cmpFrom = weeks[Math.max(0, weeks.length - 1 - back)].date;
+  fillCompareSelects(); renderCompare(); hashSave();
+  return false;
+}
+function dlCompareCSV(){
+  const A = cmpFrom && records.find(r => r.date === cmpFrom), B = cmpTo && records.find(r => r.date === cmpTo);
+  if(!A || !B) return;
+  const header = 'metric,from_' + cmpFrom + ',to_' + cmpTo + ',change,change_pct';
+  const rows = CMP_METRICS.map(m => {
+    const d = cmpDelta(B[m.key], A[m.key]), p = cmpPct(B[m.key], A[m.key]);
+    return [m.label, A[m.key] == null ? '' : A[m.key], B[m.key] == null ? '' : B[m.key],
+      d == null ? '' : d.toFixed(m.dec || 2), p == null ? '' : p.toFixed(2)].join(',');
+  });
+  const csv = header + '\n' + rows.join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rbi-compare-' + cmpFrom + '-to-' + cmpTo + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
 const RANGE_WEEKS = [10, 26, 52];
 let TABLE_RANGE = 10;
 const tableCount = () => Math.min(TABLE_RANGE, records.length);
