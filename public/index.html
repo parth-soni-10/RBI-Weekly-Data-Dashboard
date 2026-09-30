@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0b1120">
+<meta name="description" content="India's forex reserves, gold, rupee spot, equity markets, crude-oil imports, external debt and macro context — updated weekly from the RBI Statistical Supplement.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RBI Weekly">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="RBI Weekly Dashboard">
+<meta property="og:description" content="India's forex reserves, gold, rupee and markets — updated weekly from the RBI Statistical Supplement.">
+<meta property="og:image" content="icons/icon-512.png">
+<meta name="twitter:card" content="summary">
 <meta name="color-scheme" content="dark light">
 <title>RBI Weekly Dashboard</title>
 <script>
@@ -125,6 +137,32 @@ a{color:var(--brand)}
 .skip-link{position:absolute;left:-9999px;top:.5rem;z-index:300;background:var(--brand);color:var(--on-brand);
   padding:.5rem .9rem;border-radius:var(--r2);font-size:13px;font-weight:600}
 .skip-link:focus{left:.5rem}
+
+/* ─── Header quick actions (share / print / install) ─────────────────── */
+.head-actions{display:inline-flex;gap:.45rem}
+/* the .theme-toggle display rule would otherwise override the UA [hidden] style */
+.theme-toggle[hidden]{display:none}
+@media(max-width:900px){
+  .head-actions{order:1}
+}
+
+/* ─── Print: a clean report instead of a terminal ──────────────────────
+   window.print() on the active tab: header chrome, logs, buttons and
+   interactive bits drop out, cards keep their borders, charts print at a
+   fixed height, and each card avoids being split across pages. */
+@media print{
+  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link{display:none!important}
+  body{background:#fff;color:#111}
+  body::before{display:none}
+  .section{display:none;padding:0;max-width:none}
+  .section.active{display:block}
+  #charts{grid-template-columns:1fr}
+  .chart-card,.mc,.mex,.mctx,.macro-context,.tbl-wrap,.crude-hl,.weekly-summary,.tbl-intro{box-shadow:none;border-color:#ccc;break-inside:avoid}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover{transform:none;box-shadow:none}
+  .chart-wrap,.chart-wrap.tall,.chart-wrap.wide,.chart-wrap.compact{height:190px}
+  footer{border-top:1px solid #ccc;margin-top:1rem}
+  a{color:#111;text-decoration:none}
+}
 
 /* ─── Header ────────────────────────────────────────────────────────── */
 header{
@@ -676,7 +714,12 @@ html,body{overflow-x:clip}
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
       <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme"><i data-lucide="moon"></i></button>
+    <span class="head-actions">
+      <button class="theme-toggle" id="share-btn" type="button" aria-label="Share this week's snapshot" title="Share / copy link with snapshot" hidden><i data-lucide="share-2"></i></button>
+      <button class="theme-toggle" id="print-btn" type="button" aria-label="Print this view" title="Print / save as PDF"><i data-lucide="printer"></i></button>
+      <button class="theme-toggle" id="install-btn" type="button" aria-label="Install app" title="Install app" hidden><i data-lucide="download"></i></button>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme"><i data-lucide="moon"></i></button>
+    </span>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>
     </button>
@@ -698,7 +741,7 @@ html,body{overflow-x:clip}
     <div class="panel-label">This week at a glance</div>
     <p id="weekly-summary-text" aria-live="polite">—</p>
     <div class="dl-row mt1">
-      <button class="dl" onclick="dlCSV('tab')"><i data-lucide="download"></i> Download 10-week table (CSV)</button>
+      <button class="dl" onclick="dlCSV('tab')"><i data-lucide="download"></i> Download table (CSV)</button>
     </div>
   </div>
   <div class="fetch-panel">
@@ -831,7 +874,7 @@ html,body{overflow-x:clip}
   <div id="charts">
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div><button class="tab" onclick="return copyChartCSV('res',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" onclick="return toggleRidge(this)"><i data-lucide="box"></i> 3D ridge</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button><button class="tab" onclick="sw(this,'res','lvl1y')" title="Level of total reserves over the last year">1Y level</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" onclick="return toggleRidge(this)"><i data-lucide="box"></i> 3D ridge</button></div>
       <div class="chart-wrap"><canvas id="cRes" role="img" aria-label="Bar chart of weekly change in foreign exchange reserves"></canvas></div>
       <div class="ridge-wrap" id="ridge-panel">
         <div class="ridge-stage" id="ridge-stage" role="img" aria-label="Interactive 3D bar ridge of total forex reserves by week. Drag to rotate."></div>
@@ -922,7 +965,7 @@ html,body{overflow-x:clip}
 
 <div class="section" id="sec-table">
   <div class="tbl-intro">
-    <p><strong>Most recent 10 weeks</strong> of RBI Weekly Statistical Supplement data.
+    <p><strong>Most recent weeks</strong> of RBI Weekly Statistical Supplement data (switch the table length between 10 / 26 / 52 weeks in the table header).
     All values from the <strong>Friday closing / reporting date</strong>.
     Δ = change vs. the previous week.
     <strong>Forex reserves</strong> in USD million &amp; ₹ crore.
@@ -932,21 +975,26 @@ html,body{overflow-x:clip}
     </p>
   </div>
   <div class="tbl-wrap">
-    <div class="tbl-header"><h2>Weekly summary: last 10 Fridays</h2><span id="tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Weekly summary: <span id="range-label">last 10 Fridays</span></h2><span id="tbl-updated"></span>
+      <div class="hdr-actions">
+        <div class="tab-row" role="group" aria-label="Table length"><button class="tab on" onclick="return swRange(this,10)">10W</button><button class="tab" onclick="return swRange(this,26)">26W</button><button class="tab" onclick="return swRange(this,52)">52W</button></div>
+        <button class="dl" onclick="dlCSV()"><i data-lucide="download"></i> Full history (CSV)</button>
+      </div>
+    </div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" class="tbl-scroll hidden">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="2">Forex Reserves</th><th class="th-group" colspan="2">Gold Holdings</th><th class="th-group" colspan="2">Rupee Spot Rate</th><th class="th-group" colspan="2">Equity Markets</th></tr><tr><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD mn</th><th>INR cr</th><th class="th-sep">USD/INR</th><th>EUR/INR</th><th class="th-sep">Nifty 50</th><th>Sensex</th></tr></thead><tbody id="tbl-body"></tbody></table>
     </div>
   </div>
   <div class="tbl-wrap mt125">
-    <div class="tbl-header"><h2>Nifty 50 &amp; Sensex: weekly detail</h2><span id="eq-tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Nifty 50 &amp; Sensex: weekly detail <span id="eq-range-label"></span></h2><span id="eq-tbl-updated"></span></div>
     <div id="eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="eq-tbl-container" class="tbl-scroll hidden">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="4">Nifty 50</th><th class="th-group" colspan="4">Sensex</th></tr><tr><th class="th-sep">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th><th class="th-sep">Close</th><th>Δ Points</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="eq-tbl-body"></tbody></table>
     </div>
   </div>
   <div class="tbl-wrap mt125">
-    <div class="tbl-header"><h2>Rupee Spot Rate: up to latest available (10 weeks)</h2><span id="rupee-eq-tbl-updated"></span></div>
+    <div class="tbl-header"><h2>Rupee Spot Rate: weekly detail <span id="rupee-range-label"></span></h2><span id="rupee-eq-tbl-updated"></span></div>
     <div id="rupee-eq-tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="rupee-eq-tbl-container" class="tbl-scroll hidden">
       <table><thead><tr><th rowspan="2">Date (Friday)</th><th class="th-group" colspan="4">USD/INR</th><th class="th-group" colspan="4">EUR/INR</th></tr><tr><th class="th-sep">Close</th><th>Δ</th><th>Δ %</th><th>YTD %</th><th class="th-sep">Close</th><th>Δ</th><th>Δ %</th><th>YTD %</th></tr></thead><tbody id="rupee-eq-tbl-body"></tbody></table>
@@ -1348,7 +1396,7 @@ async function startFetch() {
     // Phase 3: live-check the forward book and EM-peers series too.
     await refreshLiveSeries();
   } catch (err) {
-    appendLog(`✗ Could not load data: ${err.message}`, 'err');
+    appendLog(navigator.onLine ? `✗ Could not load data: ${err.message}` : '✗ Offline — showing the last data this device cached (the service worker serves the newest saved week).', 'err');
     setStatus('error');
   }
   btn.disabled = false;
@@ -1812,11 +1860,13 @@ function updateUI(){
   rebuildTable();
   rebuildEqTable();
   rebuildRupeeEqTable();
+  setRangeLabels();
   renderImportCover();
   renderVolatility();
   renderReserveForwardKpis();
   renderExternalDebt(); // borrower tile: swaps WB reserves for the fresher RBI weekly figure
   updateMiniBar();
+  updateDocTitle();
   renderCrudeHighlights().catch(()=>{});
 }
 
@@ -1931,7 +1981,7 @@ function setChartEmpty(canvasId, emptyId, empty){
 }
 
 function rebuildTable(){
-  const last5 = records.slice(-10);
+  const last5 = records.slice(-tableCount());
   if(!last5.length) return;
   document.getElementById('tbl-empty').style.display='none';
   document.getElementById('tbl-container').style.display='block';
@@ -1960,7 +2010,7 @@ function rebuildTable(){
 }
 
 function rebuildEqTable(){
-  const last5 = records.slice(-10);
+  const last5 = records.slice(-tableCount());
   if(!last5.length) return;
   document.getElementById('eq-tbl-empty').style.display='none';
   document.getElementById('eq-tbl-container').style.display='block';
@@ -1990,7 +2040,7 @@ function rebuildEqTable(){
 }
 
 function rebuildRupeeEqTable(){
-  const last5 = records.slice(-10);
+  const last5 = records.slice(-tableCount());
   if(!last5.length) return;
   document.getElementById('rupee-eq-tbl-empty').style.display='none';
   document.getElementById('rupee-eq-tbl-container').style.display='block';
@@ -2079,6 +2129,7 @@ function mkBar(id, diffs, label){
       scales: axOpts(v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v.toFixed(0)),
     },
   });
+  zoomable(charts[id]);
 }
 function mkLine(id, datasets, yFmt){
   if(charts[id]) charts[id].destroy();
@@ -2094,13 +2145,128 @@ function mkLine(id, datasets, yFmt){
       scales: axOpts(yFmt || (v => v.toFixed(2))),
     },
   });
+  zoomable(charts[id]);
 }
 function ds(data, color, label, dash=[]){
   return { label, data, borderColor: color, backgroundColor: color + '18', fill: true,
     tension: .35, pointRadius: 3, pointBackgroundColor: color, borderWidth: 2, borderDash: dash };
 }
 
+/* ─── Chart zoom & pan (no plugin, category-axis windowing) ──────────
+   Every chart built by mkBar/mkLine gains: Ctrl/⌘ + wheel to zoom around
+   the cursor, drag to pan, pinch to zoom on touch, double-click to reset.
+   Plain wheel is left alone so the page still scrolls naturally. Works by
+   windowing the category axis (scales.x.min/max) — Chart.js redraws the
+   same data, so nothing is resampled or lost.
+   Chart.js rebuilds charts on the SAME canvas element (destroy + new), so
+   handlers are bound once per canvas (WeakMap) and retargeted to whatever
+   chart currently owns it — never to a destroyed instance. */
+const zoomState = new WeakMap(); // canvas → { chart, drag, pinch }
+function zoomable(chart){
+  if(!chart || !chart.canvas) return;
+  // Only vertical, category-x charts window cleanly by index. Horizontal bars
+  // (indexAxis 'y') and log scales would take index min/max as VALUE bounds
+  // and corrupt their axes, so they keep hover-only interaction.
+  if(chart.options.indexAxis === 'y') return;
+  const x0 = chart.options.scales && chart.options.scales.x;
+  if(x0 && x0.type === 'logarithmic') return;
+  const cv = chart.canvas;
+  const st = zoomState.get(cv);
+  if(st){ st.chart = chart; cv.title = ZOOM_TIP; return; } // retarget only
+  const fresh = { chart, drag: null, pinch: null };
+  zoomState.set(cv, fresh);
+  bindZoom(cv, fresh);
+}
+const ZOOM_TIP = 'Ctrl + scroll to zoom · drag to pan · double-click to reset';
+function bindZoom(cv, st){
+  cv.title = ZOOM_TIP;
+  const alive = () => st.chart && st.chart.canvas === cv && !!st.chart.chartArea;
+  const totalIdx = () => Math.max(0, st.chart.data.labels.length - 1);
+  const cur = () => {
+    const o = st.chart.options.scales.x;
+    return { min: o.min ?? 0, max: o.max ?? totalIdx() };
+  };
+  const apply = (min, max) => {
+    if(!alive()) return;
+    const c = st.chart;
+    min = Math.max(0, Math.round(min));
+    max = Math.min(totalIdx(), Math.round(max));
+    if(max - min < 8) max = Math.min(totalIdx(), min + 8); // never shrink to nonsense
+    c.options.scales.x.min = min; c.options.scales.x.max = max;
+    try { c.update('none'); } catch(_){}
+  };
+  const reset = () => {
+    if(!alive()) return;
+    delete st.chart.options.scales.x.min; delete st.chart.options.scales.x.max;
+    try { st.chart.update('none'); } catch(_){}
+  };
+  const zoomAt = (px, factor) => {
+    if(!alive()) return;
+    const x = st.chart.scales.x; if(!x) return;
+    const c = cur(); const anchor = Math.round(x.getValueForPixel(px)) || 0;
+    const span = Math.max(8, Math.min(totalIdx(), Math.round((c.max - c.min) * factor)));
+    const rel = span ? (anchor - c.min) / (c.max - c.min) : 0.5;
+    apply(anchor - rel * span, anchor - rel * span + span);
+  };
+  cv.addEventListener('wheel', e => {
+    if(!(e.ctrlKey || e.metaKey)) return; // plain scroll keeps scrolling the page
+    e.preventDefault();
+    zoomAt(e.offsetX, e.deltaY > 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+  cv.addEventListener('pointerdown', e => {
+    if(e.pointerType === 'touch') return; // touch keeps native scroll; pinch handles zoom
+    if(e.pointerType === 'mouse' && e.button !== 0) return;
+    if(!alive()) return;
+    const c = cur();
+    st.drag = { x: e.clientX, min: c.min, max: c.max };
+    try { cv.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  cv.addEventListener('pointermove', e => {
+    if(!st.drag || !alive()) return;
+    const w = st.chart.chartArea ? st.chart.chartArea.width : cv.clientWidth;
+    const dxIdx = -(e.clientX - st.drag.x) * (st.drag.max - st.drag.min) / Math.max(1, w);
+    apply(st.drag.min + dxIdx, st.drag.max + dxIdx);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => cv.addEventListener(t, () => { st.drag = null; }));
+  cv.addEventListener('dblclick', reset);
+  cv.addEventListener('touchstart', e => {
+    if(e.touches.length === 2){
+      st.pinch = { d: Math.abs(e.touches[0].clientX - e.touches[1].clientX) || 1, mid: (e.touches[0].clientX + e.touches[1].clientX) / 2 };
+      st.drag = null;
+    }
+  }, { passive: true });
+  cv.addEventListener('touchmove', e => {
+    if(st.pinch && e.touches.length === 2){
+      e.preventDefault();
+      const d = Math.abs(e.touches[0].clientX - e.touches[1].clientX) || 1;
+      zoomAt(st.pinch.mid - (cv.getBoundingClientRect().left || 0), st.pinch.d / d);
+    }
+  }, { passive: false });
+  ['touchend', 'touchcancel'].forEach(t => cv.addEventListener(t, () => { st.pinch = null; }));
+}
+
 function rebuildResGold(){
+  if(modes.res==='lvl1y'){
+    // 1-year level view: total reserves as a line (last ~53 weeks) instead of
+    // week-on-week bars — the level is what most readers quote.
+    const lvl = records.slice(-53);
+    if(charts.cRes) charts.cRes.destroy();
+    charts.cRes = new Chart(document.getElementById('cRes'), {
+      type: 'line',
+      data: { labels: lvl.map(r=>r.date.slice(2)), datasets: [{
+        label: 'Total reserves (USD mn)', data: lvl.map(r=>r.total_usd),
+        borderColor: G, backgroundColor: G + '18', fill: true, tension: .3,
+        pointRadius: 2, pointBackgroundColor: G, borderWidth: 2,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: ttOpts('Total reserves (USD mn)') },
+        scales: axOpts(v => (v/1000).toFixed(0) + 'k'),
+      },
+    });
+    zoomable(charts.cRes);
+    return;
+  }
   const resRaw=records.map(r=>modes.res==='usd'?r.total_usd:r.total_inr);
   mkBar('cRes',diff(resRaw),modes.res==='usd'?'Δ USD mn':'Δ INR cr');
   const goldRaw=records.map(r=>modes.gold==='usd'?r.gold_usd:r.gold_inr);
@@ -2810,7 +2976,7 @@ function renderImportBill(){
 
 function dlCSV(){
   if(!records.length) return;
-  const last10 = records.slice(-10);
+  const last10 = records.slice(-tableCount());
   const header = 'date,total_usd,total_inr,gold_usd,gold_inr,gold_tonnes,fca_usd,fca_inr,sdr_usd,sdr_inr,imf_reserve_usd,usd_inr,eur_inr,nifty,sensex';
   const rows = last10.map(r => [
     r.date, r.total_usd||'', r.total_inr||'',
@@ -2825,7 +2991,7 @@ function dlCSV(){
   const blob = new Blob([csv], { type:'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'rbi-10week-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'rbi-history-' + new Date().toISOString().slice(0,10) + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -2877,6 +3043,102 @@ function hashLoad(){
 window.addEventListener('DOMContentLoaded', () => {
   try { hashLoad(); } catch(_) {}
 });
+
+/* ─── Table range (10W / 26W / 52W) ───────────────────────────────────
+   The three weekly tables were hard-capped at 10 rows; the fetched file
+   holds years. A small range toggle grows all three tables together and
+   keeps the headings honest. */
+const RANGE_WEEKS = [10, 26, 52];
+let TABLE_RANGE = 10;
+const tableCount = () => Math.min(TABLE_RANGE, records.length);
+function swRange(el, weeks){
+  if(!RANGE_WEEKS.includes(weeks)) return false;
+  TABLE_RANGE = weeks;
+  el.closest('.tab-row').querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  rebuildTable(); rebuildEqTable(); rebuildRupeeEqTable(); setRangeLabels();
+  return false;
+}
+function setRangeLabels(){
+  const n = tableCount();
+  const main = document.getElementById('range-label');
+  if(main) main.textContent = `last ${n} Fridays`;
+  const eq = document.getElementById('eq-range-label');
+  if(eq) eq.textContent = `(last ${n})`;
+  const rq = document.getElementById('rupee-range-label');
+  if(rq) rq.textContent = `(last ${n})`;
+}
+
+/* ─── Living title + auto-refresh + quick actions + PWA ────────────── */
+function updateDocTitle(){
+  if(!records.length) return;
+  const L = records[records.length - 1];
+  if(L.total_usd != null) document.title = `Reserves $${(L.total_usd/1000).toFixed(1)}B · USD/INR ${fmt(L.usd_inr,2)} · RBI Weekly Dashboard`;
+}
+
+// Auto-refresh: while the tab is visible and online, quietly re-run the
+// standard load (static file + live check + blob restore) every 30 minutes so
+// a pinned tab shows the newest Friday without a manual Reload. Hidden tabs
+// never fetch; errors only touch the pipeline log.
+setInterval(() => {
+  if(document.hidden || !navigator.onLine) return;
+  const btn = document.getElementById('start-btn');
+  if(btn && !btn.disabled) reloadData();
+}, 30 * 60 * 1000);
+
+// Native share (mobile) with a clipboard fallback that copies a one-line
+// snapshot + link; the button only shows where the Web Share API exists.
+async function shareDashboard(){
+  const L = records[records.length - 1];
+  const url = location.href;
+  const text = L
+    ? `India forex reserves ${fmt(L.total_usd)} USD mn · USD/INR ${fmt(L.usd_inr,2)} · as on ${fmtDate(L.date)} — RBI Weekly Dashboard`
+    : 'RBI Weekly Dashboard — ' + url;
+  if(navigator.share){
+    try { await navigator.share({ title: document.title, text, url }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(text + ' ' + url);
+    const b = document.getElementById('share-btn');
+    if(b){
+      b.innerHTML = '<i data-lucide="check"></i>';
+      if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+      setTimeout(() => { b.innerHTML = '<i data-lucide="share-2"></i>'; if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' }); }, 1400);
+    }
+  } catch(e){ /* clipboard unavailable — nothing to do */ }
+}
+function printDashboard(){ window.print(); }
+
+/* PWA wiring: register the offline service worker (secure contexts only),
+   surface the browser install prompt as a header button, and reveal
+   share/print buttons. Every piece degrades to hidden when unsupported. */
+(function initPWA(){
+  const ok = location.protocol === 'https:' || ['localhost','127.0.0.1'].includes(location.hostname);
+  if('serviceWorker' in navigator && ok){
+    try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch(e){}
+  }
+  const shareBtn = document.getElementById('share-btn');
+  const printBtn = document.getElementById('print-btn');
+  const installBtn = document.getElementById('install-btn');
+  if(shareBtn) shareBtn.hidden = false; // no Web Share API (desktop) → click falls back to clipboard copy
+  if(printBtn) printBtn.addEventListener('click', printDashboard);
+  if(shareBtn) shareBtn.addEventListener('click', shareDashboard);
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if(installBtn){ installBtn.hidden = false; installBtn.title = 'Install app'; }
+  });
+  if(installBtn) installBtn.addEventListener('click', async () => {
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch(e){}
+    deferredPrompt = null;
+    installBtn.hidden = true;
+  });
+  window.addEventListener('appinstalled', () => { if(installBtn) installBtn.hidden = true; });
+})();
 
 // Macro context cards (NSDL FII, G-Sec yield, REER, FX intervention, tax
 // receipts) plus the 6-month FII/DII history chart load from the Netlify
@@ -3213,6 +3475,7 @@ function renderDebtChart(){
         },
       },
     });
+    zoomable(charts.cDebt);
     return;
   }
   if(modes.debt === 'maturity'){
@@ -3249,6 +3512,7 @@ function renderDebtChart(){
         },
       },
     });
+    zoomable(charts.cDebt);
     return;
   }
   if(modes.debt === 'cover'){
@@ -3303,6 +3567,7 @@ function renderDebtChart(){
       });
       charts.cDebt.update('none');
     }
+    zoomable(charts.cDebt);
     return;
   }
   charts.cDebt = new Chart(el, {
@@ -3331,6 +3596,7 @@ function renderDebtChart(){
             y: { ticks: { color: tickC, font: { size: 10.5, family: 'Inter', weight: '600' }, autoSkip: false }, grid: { color: gridC } } },
     },
   });
+  zoomable(charts.cDebt);
 }
 
 // $762.8B reads better than $0.76T; $30.20T beats $30,197.0B.
@@ -3554,6 +3820,7 @@ function renderFiiHistoryChart(){
       }
     }
   });
+  zoomable(fiiHistChart);
 }
 
 // ─── RBI forward book chart ──────────────────────────────────────────────
@@ -3779,6 +4046,7 @@ function renderFwdChart(fx){
       options: opt,
       plugins: isFull ? [fwdGuide] : [],
     });
+    zoomable(charts.cFwd);
     return;
   }
 
@@ -3808,11 +4076,11 @@ function renderFwdChart(fx){
       fill: true,
       borderColor: AMB, backgroundColor: al(AMB, .09),
       borderWidth: 2, tension: .25,
-      pointRadius: 3.5, pointHoverRadius: 5,
-      pointBackgroundColor: ptCol, pointBorderColor: ptCol, pointBorderWidth: 1.5,
+      pointRadius: 3.5, pointHoverRadius: 5,      pointBackgroundColor: ptCol, pointBorderColor: ptCol, pointBorderWidth: 1.5,
     }]},
     options: opt,
   });
+  zoomable(charts.cFwd);
 }
 
 // Page load: load the static data file (rbi-data.json, regenerated on every
@@ -3920,6 +4188,7 @@ function renderPmCares(){
       }
     }
   });
+  zoomable(charts.pm);
 }
 
 /* A downloaded CSV is opened in a spreadsheet, where a cell beginning with

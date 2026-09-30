@@ -6,6 +6,7 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 ## Tech Stack
 - Language: JavaScript (Node >= 18), zero build step, vanilla HTML/CSS/JS frontend
 - Frontend: `public/index.html` - all markup, CSS, and JS inline in one file
+- PWA: `public/manifest.webmanifest` + `public/sw.js` (network-first shell, 24h-tolerant data-cache fallback so the last-known week renders offline; CDN deps are opportunistic-only) + generated icons in `public/icons/` (regenerate via `python tools/make-icons.py`) — registered only on https/localhost, install button surfaces `beforeinstallprompt`
 - Charts: Chart.js 4.4.1 (CDN, loaded with `defer`); fonts Inter + DM Mono (Google Fonts)
 - Hosting: Netlify (static publish + Functions, esbuild bundler)
 - Deps: `node-fetch` (^2.7), `node-xlsx` (^0.23) - both used by the scrapers
@@ -20,6 +21,7 @@ Static dashboard of India's RBI Weekly Statistical Supplement (forex reserves, g
 - Shared HTTP helpers live in `_utils/http.js` (`get`, `extractHtmlTables`, `parseNum`, `UA`)
 - Frontend: semantic class names over inline styles; `.section` blocks are the tab panes, `showSection()`/`sw()` drive tabs and permalink hash (`#tab=...&modes=...`); empty metric values render as `—` (deliberate convention)
 - Data file uses ISO dates (`YYYY-MM-DD`); display uses `en-IN` formatting via `fmt()`
+- End-user affordances: header quick actions (share→clipboard fallback, print/report stylesheet, install), `zoomable()` gives every vertical category-axis chart Ctrl+wheel zoom / drag-pan / pinch / dblclick-reset (handlers bound once per canvas via WeakMap, retargeted on chart rebuild; horizontal-bar and log-axis charts opt out), table range toggle 10/26/52 weeks (all three weekly tables together), full-history CSV download, reserves "1Y level" tab, `updateDocTitle()` puts the latest reserves + USD/INR in the browser tab title, 30-min auto-refresh (visible tabs only), OG/Twitter meta for share previews
 
 ## Testing
 - No test framework exists. Run `npm run check` (node --check on every server file) after touching any `.js`

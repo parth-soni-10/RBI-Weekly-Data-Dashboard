@@ -25,6 +25,10 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 - **Extra context** — crude-oil import estimates, investor (FII) flow, interest rates, and more
 - **World's biggest borrowers** — a quarterly cross-country ranking of external-debt stocks from the World Bank's Quarterly External Debt Statistics (countries' official IMF SDDS/GDDS submissions), with India's rank highlighted — the USA borrows the most, India sits in the low-#20s — plus a debt-to-reserves cover comparison (India's tile uses the dashboard's own weekly RBI reserves), India's short- vs long-term maturity split, and India's borrower rank reconstructed quarter by quarter since 2021
 - **A PM CARES section** — a snapshot of the COVID-era relief fund from its audited accounts
+- **Installable & offline-friendly** — add it to your phone/home screen as an app; when the network is down, the last week it fetched still renders (charts, tiles and tables) from the on-device cache
+- **Zoomable charts** — Ctrl + scroll to zoom, drag to pan, double-click to reset on every time-series chart; pinch on touch
+- **Longer tables & full history** — switch the weekly tables between 10 / 26 / 52 weeks and download the whole fetched history as CSV
+- **Little conveniences** — a share button (copies a one-line snapshot with the link where native sharing isn't available), a print/PDF view of the active tab, the latest reserves and USD/INR shown right in the browser-tab title, a 1-year level view for reserves, and a quiet auto-refresh every 30 minutes while the tab is open
 
 ## How it stays up to date
 
