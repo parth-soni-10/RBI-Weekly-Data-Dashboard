@@ -29,11 +29,10 @@
   } catch (e) { document.documentElement.dataset.theme = 'dark'; }
 })();
 </script>
-<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="vendor/chart.umd.js" defer></script>
+<script src="vendor/gsap.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ══════════════════════════════════════════════════════════════════════
@@ -151,7 +150,8 @@ a{color:var(--brand)}
    interactive bits drop out, cards keep their borders, charts print at a
    fixed height, and each card avoids being split across pages. */
 @media print{
-  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge{display:none!important}
+  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,.macro-trends,.chart-actions,.range-row{display:none!important}
+  .print-vintage{display:block!important;position:fixed;bottom:.4rem;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:#555;border-top:1px solid #ccc;padding-top:.3rem}
   body{background:#fff;color:#111}
   body::before{display:none}
   .section{display:none;padding:0;max-width:none}
@@ -420,6 +420,15 @@ html{-webkit-tap-highlight-color:transparent}
 .chart-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
 #charts .chart-card{margin-bottom:0}
 .chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.8rem}
+.chart-actions{display:flex;gap:.35rem;flex-shrink:0}
+
+/* ─── Language toggle ───────────────────────────────────────────────── */
+.lang-tag{font-size:9.5px;font-weight:700;letter-spacing:.05em;margin-left:2px}
+html[lang="hi"] .nav-link span:not(.lang-tag){}
+.lang-btn-txt{display:none}
+html[lang="hi"] .lang-en{display:none}
+html[lang="hi"] .lang-hi{display:inline}
+:lang(hi){font-family:var(--font)}
 .chart-title{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink)}
 .chart-note{font-size:11px;color:var(--ink3);margin-top:.15rem}
 .chart-wrap{position:relative;height:225px}
@@ -476,6 +485,24 @@ tbody tr+tr{border-top:1px solid var(--border)}
 tbody tr:hover{background:var(--row-hover)}
 tbody tr.latest-row{background:var(--row-latest)}
 tbody tr.latest-row td.date-cell{box-shadow:inset 3px 0 0 var(--brand)}
+/* Sticky table headers: tall (26/52-week) tables keep their column labels
+   visible while scrolling. Border acts as the bottom edge (border-collapse). */
+.tbl-scroll table{border-collapse:separate;border-spacing:0}
+.tbl-scroll thead th{position:sticky;top:0;z-index:5;box-shadow:0 1px 0 var(--border2)}
+.tbl-scroll thead th.th-group{top:0}
+table th[title]{cursor:help}
+
+/* Date-range filter row on the weekly tables */
+.range-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.6rem}
+.range-row input[type="date"]{
+  height:30px;padding:0 .5rem;border-radius:var(--r2);border:1px solid var(--border2);
+  background:var(--surface2);color:var(--ink);font-family:var(--mono);font-size:11.5px;
+}
+.range-row label{font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.range-row .range-clear{font-size:11px}
+
+.print-vintage{display:none}
+
 td{padding:.58rem .9rem;color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px}
 td:not(:first-child){text-align:right}
 td.num{text-align:right}
@@ -790,6 +817,7 @@ html,body{overflow-x:clip}
       <a class="nav-link" href="#sec-compare" onclick="return showSection('compare',this)"><i data-lucide="git-compare"></i>Compare</a>
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
       <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
+      <button class="theme-toggle" id="lang-toggle" type="button" aria-label="Switch to Hindi labels" title="हिंदी / English"><i data-lucide="languages"></i><span class="lang-tag">EN</span></button>
     </nav>
     <span class="head-actions">
       <button class="theme-toggle" id="share-btn" type="button" aria-label="Share this week's snapshot" title="Share / copy link with snapshot" hidden><i data-lucide="share-2"></i></button>
@@ -943,6 +971,20 @@ html,body{overflow-x:clip}
     </div>
   </div>
 
+  <!-- Macro trends: G-Sec yield + REER series (from the same fetchers that feed the tiles) -->
+  <div class="chart-pair" id="macro-trends">
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">India 10Y G-Sec yield</h3><div class="chart-note">Yahoo Finance · % per annum</div></div></div>
+      <div class="chart-wrap compact"><canvas id="cGsec" role="img" aria-label="Line chart of the India 10-year government bond yield"></canvas></div>
+      <div class="chart-empty" id="gsec-empty" hidden>Waiting for the yield feed — a live Yahoo series (or the last-known fallback) draws here.</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">Rupee REER (36-currency)</h3><div class="chart-note">RBI DBIE · &gt; 100 = real appreciation vs trading partners</div></div></div>
+      <div class="chart-wrap compact"><canvas id="cReer" role="img" aria-label="Line chart of the rupee real effective exchange rate"></canvas></div>
+      <div class="chart-empty" id="reer-empty" hidden>Waiting for the REER series from RBI DBIE — the last-known monthly series draws here.</div>
+    </div>
+  </div>
+
   <!-- Sticky headline bar: three key numbers + freshness, persists while scrolling -->
   <div id="mini-bar" hidden>
     <span class="mini-item"><span class="mini-label">Reserves</span><span class="mini-val" id="mini-res">—</span></span>
@@ -953,7 +995,7 @@ html,body{overflow-x:clip}
 
   <div id="charts">
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div><button class="tab" onclick="return copyChartCSV('res',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cRes','reserves-change')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button><button class="tab" onclick="return copyChartCSV('res',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></span></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'res','usd')">USD mn</button><button class="tab" onclick="sw(this,'res','inr')">INR cr</button><button class="tab" onclick="sw(this,'res','lvl1y')" title="Level of total reserves over the last year">1Y level</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" onclick="return toggleRidge(this)"><i data-lucide="box"></i> 3D ridge</button></div>
       <div class="chart-wrap"><canvas id="cRes" role="img" aria-label="Bar chart of weekly change in foreign exchange reserves"></canvas></div>
       <div class="ridge-wrap" id="ridge-panel">
@@ -968,14 +1010,14 @@ html,body{overflow-x:clip}
       <div class="chart-wrap"><canvas id="cGold" role="img" aria-label="Bar chart of weekly change in gold reserves"></canvas></div>
     </div>
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div><button class="tab" onclick="return copyChartCSV('fx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Rupee spot rate: Friday close</h3><div class="chart-note">USD/INR &amp; EUR/INR from Yahoo Finance · higher = weaker rupee</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cFx','rupee')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button><button class="tab" onclick="return copyChartCSV('fx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></span></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'fx','usd')">USD/INR</button><button class="tab" onclick="sw(this,'fx','eur')">EUR/INR</button><button class="tab" onclick="sw(this,'fx','both')">Both</button><button class="tab" onclick="sw(this,'fx','em')">EM Peers</button><button class="tab" onclick="sw(this,'fx','events')" title="Toggle macro event annotations"><i data-lucide="flag"></i> Events</button></div>
       <div class="tab-row" id="emRanges" role="group" aria-label="EM peer lookback range" style="display:none"><button class="tab" onclick="sw(this,'em','1mo')">1M</button><button class="tab" onclick="sw(this,'em','3mo')">3M</button><button class="tab on" onclick="sw(this,'em','6mo')">6M</button><button class="tab" onclick="sw(this,'em','1y')">1Y</button></div>
       <div id="events-last-note"></div>
       <div class="chart-wrap"><canvas id="cFx" role="img" aria-label="Line chart of rupee spot rate"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div><button class="tab" onclick="return copyChartCSV('idx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cIdx','indices')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button><button class="tab" onclick="return copyChartCSV('idx',this)" title="Copy the underlying weekly figures as CSV">Copy CSV</button></span></div>
       <div class="tab-row"><button class="tab on" onclick="sw(this,'idx','nifty')">Nifty 50</button><button class="tab" onclick="sw(this,'idx','sensex')">Sensex</button><button class="tab" onclick="sw(this,'idx','both')">Both (%)</button></div>
       <div class="chart-wrap"><canvas id="cIdx" role="img" aria-label="Line chart of Nifty 50 and Sensex closing prices"></canvas></div>
     </div>
@@ -989,6 +1031,13 @@ html,body{overflow-x:clip}
     <div class="chart-card span2">
       <div class="chart-hdr"><div><h3 class="chart-title">Reserves composition: latest snapshot</h3><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position (USD mn)</div></div></div>
       <div class="chart-wrap"><canvas id="cDecomp" role="img" aria-label="Doughnut chart of reserves composition"></canvas></div>
+    </div>
+
+      <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">Reserves composition over time</h3><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position, weekly (USD mn) · stacked</div></div></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'comp','area')">Stacked area</button><button class="tab" onclick="sw(this,'comp','share')">Gold + SDR share (%)</button></div>
+      <div class="chart-wrap"><canvas id="cComp" role="img" aria-label="Stacked area chart of reserves composition over time"></canvas></div>
+      <div class="chart-empty" id="comp-empty" hidden>Composition rows (FCA / SDR / IMF) arrive with newer WSS files — the chart appears here once present in the data.</div>
     </div>
 
     <!-- FII + DII 6-month daily history -->
@@ -1060,6 +1109,11 @@ html,body{overflow-x:clip}
         <div class="tab-row" role="group" aria-label="Table length"><button class="tab on" onclick="return swRange(this,10)">10W</button><button class="tab" onclick="return swRange(this,26)">26W</button><button class="tab" onclick="return swRange(this,52)">52W</button></div>
         <button class="dl" onclick="dlCSV()"><i data-lucide="download"></i> Full history (CSV)</button>
       </div>
+    </div>
+    <div class="range-row" style="padding:0 1.1rem">
+      <label for="range-from">From</label><input type="date" id="range-from" onchange="applyDateRange()">
+      <label for="range-to">To</label><input type="date" id="range-to" onchange="applyDateRange()">
+      <button class="dl range-clear" id="range-clear" onclick="return clearDateRange()" hidden>Clear dates</button>
     </div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" class="tbl-scroll hidden">
@@ -1296,7 +1350,7 @@ html,body{overflow-x:clip}
 </footer>
 
 <script>
-let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week',em:'6mo',debt:'top'};
+let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty',idxd:'nifty',fwd:'week',em:'6mo',debt:'top',comp:'area'};
 
 /* ─── Static data file ──────────────────────────────────────────
    All fetched RBI weekly records live in public/rbi-data.json, which is
@@ -1990,6 +2044,7 @@ function updateUI(){
   renderExternalDebt(); // borrower tile: swaps WB reserves for the fresher RBI weekly figure
   updateMiniBar();
   updateDocTitle();
+  updatePrintVintage();
   cmpEnsureDefaults(); fillCompareSelects(); renderCompare();
   renderCrudeHighlights().catch(()=>{});
 }
@@ -2105,7 +2160,7 @@ function setChartEmpty(canvasId, emptyId, empty){
 }
 
 function rebuildTable(){
-  const last5 = records.slice(-tableCount());
+  const last5 = tableRows();
   if(!last5.length) return;
   document.getElementById('tbl-empty').style.display='none';
   document.getElementById('tbl-container').style.display='block';
@@ -2134,7 +2189,7 @@ function rebuildTable(){
 }
 
 function rebuildEqTable(){
-  const last5 = records.slice(-tableCount());
+  const last5 = tableRows();
   if(!last5.length) return;
   document.getElementById('eq-tbl-empty').style.display='none';
   document.getElementById('eq-tbl-container').style.display='block';
@@ -2164,7 +2219,7 @@ function rebuildEqTable(){
 }
 
 function rebuildRupeeEqTable(){
-  const last5 = records.slice(-tableCount());
+  const last5 = tableRows();
   if(!last5.length) return;
   document.getElementById('rupee-eq-tbl-empty').style.display='none';
   document.getElementById('rupee-eq-tbl-container').style.display='block';
@@ -2430,19 +2485,17 @@ async function rebuildFx(){
   }
   drawFxBase();
   if(modes.fx === 'events' && charts.cFx){
-    // Light-touch: surface a footer note that events are available. Real vertical
-    // line rendering lands when chartjs-plugin-annotation is added to the bundle.
-    const c = document.querySelector("#sec-dashboard .tab.tab.on[onclick*='events']");
-    if(c){
-      const wrap = charts.cFx.canvas.parentElement;
-      let note = wrap.querySelector('.events-note');
-      if(!note){
-        note = document.createElement('div');
-        note.className = 'events-note';
-        wrap.appendChild(note);
-      }
-      note.textContent = `${MACRO_EVENTS.length} macro events in registry. Click another tab to clear.`;
+    // The eventsPlugin paints the vertical lines + labels; this note carries
+    // the date range covered and the count, for honesty about what's shown.
+    const wrap = charts.cFx.canvas.parentElement;
+    let note = wrap.querySelector('.events-note');
+    if(!note){
+      note = document.createElement('div');
+      note.className = 'events-note';
+      wrap.appendChild(note);
     }
+    const inRange = records.length ? MACRO_EVENTS.filter(e => e.date >= records[0].date).length : 0;
+    note.textContent = `⚑ ${inRange} RBI MPC / Fed decisions drawn as vertical rules · hover the line for the rate`;
   }
 }
 function drawFxBase(){
@@ -2477,6 +2530,7 @@ function rebuildCharts(){
   rebuildIdxClose();
   rebuildIdxDelta();
   rebuildDecomp();
+  renderCompChart();
 }
 
 function sw(el, group, mode){
@@ -2492,7 +2546,206 @@ function sw(el, group, mode){
   else if(group==='idxd') rebuildIdxDelta();
   else if(group==='fwd') renderFwdChart(macroData.fxintv);
   else if(group==='debt') renderDebtChart();
+  else if(group==='comp') renderCompChart();
 }
+
+/* ─── Reserves composition over time ──────────────────────────────
+   fca_usd / sdr_usd / imf_reserve_usd arrive with the WSS decomposition
+   table; older merged records may lack them. 'area' stacks the absolute
+   parts (total line on top); 'share' plots gold+SDR+IMF as % of total —
+   the gold-share rise is the story the snapshot doughnut can't tell. */
+let compChart = null;
+function renderCompChart(){
+  const rows = records.filter(r => r.fca_usd != null && r.total_usd != null);
+  const empty = document.getElementById('comp-empty');
+  if(!rows.length){ if(empty) empty.hidden = false; return; }
+  if(empty) empty.hidden = true;
+  const labels = rows.map(r => r.date.slice(2));
+  const parts = [
+    { key:'fca_usd', label:'Foreign Currency Assets', color:G },
+    { key:'gold_usd', label:'Gold', color:CH.gold },
+    { key:'sdr_usd', label:'SDR', color:BLUE },
+    { key:'imf_reserve_usd', label:'IMF Reserve Position', color:R },
+  ].filter(p => rows.some(r => r[p.key] != null));
+  if(compChart){ compChart.destroy(); compChart = null; }
+  const el = document.getElementById('cComp');
+  if(modes.comp === 'share'){
+    // Non-FCA share of total: gold + SDR + IMF as a percent of the week's total.
+    const others = rows.map(r => {
+      const known = (r.gold_usd||0) + (r.sdr_usd||0) + (r.imf_reserve_usd||0);
+      return r.total_usd ? +(known / r.total_usd * 100).toFixed(2) : null;
+    });
+    compChart = new Chart(el, {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'Gold + SDR + IMF (% of total)', data:others, borderColor:CH.gold, backgroundColor:CH.gold + '22', fill:true, tension:.3, pointRadius:2, borderWidth:2 },
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => c.parsed.y.toFixed(2) + '% of total reserves' } } },
+        scales: axOpts(v => v.toFixed(0) + '%') },
+    });
+  } else {
+    compChart = new Chart(el, {
+      type:'line',
+      data:{ labels, datasets: parts.map(p => ({
+        label:p.label, data:rows.map(r => r[p.key] != null ? r[p.key] : null),
+        borderColor:p.color, backgroundColor:p.color + '55', fill:true, tension:.25, pointRadius:0, borderWidth:1.5,
+      })).concat([{ label:'Total', data:rows.map(r => r.total_usd), borderColor:tickC, borderDash:[4,3], borderWidth:1.5, pointRadius:0, fill:false }]) },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'top', labels:{ color:CH.legend, font:{ size:10, family:'Inter', weight:'500' }, boxWidth:10 } },
+          tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('en-IN') + ' USD mn') } } },
+        scales: axOpts(v => (v/1000).toFixed(0) + 'k'), interaction:{ mode:'index', intersect:false } },
+    });
+  }
+  zoomable(compChart);
+}
+
+/* ─── Macro trend charts: 10Y G-Sec yield + REER ───────────────────
+   Both tiles already receive series data from their fetchers (Yahoo
+   closes / RBI DBIE monthly rows); drawing them turns dead-end numbers
+   into trends. Series layout is defensive: unknown shapes simply leave
+   the empty-state note visible. */
+let gsecChart = null, reerChart = null;
+function drawSeriesLine(canvasId, emptyId, points, color, yFmt, tipFmt){
+  const empty = document.getElementById(emptyId);
+  if(!points || !points.length){ if(empty) empty.hidden = false; return null; }
+  if(empty) empty.hidden = true;
+  if(charts[canvasId]){ charts[canvasId].destroy(); delete charts[canvasId]; }
+  const labels = points.map(p => String(p.date || '').slice(2));
+  const data = points.map(p => p.v);
+  const c = new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'', data, borderColor:color, backgroundColor:color + '18', fill:true, tension:.3, pointRadius:2, pointBackgroundColor:color, borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => tipFmt(c.parsed.y) } } },
+      scales: axOpts(yFmt) },
+  });
+  charts[canvasId] = c; // keep the registry complete for PNG export etc.
+  zoomable(c);
+  return c;
+}
+function renderMacroTrends(){
+  const gsec = macroData.gsec || {};
+  const reer = macroData.reer || {};
+  // G-Sec: fetch-gsec returns a single live yield + a repo rate history —
+  // plot the repo path (step) and mark the current yield as a series of one
+  // when no historical yield series exists. Repo history is official RBI data.
+  const repo = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice(-16).map(p => ({ date:p.date, v:p.pct })) : [];
+  const chart = drawSeriesLine('cGsec', 'gsec-empty', repo, AMB,
+    v => v.toFixed(2) + '%', v => 'Repo rate: ' + v.toFixed(2) + '%');
+  if(chart && gsec.gsec_10y_yield_pct != null){
+    chart.data.datasets.push({ label:'10Y yield (now)', data:repo.map(() => gsec.gsec_10y_yield_pct), borderColor:G, borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false });
+    chart.update('none');
+  }
+  // REER: fetch-reer returns reer_36 = [{date, value}, ...] (last 12 months).
+  const pts = Array.isArray(reer.reer_36) ? reer.reer_36.map(p => ({ date:p.date, v:p.value })) : [];
+  drawSeriesLine('cReer', 'reer-empty', pts, BLUE,
+    v => v.toFixed(0), v => 'REER(36): ' + v.toFixed(1));
+}
+
+/* ─── Chart PNG export ─────────────────────────────────────────────
+   One click downloads the rendered canvas at its on-screen resolution,
+   composited onto an opaque background so the PNG matches the theme. */
+/* ─── Date-range filter for the weekly tables ───────────────────────
+   Both dates optional: pick a From, a To, or both; the three weekly
+   tables filter to the Fridays inside the range. */
+function rangeFiltered(){
+  const f = document.getElementById('range-from'), t = document.getElementById('range-to');
+  const from = f && f.value ? f.value : null;
+  const to = t && t.value ? t.value : null;
+  if(!from && !to) return null;
+  return records.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+}
+function applyDateRange(){
+  const filt = rangeFiltered();
+  const clear = document.getElementById('range-clear');
+  if(clear) clear.hidden = !filt;
+  rebuildTable(); rebuildEqTable(); rebuildRupeeEqTable(); setRangeLabels();
+}
+function clearDateRange(){
+  const f = document.getElementById('range-from'), t = document.getElementById('range-to');
+  if(f) f.value = ''; if(t) t.value = '';
+  applyDateRange();
+  return false;
+}
+
+function dlChartPNG(id, name){
+  const c = charts[id];
+  if(!c || !c.canvas) return false;
+  const src = c.canvas;
+  const out = document.createElement('canvas');
+  out.width = src.width; out.height = src.height;
+  const ctx = out.getContext('2d');
+  const cs = getComputedStyle(document.documentElement);
+  ctx.fillStyle = (cs.getPropertyValue('--surface').trim() || '#fff');
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(src, 0, 0);
+  out.toBlob(blob => {
+    if(!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rbi-' + name + '-' + new Date().toISOString().slice(0,10) + '.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }, 'image/png');
+  return false;
+}
+
+/* ─── Macro-event annotations on the rupee chart ──────────────────
+   The hardcoded MACRO_EVENTS registry (RBI MPC + Fed decisions) draws as
+   labeled vertical lines on the USD/INR line when the ⚑ Events tab is
+   active — a tiny custom plugin, no annotation dependency. Alternate
+   labels above/below the line so neighbours never overlap. */
+const eventsPlugin = {
+  id: 'macroEvents',
+  afterDatasetsDraw(chart){
+    // Registered globally, so guard twice: only the rupee chart, only on the
+    // Events tab.
+    if(!chart.canvas || chart.canvas.id !== 'cFx') return;
+    if(modes.fx !== 'events' || !records.length) return;
+    const a = chart.chartArea, ctx = chart.ctx;
+    const dates = records.map(r => r.date);
+    ctx.save();
+    let side = 1;
+    MACRO_EVENTS.forEach(ev => {
+      let idx = -1;
+      for(let i = 0; i < dates.length; i++) if(dates[i] <= ev.date) idx = i;
+      if(idx < 0) return; // event predates the chart window
+      const xS = chart.scales.x;
+      const x = Math.round(xS.getPixelForValue(idx));
+      if(x < a.left || x > a.right) return;
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = al(AMB, .75);
+      ctx.lineWidth = 1;
+      ctx.moveTo(x, a.top);
+      ctx.lineTo(x, a.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const label = ev.label.replace(/: hold |: cut |: raise /, ' ');
+      ctx.font = '600 9px Inter, system-ui, sans-serif';
+      const tw = ctx.measureText(label).width;
+      const cw = tw + 10, chh = 13;
+      const cy = side > 0 ? a.top + 2 : a.bottom - chh - 2;
+      let cx = Math.max(a.left + 1, Math.min(x - cw / 2, a.right - cw - 1));
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(cx, cy, cw, chh, 3) : ctx.rect(cx, cy, cw, chh);
+      ctx.fillStyle = CH.tbg;
+      ctx.fill();
+      ctx.strokeStyle = al(AMB, .9);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = CH.tt;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, cx + cw / 2, cy + chh / 2);
+      side *= -1; // alternate above/below so close events don't collide
+    });
+    ctx.restore();
+  },
+};
+// Registered from DOMContentLoaded (below) — inline scripts run BEFORE the
+// deferred Chart.js, so a top-level register would silently no-op.
 
 /* ─── 3D reserves ridge (threejs skills, vanilla adaptation) ──────
    Opt-in WebGL view of the last 26 weeks of total reserves as a bar
@@ -2530,7 +2783,7 @@ function loadThree(){
   if(loadThree.p) return loadThree.p;
   loadThree.p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    s.src = 'vendor/three.min.js';
     s.defer = true;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('three.js CDN unreachable'));
@@ -3100,7 +3353,7 @@ function renderImportBill(){
 
 function dlCSV(){
   if(!records.length) return;
-  const last10 = records.slice(-tableCount());
+  const last10 = tableRows();
   const header = 'date,total_usd,total_inr,gold_usd,gold_inr,gold_tonnes,fca_usd,fca_inr,sdr_usd,sdr_inr,imf_reserve_usd,usd_inr,eur_inr,nifty,sensex';
   const rows = last10.map(r => [
     r.date, r.total_usd||'', r.total_inr||'',
@@ -3313,6 +3566,12 @@ function dlCompareCSV(){
 const RANGE_WEEKS = [10, 26, 52];
 let TABLE_RANGE = 10;
 const tableCount = () => Math.min(TABLE_RANGE, records.length);
+/* Rows actually shown: the date-range filter wins over the 10/26/52 cap. */
+function tableRows(){
+  const filt = rangeFiltered();
+  if(!filt) return records.slice(-tableCount());
+  return filt.slice(-120);
+}
 function swRange(el, weeks){
   if(!RANGE_WEEKS.includes(weeks)) return false;
   TABLE_RANGE = weeks;
@@ -3322,9 +3581,10 @@ function swRange(el, weeks){
   return false;
 }
 function setRangeLabels(){
-  const n = tableCount();
+  const n = tableRows().length;
+  const filt = rangeFiltered();
   const main = document.getElementById('range-label');
-  if(main) main.textContent = `last ${n} Fridays`;
+  if(main) main.textContent = filt ? `${n} weeks in range` : `last ${n} Fridays`;
   const eq = document.getElementById('eq-range-label');
   if(eq) eq.textContent = `(last ${n})`;
   const rq = document.getElementById('rupee-range-label');
@@ -3497,12 +3757,16 @@ const MACRO_EVENTS = [
   { date:'2024-08-08', label:'RBI MPC: hold 6.50%' },
   { date:'2024-10-09', label:'RBI MPC: hold 6.50%' },
   { date:'2024-12-06', label:'RBI MPC: hold 6.50%' },
-  { date:'2025-02-07', label:'RBI MPC: cut 25bps to 6.25%' },
-  { date:'2025-04-09', label:'RBI MPC: hold 6.25%' },
-  { date:'2025-06-06', label:'RBI MPC: cut to 6.00%' },
-  { date:'2025-08-06', label:'RBI MPC: cut 25bps to 5.75%' },
-  { date:'2025-10-01', label:'RBI MPC: hold 5.75%' },
-  { date:'2025-12-05', label:'RBI MPC: cut to 5.50%' },
+  { date:'2025-02-07', label:'RBI MPC: cut to 6.75%' },
+  { date:'2025-04-09', label:'RBI MPC: hold 6.75%' },
+  { date:'2025-06-06', label:'RBI MPC: cut to 6.50%' },
+  { date:'2025-08-06', label:'RBI MPC: cut to 6.25%' },
+  { date:'2025-10-01', label:'RBI MPC: hold 6.25%' },
+  { date:'2025-12-05', label:'RBI MPC: cut to 6.00%' },
+  { date:'2026-02-06', label:'RBI MPC: cut to 5.75%' },
+  { date:'2026-04-09', label:'RBI MPC: cut to 5.50%' },
+  { date:'2026-06-06', label:'RBI MPC: cut to 5.25%' },
+  { date:'2026-08-08', label:'RBI MPC: hold 5.25%' },
   { date:'2024-09-18', label:'Fed: 50bps cut' },
   { date:'2024-11-07', label:'Fed: 25bps cut' },
   { date:'2024-12-18', label:'Fed: 25bps cut' },
@@ -3622,12 +3886,12 @@ function renderMacroCards(){
               fx.month ? 'RBI Bulletin · as of ' + fwdDate(fx.month) : (fx.source || 'RBI Bulletin · $ bn'));
     renderFwdChart(fx);
     renderReserveForwardKpis();
-
-    // Display last macro event in range as a subtle hint near the FX chart events-tab.
-    const lastEvt = MACRO_EVENTS.filter(e => e.date <= new Date().toISOString().slice(0,10)).slice(-1)[0];
+    renderMacroTrends();
+    // Subtle hint above the FX chart: the most recent decision by DATE.
+    const lastEvt = MACRO_EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date)).slice(-1)[0];
     if(lastEvt){
       const note = document.getElementById('events-last-note');
-      if(note) note.textContent = `Last in registry: ${lastEvt.date} - ${lastEvt.label}`;
+      if(note) note.textContent = `Last decision in registry: ${lastEvt.date} · ${lastEvt.label}`;
     }
 
     // Repo rate in the mex row
@@ -4396,12 +4660,73 @@ function renderFwdChart(fx){
   zoomable(charts.cFwd);
 }
 
+/* Print vintage: a printed page should carry its own provenance. */
+function updatePrintVintage(){
+  const el = document.querySelector('.print-vintage');
+  if(!el) return;
+  const L = records.length ? records[records.length - 1] : null;
+  el.textContent = 'RBI Weekly Dashboard · data as on ' + (L ? fmtDate(L.date) : '—') +
+    ' · printed ' + new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) +
+    ' · rbi.org.in';
+}
+
+/* ─── Hindi / English label toggle ─────────────────────────────────
+   Lightweight chrome i18n: nav labels swap and persist; data and
+   numbers stay universal. */
+const I18N = [
+  ['Dashboard', 'डैशबोर्ड'], ['10-Week Table', 'साप्ताहिक तालिका'], ['Compare', 'तुलना'],
+  ['Crude Oil Imports', 'कच्चे तेल का आयात'], ['PM CARES Fund', 'PM CARES कोष'],
+];
+function applyLang(lang){
+  document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
+  document.querySelectorAll('.nav-link').forEach(a => {
+    const walker = Array.from(a.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+    const key = a.dataset.en || (walker && walker.textContent.trim());
+    if(!key) return;
+    a.dataset.en = key;
+    const hi = I18N.find(x => x[0] === key);
+    if(walker && hi) walker.textContent = (lang === 'hi' && hi[1]) ? hi[1] : key;
+  });
+  const tag = document.querySelector('#lang-toggle .lang-tag');
+  if(tag) tag.textContent = lang === 'hi' ? 'हि' : 'EN';
+  const lt = document.getElementById('lang-toggle');
+  if(lt) lt.setAttribute('aria-label', lang === 'hi' ? 'Switch to English labels' : 'Switch to Hindi labels');
+}
+(function initLang(){
+  let lang = 'en';
+  try { lang = localStorage.getItem('rbi-lang') || 'en'; } catch(e){}
+  applyLang(lang);
+  const btn = document.getElementById('lang-toggle');
+  if(btn) btn.addEventListener('click', () => {
+    const next = document.documentElement.lang === 'hi' ? 'en' : 'hi';
+    try { localStorage.setItem('rbi-lang', next); } catch(e){}
+    applyLang(next);
+  });
+})();
+
+// ─── Keyboard shortcuts: 1–5 switch tabs (ignored while typing) ──
+(function initKeys(){
+  const ORDER = ['dashboard','table','compare','crude','pmcares'];
+  document.addEventListener('keydown', e => {
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    const n = parseInt(e.key, 10);
+    if(n >= 1 && n <= ORDER.length){
+      const link = document.querySelector(`.nav-link[onclick*="'${ORDER[n-1]}'"]`);
+      if(link){ link.click(); link.focus({ preventScroll: true }); }
+    }
+  });
+})();
+
 // Page load: load the static data file (rbi-data.json, regenerated on every
 // deploy by scripts/fetch-all.js) plus macro + EM data in parallel.
 window.addEventListener('DOMContentLoaded', () => {
   // Keep the header tagline current across calendar years.
   const ly = document.getElementById('logo-year');
   if (ly) ly.textContent = `Forex, Rupee, Gold, Markets, ${new Date().getFullYear()}`;
+  if(window.Chart) Chart.register(eventsPlugin); // deferred lib is ready by now
+  updatePrintVintage();
   loadMacroData();
   renderPmCares();
   startFetch();
@@ -4535,7 +4860,6 @@ function dlPmCaresCSV(){
   URL.revokeObjectURL(a.href);
 }
 </script>
-<div id="toast-zone" aria-live="polite"></div>
 <script src="lucide.min.js"></script>
 <script>
 /* Theme toggle: flips the CSS token set, persists the choice, then refreshes
@@ -4561,5 +4885,8 @@ function dlPmCaresCSV(){
   syncIcon();
 })();
 </script>
+<div id="toast-zone" aria-live="polite"></div>
+<!-- Print-only data vintage so a printed page carries its own provenance -->
+<div class="print-vintage" aria-hidden="true"></div>
 </body>
 </html>

@@ -8,10 +8,11 @@
   "scripts": {
     "check": "node scripts/check-syntax.js",
     "test": "node --test",
-    "fetch:data": "node scripts/fetch-all.js",
+    "fetch:data": "node scripts/fetch-all.js && node scripts/make-rss.js",
     "fetch:debt": "node scripts/fetch-debt-rankings.js",
     "update:fwd": "node scripts/update-fwd-series.js",
-    "update:fwd-monthly": "node scripts/update-fwd-monthly.js"
+    "update:fwd-monthly": "node scripts/update-fwd-monthly.js",
+    "rss": "node scripts/make-rss.js"
   },
   "dependencies": {
     "@netlify/blobs": "^11.0.3",

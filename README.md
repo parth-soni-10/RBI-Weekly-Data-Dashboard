@@ -30,6 +30,13 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 - **Longer tables & full history** — switch the weekly tables between 10 / 26 / 52 weeks and download the whole fetched history as CSV
 - **Compare any two weeks** — a dedicated tab where you pick two Fridays and every headline metric shows its absolute and percent move between them, with a shareable link and CSV download
 - **New-week alerts** — when a live check finds a freshly published RBI week, a toast slides in and a small header badge appears; click either to jump straight to the updated numbers
+- **Macro event annotations** — the ⚑ Events tab marks every RBI MPC and Fed decision as a labeled vertical rule on the rupee chart
+- **Macro trends** — the RBI repo-rate path with the live 10Y yield, and the REER(36) real-exchange-rate series, as charts beside the tiles
+- **Reserves composition over time** — a stacked view of FCA + gold + SDR + IMF (and the gold/SDR/IMF share of total) once WSS decomposition rows arrive in the data
+- **Charts as images** — one click downloads any main chart as a PNG beside the existing Copy CSV buttons
+- **Practical table tools** — sticky column headers on long tables and a from/to date filter over the 10/26/52-week views
+- **Keyboard + language** — keys 1–5 switch tabs, and a हि/EN toggle swaps the navigation into Hindi (persisted)
+- **Subscribe + safe** — an RSS feed of new weeks (`/feed.xml`, generated at build), vendored JavaScript with no CDN dependency, and CSP/security headers on every page
 - **Little conveniences** — a share button (copies a one-line snapshot with the link where native sharing isn't available), a print/PDF view of the active tab, the latest reserves and USD/INR shown right in the browser-tab title, a 1-year level view for reserves, and a quiet auto-refresh every 30 minutes while the tab is open
 
 ## How it stays up to date
