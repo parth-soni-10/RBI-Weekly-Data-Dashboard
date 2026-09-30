@@ -151,7 +151,7 @@ a{color:var(--brand)}
    interactive bits drop out, cards keep their borders, charts print at a
    fixed height, and each card avoids being split across pages. */
 @media print{
-  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link{display:none!important}
+  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge{display:none!important}
   body{background:#fff;color:#111}
   body::before{display:none}
   .section{display:none;padding:0;max-width:none}
@@ -718,6 +718,21 @@ details.read-more .chart-note{margin-top:.35rem}
 @media(max-width:900px){
   .new-week-badge{order:2}
 }
+
+/* ─── Compositor-stall rescue ────────────────────────────────────
+   If entrance animations are ever stuck at their first frame (throttled
+   compositor, headless capture, background-restore edge cases), the page
+   must still be readable: html.anim-off force-finishes every entrance by
+   removing the animation, which returns each element to its natural,
+   fully-visible state. Only added by JS when a stall is detected, so
+   normal browsers keep every animation. */
+html.anim-off .section.active,
+html.anim-off #metrics.show .mc,
+html.anim-off .metric-extra-row.show .mex,
+html.anim-off .pm-metrics .mc,
+html.anim-off .mc-grid .mctx,
+html.anim-off #crude-kpis .mc,
+html.anim-off #charts.show .chart-card{animation:none}
 
 /* Macro strip collapse toggle */
 .macro-context h3{justify-content:space-between;flex-wrap:wrap;row-gap:.4rem}
@@ -1304,6 +1319,9 @@ function showSection(name, el) {
   if(canAnimate()){
     sec.classList.add('gsap-nav');
     window.gsap.fromTo(sec, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, ease: 'power1.out', overwrite: 'auto', clearProps: 'opacity,transform' });
+    // Safety net: if the tween is interrupted (rAF throttling, tab switch),
+    // never leave a section stuck half-transparent.
+    setTimeout(() => { try { window.gsap.set(sec, { clearProps: 'opacity,transform' }); } catch(_){} }, 500);
   }
   document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
@@ -4387,6 +4405,17 @@ window.addEventListener('DOMContentLoaded', () => {
   loadMacroData();
   renderPmCares();
   startFetch();
+  // Compositor-stall rescue: if entrance animations are still sitting at
+  // their first frame ~1.2s in (while the tab is visible), force-finish them
+  // so the page can never be caught invisible. No-op in normal browsers.
+  setTimeout(() => {
+    if(!document.getAnimations) return;
+    const stuck = document.getAnimations().some(a => a.currentTime === 0 && a.playState === 'running');
+    if(stuck){
+      document.documentElement.classList.add('anim-off');
+      try { window.gsap && gsap.set('.section.active', { clearProps: 'opacity,transform' }); } catch(_){}
+    }
+  }, 1200);
 });
 
 /* ===== PM CARES FUND — curated year-by-year data =====
