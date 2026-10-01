@@ -2679,11 +2679,14 @@ function sw(el, group, mode){
    the gold-share rise is the story the snapshot doughnut can't tell. */
 let compChart = null;
 function renderCompChart(){
+  // Weeks with a parsed decomposition (fca_usd is the anchor field — the
+  // WSS sheet carries FCA/SDR/IMF together, so presence tracks the sheet).
   const rows = records.filter(r => r.fca_usd != null && r.total_usd != null);
   const empty = document.getElementById('comp-empty');
   if(!rows.length){ if(empty) empty.hidden = false; return; }
   if(empty) empty.hidden = true;
   const labels = rows.map(r => r.date.slice(2));
+  // Stack order bottom→top: FCA (the bulk), then Gold, SDR, IMF position.
   const parts = [
     { key:'fca_usd', label:'Foreign Currency Assets', color:G },
     { key:'gold_usd', label:'Gold', color:CH.gold },
@@ -2691,9 +2694,11 @@ function renderCompChart(){
     { key:'imf_reserve_usd', label:'IMF Reserve Position', color:R },
   ].filter(p => rows.some(r => r[p.key] != null));
   if(compChart){ compChart.destroy(); compChart = null; }
+  if(charts.cComp){ charts.cComp.destroy(); delete charts.cComp; }
   const el = document.getElementById('cComp');
   if(modes.comp === 'share'){
-    // Non-FCA share of total: gold + SDR + IMF as a percent of the week's total.
+    // Gold + SDR + IMF as a percent of the week's total — the gold-share
+    // rise is the story the snapshot doughnut can't tell.
     const others = rows.map(r => {
       const known = (r.gold_usd||0) + (r.sdr_usd||0) + (r.imf_reserve_usd||0);
       return r.total_usd ? +(known / r.total_usd * 100).toFixed(2) : null;
@@ -2708,18 +2713,30 @@ function renderCompChart(){
         scales: axOpts(v => v.toFixed(0) + '%') },
     });
   } else {
+    // True stacked area: y-scale stacked, Filler layered with origin 'start'
+    // so each band spans from the cumulative top of the previous band.
     compChart = new Chart(el, {
       type:'line',
       data:{ labels, datasets: parts.map(p => ({
         label:p.label, data:rows.map(r => r[p.key] != null ? r[p.key] : null),
-        borderColor:p.color, backgroundColor:p.color + '55', fill:true, tension:.25, pointRadius:0, borderWidth:1.5,
-      })).concat([{ label:'Total', data:rows.map(r => r.total_usd), borderColor:tickC, borderDash:[4,3], borderWidth:1.5, pointRadius:0, fill:false }]) },
+        borderColor:p.color, backgroundColor:p.color + '66', fill:'origin', tension:.2, pointRadius:0, borderWidth:1.2,
+      })) },
       options:{ responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{ position:'top', labels:{ color:CH.legend, font:{ size:10, family:'Inter', weight:'500' }, boxWidth:10 } },
-          tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('en-IN') + ' USD mn') } } },
-        scales: axOpts(v => (v/1000).toFixed(0) + 'k'), interaction:{ mode:'index', intersect:false } },
+          tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{
+            label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('en-IN') + ' USD mn'),
+            footer: items => {
+              const sum = items.reduce((a, it) => a + (it.parsed.y || 0), 0);
+              return 'Sum of parts: ' + Math.round(sum).toLocaleString('en-IN') + ' USD mn';
+            } } } },
+        interaction:{ mode:'index', intersect:false },
+        scales: {
+          x: axOpts(v => v).x,
+          y: { ...axOpts(v => (v/1000).toFixed(0) + 'k').y, stacked:true },
+        } },
     });
   }
+  charts.cComp = compChart;
   zoomable(compChart);
 }
 

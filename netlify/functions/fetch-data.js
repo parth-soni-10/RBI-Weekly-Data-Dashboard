@@ -384,6 +384,13 @@ async function processOneFriday(pubFriday) {
       total_inr: reserves.total_inr,
       gold_usd:  reserves.gold_usd,
       gold_inr:  reserves.gold_inr,
+      gold_tonnes: reserves.gold_tonnes,
+      fca_usd:   reserves.fca_usd,
+      fca_inr:   reserves.fca_inr,
+      sdr_usd:   reserves.sdr_usd,
+      sdr_inr:   reserves.sdr_inr,
+      imf_reserve_usd: reserves.imf_reserve_usd,
+      imf_reserve_inr: reserves.imf_reserve_inr,
       usd_inr:   usdInr || spot.usd_inr,
       eur_inr:   eurInr || spot.eur_inr,
       nifty,
@@ -400,6 +407,11 @@ async function processOneFriday(pubFriday) {
 // underlying scrape without duplicating the parser.
 exports._getFridays    = getAllFridaysUntilToday;
 exports._processOne    = processOneFriday;
+// Parser internals, reused by scripts/backfill-decomp.js so the WSS
+// decomposition fields can be filled into the historical record set without
+// duplicating parsing logic (same pattern as fetch-all.js).
+exports._findExcelUrls = findExcelUrls;
+exports._parseReservesExcel = parseReservesExcel;
 
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};

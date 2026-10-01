@@ -70,6 +70,19 @@ jobs:
       - name: Refresh World Bank external-debt ranking (biggest-borrower tiles)
         run: npm run fetch:debt
 
+      # One-shot backfill of the reserves decomposition (FCA / SDR / IMF /
+      # gold tonnes) into the historical weeks. The WSS scraper parsed these
+      # fields but dropped them from records until now; the composition chart
+      # needs them per week. The script only fills missing fields, validates
+      # each week's components sum to its recorded total (±0.5%), and exits 0
+      # when nothing is left to fill — so it's a no-op once complete and can
+      # stay in the cron until the backlog is done. RBI's doc CDN serves an
+      # F5 JS challenge to some client networks (local runs get an HTML
+      # interstitial), but GitHub runners download these files daily, so the
+      # backfill lives here rather than in a local script run.
+      - name: Backfill reserves decomposition fields (FCA/SDR/IMF)
+        run: node scripts/backfill-decomp.js
+
       - name: Commit updated data (if changed)
         run: |
           git config user.name "github-actions[bot]"
