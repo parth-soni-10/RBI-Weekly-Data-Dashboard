@@ -1091,7 +1091,7 @@ html,body{overflow-x:clip}
 
       <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Reserves composition over time</h3><div class="chart-note">Foreign Currency Assets + Gold + SDR + IMF Reserve Position, weekly (USD mn) · stacked</div></div></div>
-      <div class="tab-row"><button class="tab on" onclick="sw(this,'comp','area')">Stacked area</button><button class="tab" onclick="sw(this,'comp','share')">Gold + SDR share (%)</button></div>
+      <div class="tab-row"><button class="tab on" onclick="sw(this,'comp','area')">Stacked area</button><button class="tab" onclick="sw(this,'comp','share')" title="Gold share of reserves on every week; dashed line adds SDR + IMF where decomposition is parsed">Gold share (%)</button></div>
       <div class="chart-wrap"><canvas id="cComp" role="img" aria-label="Stacked area chart of reserves composition over time"></canvas></div>
       <div class="chart-empty" id="comp-empty" hidden>Composition rows (FCA / SDR / IMF) arrive with newer WSS files — the chart appears here once present in the data.</div>
     </div>
@@ -2047,13 +2047,40 @@ function cleanLiveRecord(rec){
     else if(typeof v === 'string') out[k] = v.replace(/[<>]/g,'').slice(0,400);
     else if(v === null || typeof v === 'boolean') out[k] = v;
   }
+  // Decomposition sanity (defence against saved/live payloads written before
+  // the parser's column-swap fix): the WSS sheet lays rows out as
+  // [₹ crore | US$ mn], so a swapped payload shows fca_usd ≈ 9× fca_inr. In
+  // correct data the USD-mn value is always below the INR-cr value, so any
+  // inversion is unambiguous — swap it back rather than plot a 9× lie.
+  for (const [usd, inr] of [['fca_usd','fca_inr'], ['sdr_usd','sdr_inr'], ['imf_reserve_usd','imf_reserve_inr']]) {
+    const a = out[usd], b = out[inr];
+    if (a != null && b != null && a > b) { out[usd] = b; out[inr] = a; }
+  }
+  // A USD-mn component can never exceed the week's total reserves; if one
+  // does it is a stray ₹-crore figure without its pair — drop it (the merge
+  // below then lets the file's parsed value, if any, win).
+  if (out.total_usd != null) {
+    for (const k of ['fca_usd', 'sdr_usd', 'imf_reserve_usd']) {
+      if (out[k] != null && out[k] > out.total_usd) out[k] = null;
+    }
+  }
   return out;
 }
 function mergeLiveRecord(rec) {
   const clean = cleanLiveRecord(rec);
   if (!clean) return false;
   const i = records.findIndex(r => r.date === clean.date);
-  if (i >= 0) { records[i] = Object.assign({}, records[i], clean); return false; }
+  if (i >= 0) {
+    // Merge field-by-field: a null in a saved/live payload means "not parsed
+    // at the time", never real data — it must not shadow a value the file
+    // already carries (e.g. decomposition fields filled by a later backfill).
+    const merged = Object.assign({}, records[i]);
+    for (const k of Object.keys(clean)) {
+      if (clean[k] === null && merged[k] != null) continue;
+      merged[k] = clean[k];
+    }
+    records[i] = merged; return false;
+  }
   records.push(clean);
   return true;
 }
@@ -2689,36 +2716,47 @@ function renderCompChart(){
   // WSS sheet carries FCA/SDR/IMF together, so presence tracks the sheet).
   const rows = records.filter(r => r.fca_usd != null && r.total_usd != null);
   const empty = document.getElementById('comp-empty');
-  if(!rows.length){ if(empty) empty.hidden = false; return; }
-  if(empty) empty.hidden = true;
-  const labels = rows.map(r => r.date.slice(2));
-  // Stack order bottom→top: FCA (the bulk), then Gold, SDR, IMF position.
-  const parts = [
-    { key:'fca_usd', label:'Foreign Currency Assets', color:G },
-    { key:'gold_usd', label:'Gold', color:CH.gold },
-    { key:'sdr_usd', label:'SDR', color:BLUE },
-    { key:'imf_reserve_usd', label:'IMF Reserve Position', color:R },
-  ].filter(p => rows.some(r => r[p.key] != null));
   if(compChart){ compChart.destroy(); compChart = null; }
   if(charts.cComp){ charts.cComp.destroy(); delete charts.cComp; }
   const el = document.getElementById('cComp');
   if(modes.comp === 'share'){
-    // Gold + SDR + IMF as a percent of the week's total — the gold-share
-    // rise is the story the snapshot doughnut can't tell.
-    const others = rows.map(r => {
-      const known = (r.gold_usd||0) + (r.sdr_usd||0) + (r.imf_reserve_usd||0);
-      return r.total_usd ? +(known / r.total_usd * 100).toFixed(2) : null;
-    });
+    // Gold's share of total reserves is the headline line — and it needs no
+    // decomposition (gold + total are parsed every week), so the rise reads
+    // as one continuous line while the cron backfill fills the stacked area.
+    const grow = records.filter(r => r.gold_usd != null && r.total_usd);
+    if(!grow.length){ if(empty) empty.hidden = false; return; }
+    if(empty) empty.hidden = true;
+    const labels = grow.map(r => r.date.slice(2));
+    // Gold + SDR + IMF (the whole non-FCA share) — decomposition weeks only;
+    // nulls gap the dashed line until the backfill fills those weeks in.
+    const nonFca = new Map(rows.map(r => [r.date, r.total_usd ? +(((r.gold_usd||0) + (r.sdr_usd||0) + (r.imf_reserve_usd||0)) / r.total_usd * 100).toFixed(2) : null]));
+    const datasets = [
+      { label:'Gold (% of total)', data:grow.map(r => +(r.gold_usd / r.total_usd * 100).toFixed(2)), borderColor:CH.gold, backgroundColor:CH.gold + '1a', fill:'origin', tension:.3, pointRadius:2, borderWidth:2.5 },
+    ];
+    // Only show the dashed overlay once the backfill has produced at least
+    // one decomposition week — an all-null legend entry reads as a bug.
+    const nonFcaData = labels.map((_, i) => { const v = nonFca.get(grow[i].date); return v == null ? null : v; });
+    if (nonFcaData.some(v => v != null)) datasets.push({ label:'Gold + SDR + IMF (% of total)', data:nonFcaData, borderColor:BLUE, borderDash:[6,4], fill:false, tension:.3, pointRadius:2, borderWidth:1.8 });
     compChart = new Chart(el, {
       type:'line',
-      data:{ labels, datasets:[
-        { label:'Gold + SDR + IMF (% of total)', data:others, borderColor:CH.gold, backgroundColor:CH.gold + '22', fill:true, tension:.3, pointRadius:2, borderWidth:2 },
-      ]},
+      data:{ labels, datasets },
       options:{ responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => c.parsed.y.toFixed(2) + '% of total reserves' } } },
+        plugins:{ legend:{ position:'top', labels:{ color:CH.legend, font:{ size:10, family:'Inter', weight:'500' }, boxWidth:10 } },
+          tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:G, borderWidth:1, callbacks:{ label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toFixed(2) + '% of total reserves') } } },
+        interaction:{ mode:'index', intersect:false },
         scales: axOpts(v => v.toFixed(0) + '%') },
     });
   } else {
+    if(!rows.length){ if(empty) empty.hidden = false; return; }
+    if(empty) empty.hidden = true;
+    const labels = rows.map(r => r.date.slice(2));
+    // Stack order bottom→top: FCA (the bulk), then Gold, SDR, IMF position.
+    const parts = [
+      { key:'fca_usd', label:'Foreign Currency Assets', color:G },
+      { key:'gold_usd', label:'Gold', color:CH.gold },
+      { key:'sdr_usd', label:'SDR', color:BLUE },
+      { key:'imf_reserve_usd', label:'IMF Reserve Position', color:R },
+    ].filter(p => rows.some(r => r[p.key] != null));
     // True stacked area: y-scale stacked, Filler layered with origin 'start'
     // so each band spans from the cumulative top of the previous band.
     compChart = new Chart(el, {
