@@ -993,7 +993,7 @@ html,body{overflow-x:clip}
         <div class="mctx-sub" id="fx-fwd-sub">RBI Bulletin · $ bn</div>
       </div>
       <div class="mctx">
-        <div class="mctx-label" data-glossary="Composite India market fear & greed meter (0 = extreme fear, 100 = extreme greed), averaged from five daily Yahoo Finance signals: Nifty vs its 6-month average, position in its 52-week range, India VIX vs its 1-year norm, smallcap-minus-largecap 21-day return spread, and the USD/INR 21-day move. In the spirit of CNN's Fear & Greed Index, tuned for Indian markets.">Fear & Greed (India)</div>
+        <div class="mctx-label" data-glossary="Composite India market fear & greed meter (0 = extreme fear, 100 = extreme greed), averaged from six daily signals — five from Yahoo Finance (Nifty vs its 6-month average, position in its 52-week range, India VIX vs its 1-year norm, smallcap-minus-largecap 21-day return spread, USD/INR 21-day move) plus the latest NSDL FII equity net flow. In the spirit of CNN's Fear & Greed Index, tuned for Indian markets.">Fear & Greed (India)</div>
         <div id="fng-score" class="mctx-val">—</div>
         <div class="mctx-sub" id="fng-score-sub">Yahoo composite · 0–100</div>
       </div>
@@ -1022,16 +1022,16 @@ html,body{overflow-x:clip}
   <!-- Market sentiment: composite India fear & greed gauge (fetch-sentiment) -->
   <div class="chart-pair" id="sentiment-row">
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">Market sentiment: Fear &amp; Greed (India)</h3><div class="chart-note">Yahoo composite · 0 extreme fear → 100 extreme greed · not investment advice</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cFng','fear-greed')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">Market sentiment: Fear &amp; Greed (India)</h3><div class="chart-note">Yahoo + NSDL composite · 0 extreme fear → 100 extreme greed · not investment advice</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cFng','fear-greed')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
       <div class="fng-flex">
         <div class="fng-gauge"><div class="fng-cv"><canvas id="cFng" role="img" aria-label="Gauge showing the composite India market fear and greed score"></canvas></div><div class="fng-scale" aria-hidden="true"><span>0 · fear</span><span>100 · greed</span></div></div>
         <div class="fng-side">
           <div class="fng-verdict"><span id="fng-label">—</span><span id="fng-chip" class="fng-chip" hidden></span></div>
-          <div class="fng-meta" id="fng-meta">Composite of five daily signals</div>
+          <div class="fng-meta" id="fng-meta">Composite of six daily signals</div>
           <ul class="fng-bars" id="fng-bars"></ul>
         </div>
       </div>
-      <div class="chart-empty" id="fng-empty" hidden>Waiting for the sentiment feed — the five-signal composite meter draws here.</div>
+      <div class="chart-empty" id="fng-empty" hidden>Waiting for the sentiment feed — the six-signal composite meter draws here.</div>
     </div>
 
     <div class="chart-card">

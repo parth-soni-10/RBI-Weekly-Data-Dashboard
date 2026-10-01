@@ -15,6 +15,10 @@
 //                              caps sharply, speculative appetite is fading.
 //   5. Safe-haven demand     — 21-day % change in USD/INR. A surging dollar
 //                              against the rupee = capital leaving = fear.
+//   6. Foreign flows         — FII equity net for the latest NSDL reporting
+//                              session (₹ cr). Sustained foreign selling = fear;
+//                              buying = greed. Optional: the meter runs on
+//                              five signals when NSDL is unreachable.
 //
 // Each signal maps to 0 (extreme fear) … 100 (extreme greed); the meter is the
 // simple average. Every component is reported so the UI can show the
@@ -37,7 +41,7 @@
 // serves the last-known meter flagged "static fallback" — the same honest
 // degradation the other dashboard scrapers use.
 
-const { get } = require("./_utils/http");
+const { get, parseNum } = require("./_utils/http");
 const { withCache } = require("./_utils/cache");
 
 const CORS = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=900" };
@@ -178,6 +182,34 @@ function fxSig(usdinr){
   };
 }
 
+// 6. Foreign flows: FII equity net for the latest NSDL reporting session.
+//    The Latest page's Equity/Stock Exchange row is
+//    [date, Equity, Stock Exchange, grossBuy, grossSell, net₹cr, net$m];
+//    NSDL marks negative nets in parentheses — strip them WITH the sign.
+//    Optional signal: any fetch/parse failure just drops the component.
+const NSDL_LATEST = "https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx";
+async function fetchFiiNet(){
+  const res = await get(NSDL_LATEST, { timeoutMs: 9000 });
+  const html = await res.text();
+  const m = html.match(/(\d{2}-[A-Za-z]{3}-\d{4})[\s\S]{0,80}?Equity[\s\S]{0,80}?Stock Exchange[\s\S]{0,40}?td[^>]*>([\d,.]+)<[\s\S]{0,40}?td[^>]*>([\d,.]+)<[\s\S]{0,40}?td[^>]*>(\(?[\d,.]+\)?)</i);
+  if(!m) throw new Error("no FII equity row on NSDL Latest page");
+  const raw = m[4].trim();
+  const val = parseNum(raw.replace(/[(),]/g, ""));
+  const net = /^\(.*\)$/.test(raw) ? -val : val;
+  if(!isFinite(net) || Math.abs(net) > 1e6) throw new Error("FII net out of range: " + raw);
+  return { date: m[1], net };
+}
+function fiiSig(fii){
+  return {
+    value: fii.net,
+    unit: "₹ cr",
+    label: "FII equity net (latest session)",
+    // ±₹4,000 cr in one session spans the normal regime; heavy sell-offs
+    // (like a −₹9,500 cr day) peg at extreme fear, heavy buys at greed.
+    score: scale(fii.net, -4000, 4000),
+  };
+}
+
 function labelFor(score){
   if(score < 25)  return "Extreme fear";
   if(score < 45)  return "Fear";
@@ -191,10 +223,11 @@ async function buildPayload(){
   let small = null;
   try { small = await chart("NIFTYSMLCAP250.NS"); } catch (e) { /* breadth optional */ }
 
-  const [nifty, vix, usdinr] = await Promise.all([
+  const [nifty, vix, usdinr, fii] = await Promise.all([
     chart("^NSEI"),
     chart("^INDIAVIX"),
     chart("USDINR=X").catch(() => null),
+    fetchFiiNet().catch(() => null), // NSDL flows — optional sixth signal
   ]);
 
   // Score all signals for a given set of series; returns { comps, score } or
@@ -212,6 +245,7 @@ async function buildPayload(){
     // small-vs-large spread; without it, a direct Nifty 21-day return.
     push("breadth", breadthSig(N, S));
     if(U) push("haven", fxSig(U));
+    if(fii) push("fii", fiiSig(fii)); // scalar — same reading at t and t−1
     if(comps.length < 3) return null;
     return { comps, score: comps.reduce((a, c) => a + c.score, 0) / comps.length };
   }
@@ -224,7 +258,7 @@ async function buildPayload(){
 
   return {
     fetched_at: new Date().toISOString(),
-    source: "Yahoo Finance — Nifty 50, India VIX, Nifty Smallcap, USD/INR (server-side)",
+    source: "Yahoo Finance (^NSEI, ^INDIAVIX, NIFTYSMLCAP250.NS, USDINR=X) + NSDL FPI flows (server-side)",
     score,
     label: labelFor(score),
     change,

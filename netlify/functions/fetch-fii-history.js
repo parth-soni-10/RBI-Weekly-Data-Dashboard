@@ -135,6 +135,17 @@ async function fetchOne(url, kind) {
   } catch (_) { return []; }
 }
 
+// FII equity flow series for fetch-sentiment's flows signal (one request to
+// the NSDL archive page: ~6 months of daily rows; the sentiment meter needs
+// the recent cumulative net, not the DII split this function's handler adds).
+exports._fetchFiiEquitySeries = async function () {
+  const rows = await fetchOne(URLS[2].url, "archive");
+  return rows
+    .filter(r => r.equityNet != null)
+    .map(r => ({ date: r.date, fii_equity_cr: r.equityNet }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+};
+
 exports.handler = async () => {
   const allRows = [];
   const errors = [];

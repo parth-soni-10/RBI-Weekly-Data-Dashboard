@@ -4,7 +4,7 @@
 // committing external-debt.json from the live World Bank API).
 //
 // How it works:
-//   - Reuses fetch-sentiment's _buildPayload (the exact five-signal composite
+//   - Reuses fetch-sentiment's _buildPayload (the exact six-signal composite
 //     the live gauge serves) so the history and the meter can never diverge.
 //   - One row per calendar date; today's row is UPDATED in place on every
 //     run, so the last run of a day wins (intraday readings move with the
