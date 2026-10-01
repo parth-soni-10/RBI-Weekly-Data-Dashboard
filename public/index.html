@@ -1011,7 +1011,7 @@ html,body{overflow-x:clip}
   <!-- Macro trends: G-Sec yield + REER series (from the same fetchers that feed the tiles) -->
   <div class="chart-pair" id="macro-trends">
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">India 10Y G-Sec yield</h3><div class="chart-note">Yahoo Finance · % per annum</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">India 10Y G-Sec yield</h3><div class="chart-note">Yahoo Finance · daily close, 1 year · % per annum</div></div></div>
       <div class="chart-wrap compact"><canvas id="cGsec" role="img" aria-label="Line chart of the India 10-year government bond yield"></canvas></div>
       <div class="chart-empty" id="gsec-empty" hidden>Waiting for the yield feed — a live Yahoo series (or the last-known fallback) draws here.</div>
     </div>
@@ -1019,6 +1019,11 @@ html,body{overflow-x:clip}
       <div class="chart-hdr"><div><h3 class="chart-title">Rupee REER (36-currency)</h3><div class="chart-note">RBI DBIE · &gt; 100 = real appreciation vs trading partners</div></div></div>
       <div class="chart-wrap compact"><canvas id="cReer" role="img" aria-label="Line chart of the rupee real effective exchange rate"></canvas></div>
       <div class="chart-empty" id="reer-empty" hidden>Waiting for the REER series from RBI DBIE — the last-known monthly series draws here.</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI repo rate: MPC path</h3><div class="chart-note">Bi-monthly policy decisions · step = rate effective between meetings · <span class="tag-cut">▼ cut</span> / hold / <span class="tag-hike">▲ hike</span></div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cRepo','repo-rate')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="chart-wrap compact"><canvas id="cRepo" role="img" aria-label="Step chart of the RBI repo rate across monetary policy committee decisions"></canvas></div>
+      <div class="chart-empty" id="repo-empty" hidden>Waiting for the repo series from fetch-gsec — the MPC decision path draws here.</div>
     </div>
   </div>
 
@@ -2767,20 +2772,85 @@ function drawSeriesLine(canvasId, emptyId, points, color, yFmt, tipFmt){
 function renderMacroTrends(){
   const gsec = macroData.gsec || {};
   const reer = macroData.reer || {};
-  // G-Sec: fetch-gsec returns a single live yield + a repo rate history —
-  // plot the repo path (step) and mark the current yield as a series of one
-  // when no historical yield series exists. Repo history is official RBI data.
-  const repo = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice(-16).map(p => ({ date:p.date, v:p.pct })) : [];
-  const chart = drawSeriesLine('cGsec', 'gsec-empty', repo, AMB,
-    v => v.toFixed(2) + '%', v => 'Repo rate: ' + v.toFixed(2) + '%');
-  if(chart && gsec.gsec_10y_yield_pct != null){
-    chart.data.datasets.push({ label:'10Y yield (now)', data:repo.map(() => gsec.gsec_10y_yield_pct), borderColor:G, borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false });
-    chart.update('none');
+  // G-Sec: fetch-gsec returns a 1-year daily series (yield_series); payloads
+  // fetched before that field existed fall back to the repo step here.
+  const ys = Array.isArray(gsec.yield_series) ? gsec.yield_series : [];
+  if (ys.length >= 2) {
+    const chart = drawSeriesLine('cGsec', 'gsec-empty', ys, AMB,
+      v => v.toFixed(2) + '%', v => '10Y yield: ' + v.toFixed(2) + '%');
+    if (chart) chart.data.datasets[0].label = 'India 10Y G-Sec yield';
+  } else {
+    const repo = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice(-16).map(p => ({ date:p.date, v:p.pct })) : [];
+    const chart = drawSeriesLine('cGsec', 'gsec-empty', repo, AMB,
+      v => v.toFixed(2) + '%', v => 'Repo rate: ' + v.toFixed(2) + '%');
+    if(chart && gsec.gsec_10y_yield_pct != null){
+      chart.data.datasets.push({ label:'10Y yield (now)', data:repo.map(() => gsec.gsec_10y_yield_pct), borderColor:G, borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false });
+      chart.update('none');
+    }
   }
+  // Repo: dedicated MPC path — a policy rate is constant between meetings,
+  // so it draws as a true step, not an interpolating line.
+  renderRepoChart(gsec);
   // REER: fetch-reer returns reer_36 = [{date, value}, ...] (last 12 months).
   const pts = Array.isArray(reer.reer_36) ? reer.reer_36.map(p => ({ date:p.date, v:p.value })) : [];
   drawSeriesLine('cReer', 'reer-empty', pts, BLUE,
     v => v.toFixed(0), v => 'REER(36): ' + v.toFixed(1));
+}
+
+/* ─── RBI repo rate: MPC decision path ──────────────────────────────
+   Step chart from fetch-gsec's REPO_HISTORY (newest-first, official RBI
+   MPC decisions): horizontal plateaus between meetings, diamond markers
+   colored by decision — green = cut, red = hike, grey = hold. The path
+   extends to today so the current plateau reads as "still in force". */
+function renderRepoChart(gsec){
+  const hist = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice() : [];
+  const empty = document.getElementById('repo-empty');
+  if(!hist.length){
+    if(charts.cRepo){ charts.cRepo.destroy(); delete charts.cRepo; }
+    if(empty) empty.hidden = false;
+    return;
+  }
+  if(empty) empty.hidden = true;
+  // Chronological order (the fetcher lists newest-first).
+  const pts = hist.reverse().map(p => ({ date:p.date, v:p.pct, d:(p.decision || '').toLowerCase() }));
+  // Extend to today so the latest plateau visibly continues.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const last = pts[pts.length - 1];
+  const ptsExt = last.date < todayIso ? pts.concat([{ date: todayIso, v:last.v, d:last.d }]) : pts;
+  const colors = ptsExt.map(p => p.d === 'cut' ? G : p.d === 'hike' ? R : tickC);
+  if(charts.cRepo){ charts.cRepo.destroy(); }
+  const el = document.getElementById('cRepo');
+  charts.cRepo = new Chart(el, {
+    type:'line',
+    data:{ labels: ptsExt.map(p => p.date.slice(2)), datasets:[{
+      label:'Repo rate', data: ptsExt.map(p => p.v),
+      stepped:true, fill:false,
+      borderColor:AMB, borderWidth:2,
+      pointRadius:4, pointHoverRadius:6, pointStyle:'rectRot',
+      pointBackgroundColor:colors, pointBorderColor:colors,
+    }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false },
+        tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
+          callbacks:{
+            title: items => items.length ? fmtDate(ptsExt[items[0].dataIndex].date) : '',
+            label: ctx => {
+              const i = ctx.dataIndex, p = ptsExt[i];
+              if(i >= pts.length) return 'Repo: ' + p.v.toFixed(2) + '% — still in force';
+              const act = p.d === 'cut' ? '▼ cut' : p.d === 'hike' ? '▲ hike' : 'hold';
+              const prev = i > 0 ? ptsExt[i-1].v : null;
+              const delta = prev != null && prev !== p.v ? (p.v - prev > 0 ? ' +' : ' −') + Math.abs(p.v - prev).toFixed(2) : '';
+              return 'Repo: ' + p.v.toFixed(2) + '% (' + act + delta + ')';
+            } } },
+        interaction:{ mode:'nearest', intersect:true } },
+      scales:{
+        x: axOpts(v => v).x,
+        y: { ...axOpts(v => v.toFixed(1) + '%').y,
+             suggestedMin: Math.min(...ptsExt.map(p => p.v)) - 0.5,
+             suggestedMax: Math.max(...ptsExt.map(p => p.v)) + 0.5 } },
+    },
+  });
+  zoomable(charts.cRepo);
 }
 
 /* ─── Chart PNG export ─────────────────────────────────────────────

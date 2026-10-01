@@ -55,20 +55,36 @@ const REPO_HISTORY = [
 async function fetchYahooYield() {
   for (const symbol of YIELD_TICKERS) {
     try {
-      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=15d`;
+      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`;
       const res  = await get(url, { timeoutMs: 6000 });
       const json = await res.json();
       const r    = json?.chart?.result?.[0];
       const closes = r?.indicators?.quote?.[0]?.close || [];
       const ts     = r?.timestamp || [];
+      // Latest value (sanity: India 10Y typically 5–8.5%).
       for (let i = closes.length - 1; i >= 0; i--) {
         if (closes[i] != null) {
-          // Sanity: India 10Y typically 5–8.5%. Discard obviously-wrong values.
           if (closes[i] < 3 || closes[i] > 15) continue;
+          // Full cleaned series for the yield-trend chart: [date, yield%]
+          // pairs, non-null closes only, same 5–8.5% sanity band.
+          const series = [];
+          for (let j = 0; j < closes.length; j++) {
+            if (closes[j] == null || closes[j] < 3 || closes[j] > 15) continue;
+            series.push({ date: ts[j] ? new Date(ts[j] * 1000).toISOString().slice(0, 10) : null, v: +closes[j].toFixed(2) });
+          }
+          if (series.length >= 2) {
+            return {
+              symbol,
+              yield_pct: series[series.length - 1].v,
+              date:      series[series.length - 1].date,
+              series,
+            };
+          }
           return {
             symbol,
             yield_pct: +closes[i].toFixed(2),
             date:      ts[i] ? new Date(ts[i] * 1000).toISOString().slice(0,10) : null,
+            series:    [],
           };
         }
       }
@@ -98,6 +114,7 @@ exports.handler = async () => {
       source_yield,
       gsec_10y_yield_pct:  yield_pct,
       gsec_10y_date:       yield_date,
+      yield_series:        yahoo?.series ?? [],
       repo_rate_pct:       last?.pct  ?? null,
       repo_rate_date:      last?.date ?? null,
       repo_history:        REPO_HISTORY,
