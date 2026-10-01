@@ -141,7 +141,7 @@ a{color:var(--brand)}
 .head-actions{display:inline-flex;gap:.45rem}
 /* the .theme-toggle display rule would otherwise override the UA [hidden] style */
 .theme-toggle[hidden]{display:none}
-@media(max-width:900px){
+@media(max-width:1280px){
   .head-actions{order:1}
 }
 
@@ -572,9 +572,12 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   .nav-link{height:34px}
 }
 
-/* ─── Collapsible header + hamburger (≤900) ────────────────────────── */
+/* ─── Collapsible header + hamburger (≤1280) ──────────────────────────
+   The desktop row (logo + 5-link nav + action buttons + status pill) needs
+   ≈1130px to render without flex-crushing the logo or clipping the pill —
+   below 1280 the hamburger two-row layout takes over. */
 .nav-toggle{display:none}
-@media(max-width:900px){
+@media(max-width:1280px){
   header{gap:.55rem;flex-wrap:wrap;padding-top:.6rem;padding-bottom:.6rem}
   .logo{order:1}
   .logo-text span{display:none}
@@ -592,7 +595,6 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   header.nav-open .nav-toggle span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
   header.nav-open .nav-toggle span:nth-child(2){opacity:0}
   header.nav-open .nav-toggle span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
-  .theme-toggle{order:1}
   .status-pill{order:2;margin-left:auto}
   .nav-links{
     order:5;width:100%;flex:1 1 100%;min-width:0;display:none;
@@ -767,7 +769,7 @@ details.read-more .chart-note{margin-top:.35rem}
 .new-week-badge:hover{background:var(--brand-line)}
 .new-week-badge .lucide{width:13px;height:13px}
 .new-week-badge[hidden]{display:none}
-@media(max-width:900px){
+@media(max-width:1280px){
   .new-week-badge{order:2}
 }
 
@@ -1476,7 +1478,7 @@ initNav();
 function initScrollHeader(){
   const header = document.querySelector('header');
   if(!header) return;
-  const mq = window.matchMedia('(max-width: 900px)');
+  const mq = window.matchMedia('(max-width: 1280px)');
   const THRESHOLD = 90;
   let lastY = window.scrollY || 0;
   let hidden = false;
