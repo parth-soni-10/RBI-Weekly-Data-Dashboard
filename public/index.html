@@ -2031,11 +2031,20 @@ function refreshEmPeers() {
 
 // Crude-oil data is the heaviest fetch on the site (~150 external requests, up
 // to a 26s function timeout), so Reload refreshes it FIRE-AND-FORGET: the other
-// live checks never wait on it. The cache is busted so the next load re-pulls
-// everything; the dashboard highlights + import bill/cover re-render when the
-// payload lands, and the full crude section re-renders too when it's the tab on
-// screen. Failures are logged and the tile keeps its last data.
+// live checks never wait on it. An hourly cap (CRUDE_CHECK_MIN_MS) keeps
+// impatient clicking from hammering the pipeline: the live-check runs at most
+// once per hour per session after a success — skipped reloads log and keep the
+// tile's current data, while failed checks never arm the cap, so the next
+// reload retries. The dashboard highlights + import bill/cover re-render when
+// a fresh payload lands, and the full crude section re-renders too when it's
+// the tab on screen.
+const CRUDE_CHECK_MIN_MS = 60 * 60 * 1000;
+let crudeCheckedAt = 0; // last successful crude pipeline fetch (session-scoped)
 async function refreshCrudeData() {
+  if (crudeData && Date.now() - crudeCheckedAt < CRUDE_CHECK_MIN_MS) {
+    appendLog(`ℹ Crude live-check skipped — last ran ${freshAgeText(Date.now() - crudeCheckedAt)} (hourly cap); tile keeps current data`);
+    return;
+  }
   crudeData = null;
   crudePromise = null;
   appendLog('Crude data refreshing in background…');
@@ -3525,6 +3534,7 @@ async function loadCrudeData() {
           straits:    data.strait_traffic        || {},
           fetched_at: data.fetched_at            || new Date().toISOString(),
         };
+        crudeCheckedAt = Date.now(); // arms the hourly cap on explicit-reload live-checks
         setCrudeStatus('done');
       } catch (e) {
         crudePromise = null; // allow a retry on the next call
