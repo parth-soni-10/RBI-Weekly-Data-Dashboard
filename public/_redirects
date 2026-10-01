@@ -14,5 +14,6 @@
 /data/gsec.json             /.netlify/functions/fetch-gsec             200
 /data/tax.json              /.netlify/functions/fetch-tax              200
 /data/reer.json             /.netlify/functions/fetch-reer             200
+/data/sentiment.json        /.netlify/functions/fetch-sentiment        200
 /data/external-debt.json    /.netlify/functions/fetch-external-debt    200
 

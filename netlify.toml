@@ -62,3 +62,6 @@
 
 [functions.fetch-reer]
   timeout = 20
+
+[functions.fetch-sentiment]
+  timeout = 20

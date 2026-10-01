@@ -150,7 +150,7 @@ a{color:var(--brand)}
    interactive bits drop out, cards keep their borders, charts print at a
    fixed height, and each card avoids being split across pages. */
 @media print{
-  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,.macro-trends,.chart-actions,.range-row{display:none!important}
+  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,.macro-trends,#sentiment-row,.chart-actions,.range-row{display:none!important}
   .print-vintage{display:block!important;position:fixed;bottom:.4rem;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:#555;border-top:1px solid #ccc;padding-top:.3rem}
   body{background:#fff;color:#111}
   body::before{display:none}
@@ -692,6 +692,35 @@ details.read-more .chart-note{margin-top:.35rem}
   min-height:180px;padding:1.2rem;border:1px dashed var(--border2);
   border-radius:var(--r2);color:var(--ink3);font-size:12.5px;line-height:1.6;
 }
+
+/* Fear & Greed gauge card: doughnut-gauge left, verdict + signal bars right.
+   Colors are hard-coded signal greens/reds on purpose — sentiment zones must
+   read identically in both themes (the gauge chrome reads theme vars at draw). */
+.fng-flex{display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap}
+.fng-gauge{width:220px;max-width:44%;flex-shrink:0}
+.fng-cv{position:relative;height:118px}
+.fng-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink3);padding:0 .3rem}
+.fng-side{flex:1;min-width:230px}
+.fng-verdict{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.fng-verdict #fng-label{font-size:1.45rem;font-weight:750;letter-spacing:-.01em}
+.fng-chip{
+  font-size:11px;font-weight:700;padding:.18rem .5rem;border-radius:99px;
+  color:#fff;background:var(--ink3);letter-spacing:.02em;
+}
+.fng-chip.up{background:var(--pos-c)}
+.fng-chip.dn{background:var(--neg-c)}
+.fng-meta{font-size:12px;color:var(--ink3);margin:.25rem 0 .7rem}
+.fng-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.45rem}
+.fng-bars li{display:grid;grid-template-columns:minmax(150px,1.25fr) 1fr auto;gap:.6rem;align-items:center;font-size:12px}
+.fng-bars .fl{color:var(--ink2);line-height:1.35}
+.fng-bars .fb{height:7px;border-radius:99px;background:var(--border2);overflow:hidden;position:relative}
+.fng-bars .fb i{position:absolute;top:0;bottom:0;border-radius:99px}
+.fng-bars .fb::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1.5px;background:var(--ink3);opacity:.55}
+.fng-bars .fs{min-width:4.2em;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+@media (max-width:640px){
+  .fng-bars li{grid-template-columns:1fr 70px auto;gap:.45rem}
+  .fng-bars .fl{font-size:11.5px}
+}
 .chart-empty[hidden]{display:none}
 
 /* ─── Sticky mini-bar ───────────────────────────────────────────────
@@ -929,7 +958,7 @@ html,body{overflow-x:clip}
 
   <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
   <div class="macro-context" id="macro-context">
-    <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention</span><button class="tab" id="macro-toggle" aria-expanded="true" aria-controls="macro-grid" onclick="return toggleMacro()">Collapse</button></h3>
+    <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention, market sentiment</span><button class="tab" id="macro-toggle" aria-expanded="true" aria-controls="macro-grid" onclick="return toggleMacro()">Collapse</button></h3>
     <div class="mc-grid" id="macro-grid">
       <div class="mctx">
         <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net equity flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Equity (today)</div>
@@ -971,6 +1000,11 @@ html,body{overflow-x:clip}
         <div id="fx-fwd" class="mctx-val">—</div>
         <div class="mctx-sub" id="fx-fwd-sub">RBI Bulletin · $ bn</div>
       </div>
+      <div class="mctx">
+        <div class="mctx-label" data-glossary="Composite India market fear & greed meter (0 = extreme fear, 100 = extreme greed), averaged from five daily Yahoo Finance signals: Nifty vs its 6-month average, position in its 52-week range, India VIX vs its 1-year norm, smallcap-minus-largecap 21-day return spread, and the USD/INR 21-day move. In the spirit of CNN's Fear & Greed Index, tuned for Indian markets.">Fear & Greed (India)</div>
+        <div id="fng-score" class="mctx-val">—</div>
+        <div class="mctx-sub" id="fng-score-sub">Yahoo composite · 0–100</div>
+      </div>
     </div>
   </div>
 
@@ -985,6 +1019,22 @@ html,body{overflow-x:clip}
       <div class="chart-hdr"><div><h3 class="chart-title">Rupee REER (36-currency)</h3><div class="chart-note">RBI DBIE · &gt; 100 = real appreciation vs trading partners</div></div></div>
       <div class="chart-wrap compact"><canvas id="cReer" role="img" aria-label="Line chart of the rupee real effective exchange rate"></canvas></div>
       <div class="chart-empty" id="reer-empty" hidden>Waiting for the REER series from RBI DBIE — the last-known monthly series draws here.</div>
+    </div>
+  </div>
+
+  <!-- Market sentiment: composite India fear & greed gauge (fetch-sentiment) -->
+  <div class="chart-pair" id="sentiment-row">
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">Market sentiment: Fear &amp; Greed (India)</h3><div class="chart-note">Yahoo composite · 0 extreme fear → 100 extreme greed · not investment advice</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cFng','fear-greed')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="fng-flex">
+        <div class="fng-gauge"><div class="fng-cv"><canvas id="cFng" role="img" aria-label="Gauge showing the composite India market fear and greed score"></canvas></div><div class="fng-scale" aria-hidden="true"><span>0 · fear</span><span>100 · greed</span></div></div>
+        <div class="fng-side">
+          <div class="fng-verdict"><span id="fng-label">—</span><span id="fng-chip" class="fng-chip" hidden></span></div>
+          <div class="fng-meta" id="fng-meta">Composite of five daily signals</div>
+          <ul class="fng-bars" id="fng-bars"></ul>
+        </div>
+      </div>
+      <div class="chart-empty" id="fng-empty" hidden>Waiting for the sentiment feed — the five-signal composite meter draws here.</div>
     </div>
   </div>
 
@@ -2742,6 +2792,139 @@ function clearDateRange(){
   return false;
 }
 
+// ─── Market sentiment: composite India Fear & Greed gauge (fetch-sentiment) ──
+// Doughnut gauge (half-circle, 0–100) + verdict + per-signal horizontal bars.
+// Colors are fixed signal greens/reds so zones read the same in both themes;
+// chrome (grid, ticks, tooltip) reads the theme variables at draw time.
+function fngColor(score){
+  if(score == null) return 'var(--ink3)';
+  // Paired palettes: the 600-series keeps every zone ≥3:1 on the light card
+  // (WCAG graphics contrast); the 500-series sings on the dark surface.
+  const light = document.documentElement.dataset.theme === 'light';
+  const pal = light
+    ? ['#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a']
+    : ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+  if(score < 25)  return pal[0];         // extreme fear
+  if(score < 45)  return pal[1];         // fear
+  if(score <= 55) return pal[2];         // neutral
+  if(score <= 75) return pal[3];         // greed
+  return pal[4];                         // extreme greed
+}
+
+function fngVerdictClass(score){
+  if(score == null) return '';
+  return score >= 55 ? 'up' : score <= 45 ? 'dn' : '';
+}
+
+function fngDayChange(score, change){
+  if(score == null || !change) return '';
+  return (change > 0 ? '+' : '') + change + ' vs prev. close';
+}
+
+function renderFngGauge(d){
+  const empty = document.getElementById('fng-empty');
+  const wrap  = document.getElementById('sentiment-row');
+  if(!d || d.score == null){
+    setMctxVal('fng-score', null, 'unavailable');
+    if(empty){ empty.textContent = d && d.note ? d.note : 'Sentiment feed unavailable — the composite meter draws here.'; empty.hidden = false; }
+    if(wrap) wrap.hidden = true;
+    return;
+  }
+  if(empty) empty.hidden = true;
+  if(wrap) wrap.hidden = false;
+
+  setMctxVal('fng-score', String(d.score),
+    (d.status === 'ok' ? 'Yahoo composite · 0–100' : (d.status === 'static fallback' ? 'last-known · ' + (d.as_of || '—') : 'Yahoo composite · 0–100')));
+
+  const lbl = document.getElementById('fng-label');
+  if(lbl){
+    lbl.textContent = d.label || '—';
+    lbl.style.color = fngColor(d.score);
+  }
+  const chip = document.getElementById('fng-chip');
+  if(chip){
+    const txt = fngDayChange(d.score, d.change);
+    if(txt){ chip.textContent = txt; chip.className = 'fng-chip ' + fngVerdictClass(d.score); chip.hidden = false; }
+    else chip.hidden = true;
+  }
+  const meta = document.getElementById('fng-meta');
+  if(meta){
+    meta.textContent = 'As of ' + (d.as_of ? fmtDate(d.as_of) : '—') + (d.status !== 'ok' && d.note ? ' · ' + d.note : '');
+  }
+
+  // Per-signal bars: score maps to a colored fill across the 0–100 track;
+  // the 50 mark (dashed tick via CSS ::after) is the neutral midline.
+  const bars = document.getElementById('fng-bars');
+  if(bars){
+    bars.innerHTML = (d.components || []).map(c => {
+      const col = fngColor(c.score);
+      const w = Math.max(0, Math.min(100, c.score));
+      const val = c.value != null
+        ? (c.value > 0 && /^(%|pp)/.test(c.unit || '') ? '+' : '') + c.value + (c.unit === '%' ? '%' : '')
+        : '—';
+      return '<li>' +
+        '<span class="fl" title="' + escHtml(c.label || '') + '">' + escHtml(c.label || c.key) + '</span>' +
+        '<span class="fb"><i style="width:' + w + '%;background:' + col + '"></i></span>' +
+        '<span class="fs">' + escHtml(val + ' · ' + c.score) + '</span>'
+      + '</li>';
+    }).join('');
+  }
+
+  // Half-doughnut gauge: one colored segment sized by the score over a neutral
+  // track; the needle is the tooltip line at the boundary.
+  if(window.Chart){
+    if(charts.cFng) charts.cFng.destroy();
+    const el = document.getElementById('cFng');
+    if(!el) return;
+    const seg = Math.max(0, Math.min(100, d.score));
+    charts.cFng = new Chart(el, {
+      type: 'doughnut',
+      data: {
+        labels: ['Meter', 'Track'],
+        datasets: [{
+          data: [seg, 100 - seg],
+          backgroundColor: [fngColor(d.score), 'rgba(148,163,184,0.16)'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        rotation: -90,
+        circumference: 180,
+        cutout: '72%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            filter: item => item.dataIndex === 0,
+            backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb,
+            callbacks: {
+              label: () => 'Fear & Greed: ' + d.score + '/100 (' + (d.label || '—') + ')',
+            },
+          },
+        },
+      },
+      plugins: [{
+        id: 'fngCenter',
+        afterDraw(chart){
+          const { ctx } = chart;
+          const m = chart.getDatasetMeta(0).data[0];
+          if(!m) return;
+          const { x, y } = m;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = fngColor(d.score);
+          ctx.font = '700 30px Inter, sans-serif';
+          ctx.fillText(String(d.score), x, y - Math.max(18, m.outerRadius * 0.32));
+          ctx.restore();
+        },
+      }],
+    });
+  }
+}
+
 function dlChartPNG(id, name){
   const c = charts[id];
   if(!c || !c.canvas) return false;
@@ -3797,6 +3980,7 @@ const MACRO_ENDPOINTS = {
   gsec:   '/.netlify/functions/fetch-gsec',
   tax:    '/.netlify/functions/fetch-tax',
   reer:   '/.netlify/functions/fetch-reer',
+  fng:    '/.netlify/functions/fetch-sentiment',
   debt:   '/.netlify/functions/fetch-external-debt',
 };
 let macroData  = {};
@@ -3960,6 +4144,9 @@ function renderMacroCards(){
     renderFwdChart(fx);
     renderReserveForwardKpis();
     renderMacroTrends();
+    // Fear & Greed gauge: composite meter from fetch-sentiment (own store key,
+    // tolerant of the endpoint being absent — degrades to the empty state).
+    renderFngGauge(macroData.fng);
     // Subtle hint above the FX chart: the most recent decision by DATE.
     const lastEvt = MACRO_EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date)).slice(-1)[0];
     if(lastEvt){
