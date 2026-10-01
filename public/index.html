@@ -1636,6 +1636,7 @@ async function startFetch() {
   btn.disabled = false;
   btn.innerHTML = '<i data-lucide="rotate-cw" aria-hidden="true"></i> Reload data';
   if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  lastDataRefreshAt = Date.now(); // every attempt counts for the catch-up timer
 }
 
 // After the static file loads, live-check the Netlify fetch-data function for
@@ -1808,10 +1809,12 @@ async function loadSyncRecords() {
 // overlay (bust the per-range cache so the next view refetches from Yahoo).
 // Button wrapper: the heavy crude refresh only runs on an EXPLICIT Reload
 // click, never on the initial page load (which already fetches crude once via
-// updateUI → renderCrudeHighlights).
+// updateUI → renderCrudeHighlights) and never on the 30-min auto-refresh
+// (~150 external requests per run would hammer PPAC/Yahoo from every pinned
+// tab). reloadData(true) marks the run as automatic.
 let explicitReload = false;
-async function reloadData(){
-  explicitReload = true;
+async function reloadData(isAuto){
+  explicitReload = !isAuto;
   try { await startFetch(); } finally { explicitReload = false; }
 }
 
@@ -3941,15 +3944,32 @@ function updateDocTitle(){
   if(L.total_usd != null) document.title = `Reserves $${(L.total_usd/1000).toFixed(1)}B · USD/INR ${fmt(L.usd_inr,2)} · RBI Weekly Dashboard`;
 }
 
+// Timestamp of the last completed data load (initial, button, or auto).
+// Drives the visibility catch-up below.
+let lastDataRefreshAt = Date.now();
+
 // Auto-refresh: while the tab is visible and online, quietly re-run the
 // standard load (static file + live check + blob restore) every 30 minutes so
 // a pinned tab shows the newest Friday without a manual Reload. Hidden tabs
-// never fetch; errors only touch the pipeline log.
+// never fetch; errors only touch the pipeline log. Runs as AUTOMATIC (no
+// heavy crude scrape — that stays behind the explicit Reload button).
 setInterval(() => {
   if(document.hidden || !navigator.onLine) return;
   const btn = document.getElementById('start-btn');
-  if(btn && !btn.disabled) reloadData();
+  if(btn && !btn.disabled) reloadData(true);
 }, 30 * 60 * 1000);
+
+// Visibility catch-up: a tab that slept past its refresh window (browser
+// froze timers in the background all night) refreshes on return instead of
+// showing morning-stale data. Guarded by an explicit last-refresh timestamp
+// because Chrome throttles background timers and can skip interval ticks
+// while hidden. Catch-ups are automatic (no heavy crude scrape).
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden || !navigator.onLine) return;
+  if(Date.now() - lastDataRefreshAt < 29 * 60 * 1000) return;
+  const btn = document.getElementById('start-btn');
+  if(btn && !btn.disabled) reloadData(true);
+});
 
 /* ─── New-week toast + header badge ───────────────────────────────
    The live check usually merges weeks silently; when it finds a newer
