@@ -1024,6 +1024,11 @@ html,body{overflow-x:clip}
       <div class="chart-wrap compact"><canvas id="cRepo" role="img" aria-label="Step chart of the RBI repo rate across monetary policy committee decisions, with the US Fed funds and ECB refinancing rates as faint comparison lines"></canvas></div>
       <div class="chart-empty" id="repo-empty" hidden>Waiting for the repo series from fetch-gsec — the MPC decision path draws here.</div>
     </div>
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">10Y − repo spread</h3><div class="chart-note">Market's policy expectations · wide = bond carry, near/below zero = easing priced in</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cSpread','yield-repo-spread')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="chart-wrap compact"><canvas id="cSpread" role="img" aria-label="Line chart of the India 10-year bond yield minus the repo rate, the market's implied policy expectations"></canvas></div>
+      <div class="chart-empty" id="spread-empty" hidden>Needs both the 1-year yield series and the MPC path — draws once fetch-gsec serves both.</div>
+    </div>
   </div>
 
   <!-- Market sentiment: composite India fear & greed gauge (fetch-sentiment) -->
@@ -2882,6 +2887,8 @@ function renderMacroTrends(){
   // Repo: dedicated MPC path — a policy rate is constant between meetings,
   // so it draws as a true step, not an interpolating line.
   renderRepoChart(gsec);
+  // Spread: 10Y yield minus repo — the market's implied policy expectations.
+  renderSpreadChart(gsec);
   // REER: fetch-reer returns reer_36 = [{date, value}, ...] (last 12 months).
   const pts = Array.isArray(reer.reer_36) ? reer.reer_36.map(p => ({ date:p.date, v:p.value })) : [];
   drawSeriesLine('cReer', 'reer-empty', pts, BLUE,
@@ -2969,6 +2976,68 @@ function renderRepoChart(gsec){
     },
   });
   zoomable(charts.cRepo);
+}
+
+/* ─── 10Y − repo spread: the market's policy expectations ────────────
+   Yield minus repo in percentage points: a wide positive spread is the
+   carry investors demand over policy (tight stance / hikes priced in);
+   near or below zero means the bond market prices easing — or already
+   rides an accommodative one. The repo leg is the stepped MPC path
+   sampled at each yield observation date, so both legs move on the same
+   daily axis. Segments color by sign: amber above parity, blue below. */
+function renderSpreadChart(gsec){
+  const ys = Array.isArray(gsec.yield_series) ? gsec.yield_series : [];
+  const hist = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice() : [];
+  const empty = document.getElementById('spread-empty');
+  const destroy = () => { if(charts.cSpread){ charts.cSpread.destroy(); delete charts.cSpread; } };
+  if(ys.length < 2 || !hist.length){
+    destroy();
+    if(empty) empty.hidden = false;
+    return;
+  }
+  if(empty) empty.hidden = true;
+  // Repo in force at each yield observation: the newest MPC decision with
+  // date <= the observation (decisions are few; linear scan is fine).
+  // Observations older than the first known decision are skipped.
+  const decisions = hist.map(p => ({ date:p.date, pct:p.pct })).sort((a,b) => a.date.localeCompare(b.date));
+  const rows = [];
+  for(const p of ys){
+    if(!p || p.date == null || !isFinite(p.v)) continue;
+    let rv = null;
+    for(const d of decisions){ if(d.date <= p.date) rv = d.pct; else break; }
+    if(rv != null) rows.push({ date:p.date, y:p.v, r:rv, s:+(p.v - rv).toFixed(3) });
+  }
+  if(rows.length < 2){ destroy(); if(empty) empty.hidden = false; return; }
+  destroy();
+  const labels = rows.map(r => r.date.slice(2));
+  const spread = rows.map(r => r.s);
+  const last = rows.length - 1;
+  const c = new Chart(document.getElementById('cSpread'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'10Y − repo (pp)', data:spread, borderColor:AMB, backgroundColor:AMB + '12',
+        fill:{ target:'origin' }, tension:.25, borderWidth:2,
+        pointRadius:rows.map((_, i) => i === last ? 4 : 0),
+        pointBackgroundColor:AMB, pointBorderColor:AMB,
+        segment:{ borderColor: ctx => ((ctx.p0.parsed.y + ctx.p1.parsed.y) / 2) < 0 ? BLUE : AMB } },
+      { label:'Repo parity (0)', data:rows.map(() => 0), borderColor:tickC, borderDash:[3,3],
+        borderWidth:1, pointRadius:0, fill:false },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false },
+        tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
+          callbacks:{
+            title: items => items.length ? fmtDate(rows[items[0].dataIndex].date) : '',
+            label: ctx => {
+              if(ctx.datasetIndex !== 0) return 'Parity — spread zero';
+              const r = rows[ctx.dataIndex];
+              return 'Spread: ' + (r.s > 0 ? '+' : '') + r.s.toFixed(2) + 'pp — yield ' + r.y.toFixed(2) + '% vs repo ' + r.r.toFixed(2) + '%';
+            } } },
+        interaction:{ mode:'index', intersect:false } },
+      scales: axOpts(v => (v > 0 ? '+' : '') + v.toFixed(1)) },
+  });
+  charts.cSpread = c; // registry → PNG export
+  zoomable(c);
 }
 
 /* ─── Chart PNG export ─────────────────────────────────────────────
