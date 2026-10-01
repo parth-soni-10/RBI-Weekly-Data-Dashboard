@@ -2909,6 +2909,36 @@ function fngDayChange(score, change){
   return (change > 0 ? '+' : '') + change + ' vs prev. close';
 }
 
+/* ─── Sentiment zone-crossing alert ───────────────────────────────
+   The meter is re-rendered on every load path (boot, 30-min auto-refresh,
+   explicit Reload). When a LIVE payload's zone differs from the last live
+   zone this session — fear ↔ neutral ↔ greed crossings — fire the same
+   toast the new-week alert uses, with an anti-flap cooldown so a score
+   hovering on a boundary can't nag. Session-scoped by design: reload
+   resets the baseline, so a fresh visit always re-arms. */
+let fngZoneSeen = null;        // last LIVE zone label rendered this session
+let fngZoneAlertAt = 0;        // epoch ms of the last zone-crossing toast
+const FNG_ZONE_ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+function fngMaybeZoneAlert(d){
+  if(!d || d.score == null || d.status === 'static fallback' || d.status === 'unavailable') return;
+  const zone = d.label;
+  if(!zone) return;
+  const prev = fngZoneSeen;
+  fngZoneSeen = zone;
+  if(prev == null || prev === zone) return;            // first render / same zone
+  if(Date.now() - fngZoneAlertAt < FNG_ZONE_ALERT_COOLDOWN_MS) return; // anti-flap
+  fngZoneAlertAt = Date.now();
+  const dir = d.score >= 50 ? 'eased' : 'worsened';
+  showToast('Sentiment shift: ' + prev + ' → ' + zone,
+    `The Fear & Greed meter ${dir} into ${zone.toLowerCase()} at ${d.score}/100.`,
+    () => {
+      const link = document.querySelector('.nav-link[onclick*="\'dashboard\'"]');
+      if(link) showSection('dashboard', link);
+      const row = document.getElementById('sentiment-row');
+      if(row) row.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+    });
+}
+
 function renderFngGauge(d){
   const empty = document.getElementById('fng-empty');
   const wrap  = document.getElementById('sentiment-row');
@@ -2920,6 +2950,7 @@ function renderFngGauge(d){
   }
   if(empty) empty.hidden = true;
   if(wrap) wrap.hidden = false;
+  fngMaybeZoneAlert(d);
 
   setMctxVal('fng-score', String(d.score),
     (d.status === 'ok' ? 'Yahoo composite · 0–100' : (d.status === 'static fallback' ? 'last-known · ' + (d.as_of || '—') : 'Yahoo composite · 0–100')));
