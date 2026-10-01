@@ -215,6 +215,9 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
   padding:0 .8rem 0 .65rem;font-size:12px;font-weight:500;color:var(--ink2);white-space:nowrap;
 }
 .status-pill .lucide{width:13px;height:13px;color:var(--ink3)}
+/* Compact data-freshness mirror of #status-text for dot-only phones */
+#fresh-text{display:none;font-variant-numeric:tabular-nums}
+.status-pill.stale #status-text,.status-pill.stale #fresh-text{color:var(--warn-fg)}
 .status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);flex-shrink:0;transition:background .3s}
 .status-pill .dot.running{background:var(--warn-fg);animation:blink 1.1s ease-in-out infinite}
 .status-pill .dot.done{background:var(--pos)}
@@ -806,6 +809,7 @@ html,body{overflow-x:clip}
 /* ─── Small phones: dot-only status, relaxed tab rows ─────────────── */
 @media(max-width:430px){
   #status-text{display:none}
+  #fresh-text{display:inline;font-size:11px}
   .status-pill{padding:0 .55rem}
 }
 
@@ -857,10 +861,11 @@ html,body{overflow-x:clip}
     <button class="new-week-badge" id="new-week-badge" type="button" hidden onclick="return gotoNewWeek()">
       <i data-lucide="calendar-plus"></i><span id="new-week-badge-text">New week</span>
     </button>
-    <div class="status-pill" role="status">
+    <div class="status-pill" role="status" id="status-pill" title="Pipeline status">
       <i data-lucide="activity"></i>
       <div class="dot" id="status-dot"></div>
       <span id="status-text">Idle</span>
+      <span id="fresh-text" aria-hidden="true">—</span>
     </div>
   </div>
 </header>
@@ -1609,6 +1614,7 @@ async function startFetch() {
   btn.disabled = true;
   setStatus('running');
   appendLog(`Loading ${DATA_URL}…`);
+  let loaded = false;
   try {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1618,6 +1624,7 @@ async function startFetch() {
       .filter(r => r && r.date)
       .sort((a,b) => a.date.localeCompare(b.date));
     if (!records.length) throw new Error('data file has no records yet - run `npm run fetch:data`');
+    loaded = true; // at least the committed file parsed — the pill's age is honest
     updateUI();
     const fetchedAt = data.fetched_at ? new Date(data.fetched_at) : null;
     appendLog(`✓ Loaded ${records.length} week${records.length>1?'s':''} from ${DATA_URL}`
@@ -1637,7 +1644,41 @@ async function startFetch() {
   btn.innerHTML = '<i data-lucide="rotate-cw" aria-hidden="true"></i> Reload data';
   if(window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
   lastDataRefreshAt = Date.now(); // every attempt counts for the catch-up timer
+  markDataFresh(loaded);          // every *successful* load counts for the freshness readout
 }
+
+/* ─── Data freshness indicator ──────────────────────────────────────
+   The status pill's text doubles as a "last refreshed" readout: after a
+   successful load it shows a ticking age ("just now" → "5m ago" → "2h
+   ago"), turning amber past STALE_AFTER_MS (a missed refresh cycle) so a
+   pinned tab can't silently present morning-stale data. #fresh-text is the
+   compact mirror shown instead of the status word on dot-only phones. */
+const STALE_AFTER_MS = 26 * 60 * 60 * 1000; // > a full 30-min refresh cycle + slack
+let lastDataLoadedAt = 0;
+function markDataFresh(ok){
+  if(!ok) return;
+  lastDataLoadedAt = Date.now();
+  renderFreshness();
+}
+function freshAgeText(ms){
+  const m = Math.floor(ms / 60000);
+  if(m < 1) return 'just now';
+  if(m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + (h === 1 ? 'h' : 'h') + (r ? ' ' + r + 'm' : '') + ' ago';
+}
+function renderFreshness(){
+  const main = document.getElementById('status-text');
+  const mini = document.getElementById('fresh-text');
+  if(!main || !mini || !lastDataLoadedAt) return;
+  const age = Date.now() - lastDataLoadedAt;
+  main.textContent = freshAgeText(age);
+  mini.textContent = freshAgeText(age).replace(' ago', '');
+  document.getElementById('status-pill').title =
+    'Data refreshed ' + new Date(lastDataLoadedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' — auto-refreshes every 30 min';
+  document.getElementById('status-pill').classList.toggle('stale', age > STALE_AFTER_MS);
+}
+setInterval(renderFreshness, 30 * 1000);
 
 // After the static file loads, live-check the Netlify fetch-data function for
 // weeks newer than the newest record in the file, merge them in, and re-render.
