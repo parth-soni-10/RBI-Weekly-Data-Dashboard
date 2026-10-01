@@ -97,9 +97,56 @@ async function fetchYahooYield() {
 // null so callers can distinguish "live + timestamped" from "fallback + unknown".
 // (Don't pin a stale-looking fallback date — the dashboard should not surface it.)
 
+// ─── Peer policy rates for the repo chart's comparison lines ─────────
+// US Fed funds upper target (FRED csv mirror of DFEDTARU) and the ECB main
+// refinancing rate (ECB's own SDMX API — FRED's ECB mirror sits behind a bot
+// challenge). Both are policy rates: parsed to {date, pct} CHANGE points and
+// drawn stepped. Failures return [] so the chart falls back to repo alone.
+async function fetchFredSteps(id) {
+  try {
+    const res  = await get(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}&cosd=2023-06-01`, { timeoutMs: 8000 });
+    const text = await res.text();
+    const rows = [];
+    for (const line of text.split(/\r?\n/).slice(1)) {
+      const i = line.indexOf(",");
+      if (i < 1) continue;
+      const date = line.slice(0, i), v = parseFloat(line.slice(i + 1));
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date) && isFinite(v) && v > 0 && v < 15) rows.push({ date, pct: v });
+    }
+    // DFEDTARU is a DAILY series — collapse to change points (a step chart
+    // only needs the values where the rate moved; ~1200 rows → ~10).
+    return rows.filter((r, i) => i === 0 || r.pct !== rows[i - 1].pct);
+  } catch (_) { return []; }
+}
+
+async function fetchEcbSteps() {
+  try {
+    // FM change-dates series (B = business frequency, LEV = level). CSV columns:
+    // TIME_PERIOD = 8, OBS_VALUE = 9 (before the comma-containing TITLE column).
+    const url  = "https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.MRR_FR.LEV?format=csvdata&startPeriod=2024-01-01";
+    const res  = await get(url, { timeoutMs: 10000 });
+    const text = await res.text();
+    const rows = [];
+    for (const line of text.split(/\r?\n/).slice(1)) {
+      const c = line.split(",");
+      const date = c[8], v = parseFloat(c[9]);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date || "") && isFinite(v) && v > 0 && v < 15) rows.push({ date, pct: v });
+    }
+    return rows;
+  } catch (_) { return []; }
+}
+
+// A slow peer source must never delay the payload — race each fetch against
+// a timeout that resolves to [] (the chart then just draws fewer lines).
+const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r([]), ms))]);
+
 exports.handler = async () => {
   const yahoo = await fetchYahooYield();
   const last  = REPO_HISTORY[0];
+  const [fedSteps, ecbSteps] = await Promise.all([
+    withTimeout(fetchFredSteps("DFEDTARU"), 9000),
+    withTimeout(fetchEcbSteps(), 12000),
+  ]);
 
   const yield_pct = yahoo?.yield_pct ?? FALLBACK_YIELD.yield_pct;
   const yield_date = yahoo?.date ?? FALLBACK_YIELD.date;
@@ -118,6 +165,10 @@ exports.handler = async () => {
       repo_rate_pct:       last?.pct  ?? null,
       repo_rate_date:      last?.date ?? null,
       repo_history:        REPO_HISTORY,
+      policy_peers: {
+        fed: { name: "Fed funds (US, upper target)", steps: fedSteps },
+        ecb: { name: "ECB main refinancing rate",    steps: ecbSteps },
+      },
       status,
     }),
   };
