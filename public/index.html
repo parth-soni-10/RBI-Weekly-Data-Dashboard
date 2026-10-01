@@ -425,13 +425,6 @@ html{-webkit-tap-highlight-color:transparent}
 .chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.8rem}
 .chart-actions{display:flex;gap:.35rem;flex-shrink:0}
 
-/* ─── Language toggle ───────────────────────────────────────────────── */
-.lang-tag{font-size:9.5px;font-weight:700;letter-spacing:.05em;margin-left:2px}
-html[lang="hi"] .nav-link span:not(.lang-tag){}
-.lang-btn-txt{display:none}
-html[lang="hi"] .lang-en{display:none}
-html[lang="hi"] .lang-hi{display:inline}
-:lang(hi){font-family:var(--font)}
 .chart-title{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink)}
 .chart-note{font-size:11px;color:var(--ink3);margin-top:.15rem}
 .chart-wrap{position:relative;height:225px}
@@ -849,7 +842,6 @@ html,body{overflow-x:clip}
       <a class="nav-link" href="#sec-compare" onclick="return showSection('compare',this)"><i data-lucide="git-compare"></i>Compare</a>
       <a class="nav-link" href="#sec-crude" onclick="return showSection('crude',this)"><i data-lucide="ship"></i>Crude Oil Imports</a>
       <a class="nav-link" href="#sec-pmcares" onclick="return showSection('pmcares',this)"><i data-lucide="hand-heart"></i>PM CARES Fund</a>
-      <button class="theme-toggle" id="lang-toggle" type="button" aria-label="Switch to Hindi labels" title="हिंदी / English"><i data-lucide="languages"></i><span class="lang-tag">EN</span></button>
     </nav>
     <span class="head-actions">
       <button class="theme-toggle" id="share-btn" type="button" aria-label="Share this week's snapshot" title="Share / copy link with snapshot" hidden><i data-lucide="share-2"></i></button>
@@ -5036,40 +5028,6 @@ function updatePrintVintage(){
     ' · printed ' + new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) +
     ' · rbi.org.in';
 }
-
-/* ─── Hindi / English label toggle ─────────────────────────────────
-   Lightweight chrome i18n: nav labels swap and persist; data and
-   numbers stay universal. */
-const I18N = [
-  ['Dashboard', 'डैशबोर्ड'], ['10-Week Table', 'साप्ताहिक तालिका'], ['Compare', 'तुलना'],
-  ['Crude Oil Imports', 'कच्चे तेल का आयात'], ['PM CARES Fund', 'PM CARES कोष'],
-];
-function applyLang(lang){
-  document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
-  document.querySelectorAll('.nav-link').forEach(a => {
-    const walker = Array.from(a.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
-    const key = a.dataset.en || (walker && walker.textContent.trim());
-    if(!key) return;
-    a.dataset.en = key;
-    const hi = I18N.find(x => x[0] === key);
-    if(walker && hi) walker.textContent = (lang === 'hi' && hi[1]) ? hi[1] : key;
-  });
-  const tag = document.querySelector('#lang-toggle .lang-tag');
-  if(tag) tag.textContent = lang === 'hi' ? 'हि' : 'EN';
-  const lt = document.getElementById('lang-toggle');
-  if(lt) lt.setAttribute('aria-label', lang === 'hi' ? 'Switch to English labels' : 'Switch to Hindi labels');
-}
-(function initLang(){
-  let lang = 'en';
-  try { lang = localStorage.getItem('rbi-lang') || 'en'; } catch(e){}
-  applyLang(lang);
-  const btn = document.getElementById('lang-toggle');
-  if(btn) btn.addEventListener('click', () => {
-    const next = document.documentElement.lang === 'hi' ? 'en' : 'hi';
-    try { localStorage.setItem('rbi-lang', next); } catch(e){}
-    applyLang(next);
-  });
-})();
 
 // ─── Keyboard shortcuts: 1–5 switch tabs (ignored while typing) ──
 (function initKeys(){
