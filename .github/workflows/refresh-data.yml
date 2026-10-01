@@ -72,14 +72,13 @@ jobs:
 
       # One-shot backfill of the reserves decomposition (FCA / SDR / IMF /
       # gold tonnes) into the historical weeks. The WSS scraper parsed these
-      # fields but dropped them from records until now; the composition chart
-      # needs them per week. The script only fills missing fields, validates
-      # each week's components sum to its recorded total (±0.5%), and exits 0
-      # when nothing is left to fill — so it's a no-op once complete and can
-      # stay in the cron until the backlog is done. RBI's doc CDN serves an
-      # F5 JS challenge to some client networks (local runs get an HTML
-      # interstitial), but GitHub runners download these files daily, so the
-      # backfill lives here rather than in a local script run.
+      # fields but dropped them from records until now (and, before that,
+      # swapped the INR/USD columns); the composition chart needs them per
+      # week. RBI's doc CDN fronts an F5 limiter that intermittently serves
+      # a challenge page instead of the file — the script detects it by magic
+      # bytes, paces itself, aborts after three consecutive challenges, and
+      # persists after every filled week. Exit code stays 0 either way, so a
+      # hot limiter just means the backlog resumes on a later run.
       - name: Backfill reserves decomposition fields (FCA/SDR/IMF)
         run: node scripts/backfill-decomp.js
 
