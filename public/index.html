@@ -1033,6 +1033,12 @@ html,body{overflow-x:clip}
       </div>
       <div class="chart-empty" id="fng-empty" hidden>Waiting for the sentiment feed — the five-signal composite meter draws here.</div>
     </div>
+
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">Sentiment history: Fear &amp; Greed over time</h3><div class="chart-note">Daily composite · zone bands (extreme fear → extreme greed) · snapshot taken at each deploy/cron run</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cFngHist','sentiment-history')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="chart-wrap compact"><canvas id="cFngHist" role="img" aria-label="Line chart of the composite India fear and greed score over time"></canvas></div>
+      <div class="chart-empty" id="fng-hist-empty" hidden>Sentiment history builds one point per day — the first readings arrive with the next cron run.</div>
+    </div>
   </div>
 
   <!-- Sticky headline bar: three key numbers + freshness, persists while scrolling -->
@@ -3005,6 +3011,85 @@ function renderFngGauge(d){
       }],
     });
   }
+}
+
+// ─── Sentiment history chart ────────────────────────────────────────
+// Daily composite scores from the committed sentiment-history.json (one row
+// per day, appended by scripts/snapshot-sentiment.js on every deploy/cron
+// run). Drawn as a line over zone bands so regime shifts read at a glance.
+let fngHistData = null;
+async function loadFngHistory(){
+  try {
+    const r = await fetch('sentiment-history.json', { cache: 'no-cache' });
+    if (r.ok) fngHistData = await r.json();
+  } catch (_) { /* static file absent — empty state shows */ }
+  renderFngHistory();
+}
+
+function renderFngHistory(){
+  const empty = document.getElementById('fng-hist-empty');
+  const pts = (fngHistData && Array.isArray(fngHistData.points)) ? fngHistData.points : [];
+  if(pts.length < 2){
+    if(charts.cFngHist){ charts.cFngHist.destroy(); delete charts.cFngHist; }
+    if(empty) empty.hidden = false;
+    return;
+  }
+  if(empty) empty.hidden = true;
+  if(charts.cFngHist){ charts.cFngHist.destroy(); delete charts.cFngHist; }
+  const el = document.getElementById('cFngHist');
+  const scores = pts.map(p => p.score);
+  charts.cFngHist = new Chart(el, {
+    type:'line',
+    data:{ labels: pts.map(p => p.date.slice(2)), datasets:[{
+      label:'Fear & Greed', data: scores,
+      borderColor:AMB, borderWidth:2, pointRadius:2,
+      pointBackgroundColor: scores.map(s => fngColor(s)), pointBorderWidth:0,
+      fill:false, tension:.25,
+    }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false },
+        tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
+          callbacks:{ label: ctx => ctx.parsed.y + ' — ' + (pts[ctx.dataIndex].label || labelForFng(ctx.parsed.y)) } } },
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        x: axOpts(v => v).x,
+        y: { min:0, max:100,
+             ticks: { color:tickC, font:{ size:10.5, family:'Inter', weight:'500' }, stepSize:25, callback: v => v },
+             grid: { color:gridC } },
+      },
+    },
+    plugins: [{
+      id:'fngZones',
+      beforeDatasetsDraw(chart){
+        const { ctx, chartArea: a, scales } = chart;
+        if(!a) return;
+        const y = scales.y;
+        const bands = [[0,25,'#ef44441f'],[25,45,'#f973161f'],[45,55,'#eab3081f'],[55,75,'#84cc161f'],[75,100,'#22c55e1f']];
+        ctx.save();
+        for(const [lo, hi, col] of bands){
+          ctx.fillStyle = col;
+          ctx.fillRect(a.left, y.getPixelForValue(hi), a.right - a.left, y.getPixelForValue(lo) - y.getPixelForValue(hi));
+        }
+        // 50-midline slightly stronger
+        ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+        ctx.setLineDash([4,4]);
+        ctx.beginPath();
+        ctx.moveTo(a.left, y.getPixelForValue(50));
+        ctx.lineTo(a.right, y.getPixelForValue(50));
+        ctx.stroke();
+        ctx.restore();
+      },
+    }],
+  });
+  zoomable(charts.cFngHist);
+}
+
+function labelForFng(s){
+  if(s < 25) return 'Extreme fear';
+  if(s < 45) return 'Fear';
+  if(s <= 55) return 'Neutral';
+  if(s <= 75) return 'Greed';
+  return 'Extreme greed';
 }
 
 function dlChartPNG(id, name){
@@ -5053,6 +5138,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if(window.Chart) Chart.register(eventsPlugin); // deferred lib is ready by now
   updatePrintVintage();
   loadMacroData();
+  loadFngHistory();
   renderPmCares();
   startFetch();
   // Compositor-stall rescue: if entrance animations are still sitting at

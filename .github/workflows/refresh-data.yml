@@ -70,6 +70,13 @@ jobs:
       - name: Refresh World Bank external-debt ranking (biggest-borrower tiles)
         run: npm run fetch:debt
 
+      # Snapshot today's composite Fear & Greed score into the committed
+      # sentiment-history.json (one row per day, updated in place intraday,
+      # 400-point window). Feeds the sentiment trend chart; fails open — a
+      # blocked Yahoo never breaks the run.
+      - name: Snapshot daily sentiment score
+        run: npm run snapshot:fng
+
       # One-shot backfill of the reserves decomposition (FCA / SDR / IMF /
       # gold tonnes) into the historical weeks. The WSS scraper parsed these
       # fields but dropped them from records until now (and, before that,
@@ -86,7 +93,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/rbi-data.json public/external-debt.json netlify/functions/fetch-fx-intervention.js
+          git add public/rbi-data.json public/external-debt.json public/sentiment-history.json netlify/functions/fetch-fx-intervention.js
           if git diff --cached --quiet; then
             echo "No new data — nothing to commit."
           else
