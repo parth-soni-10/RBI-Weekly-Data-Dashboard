@@ -203,9 +203,10 @@ function parseReservesExcel(buf) {
   // Adds fields without disturbing existing total + gold logic above.
   // Each entry is null if the row / numerics aren't found in the sheet.
   //
-  // RBI row layout: [Label ... | INR cr | USD mn] (INR cr is left of USD mn).
-  // When we read the right-to-left pair, the larger magnitude is USD mn
-  // (USD mn is ~50-100× INR cr for reserves) so we discriminate by size.
+  // RBI row layout: [Label ... | INR cr | USD mn] — INR crore comes FIRST,
+  // same column order as the Total and Gold rows read above (first numeric →
+  // INR, second → USD). Verified against archived + live sheets: FCA(₹60.5L cr)
+  // + Gold + SDR + IMF in USD mn sum exactly to total_usd.
   const decompFinders = [
     { keys: ["fca_usd", "fca_inr"],                match: ["foreign currency assets", "currency assets"],           exclude: [] },
     { keys: ["sdr_usd", "sdr_inr"],                match: ["special drawing rights", "special drawing right", "sdr"], exclude: [] },
@@ -225,13 +226,12 @@ function parseReservesExcel(buf) {
             const v = toNum(rows[j][c]);
             if (!isNaN(v) && isFinite(v)) nums.push(v);
           }
-          // Pick the LARGER one as USD mn, the smaller as INR cr.
-          // (Reserves: USD mn is ~50-100× larger than INR cr.)
+          // Column order, not magnitude, decides: [INR cr | USD mn].
           if (nums.length >= 2) {
             candidates.push({
               sheetIdx: si, rowIdx: j,
-              usd: Math.max(nums[0], nums[1]),
-              inr: Math.min(nums[0], nums[1])
+              inr: nums[0],
+              usd: nums[1]
             });
           } else if (nums.length === 1) {
             // Single-column report — assume USD mn.
@@ -241,10 +241,11 @@ function parseReservesExcel(buf) {
         }
       }
     }
-    // Prefer the FIRST match in physical order. If multiple, prefer one whose
-    // usd/inr ratio looks like a real reserves split (~30-90 range).
+    // Prefer the FIRST match in physical order. If multiple sheets carry the
+    // row, prefer one whose ₹cr/$mn ratio looks like a real reserves split
+    // (₹cr = $mn × rate ÷ 10 ≈ 9–11 at recent rates).
     if (candidates.length) {
-      const best = candidates.find(c => c.inr && (c.usd / c.inr > 20 && c.usd / c.inr < 200))
+      const best = candidates.find(c => c.inr && (c.inr / c.usd > 4 && c.inr / c.usd < 25))
                 || candidates[0];
       result[f.keys[0]] = best.usd;
       result[f.keys[1]] = best.inr;
