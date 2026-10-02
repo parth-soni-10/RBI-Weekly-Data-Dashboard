@@ -43,25 +43,18 @@
    ══════════════════════════════════════════════════════════════════════ */
 :root{
   /* shared shape + type */
-  --r2:10px;--r3:15px;--pill:999px;
+  --r2:7px;--r3:10px;--pill:999px;
   --w:1180px;
   --font:'Inter',system-ui,-apple-system,sans-serif;
   --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,monospace;
   --fs-body:14px;
-  /* ── Motion tokens (genjutsu motion-principles) ──
-     fast = hover/press feedback · normal = card + section movement ·
-     slow = first-paint storytelling only. Every transition below should
-     reference these; nothing animates layout properties (width/height). */
-  --dur-fast:150ms;--dur-normal:300ms;--dur-slow:500ms;
-  --ease-out:cubic-bezier(.2,.9,.3,1);--ease-spring:cubic-bezier(.2,.8,.25,1);
+  /* Motion: state changes ease 150–300ms; nothing animates layout. */
+  --ease-out:cubic-bezier(.2,.9,.3,1);
 }
 /* ── Dark (default) ─────────────────────────────────────────────────── */
 html{color-scheme:dark}
 :root[data-theme="dark"]{
   --bg:#070b15;
-  --bg-tint-1:radial-gradient(1100px 520px at 88% -140px,rgba(233,185,73,.1),transparent 62%);
-  --bg-tint-2:radial-gradient(900px 560px at -12% 4%,rgba(59,130,246,.075),transparent 55%);
-  --glow-lo:.4;--glow-hi:.95;
   --surface:#0d1526;--surface2:#111c31;
   --border:rgba(148,163,184,.13);--border2:rgba(148,163,184,.28);--border3:rgba(148,163,184,.4);
   --ink:#e9eff8;--ink2:#a2b2c9;--ink3:#72829c;
@@ -72,9 +65,9 @@ html{color-scheme:dark}
   --info-fg:#7fbdf0;--info-bg:rgba(96,165,250,.13);
   --sel:rgba(233,185,73,.32);
   --console-bg:#050910;
-  --shadow-sm:0 1px 2px rgba(3,7,18,.4),inset 0 1px 0 rgba(255,255,255,.05);
-  --shadow:0 3px 14px -4px rgba(3,7,18,.55),0 1px 3px rgba(3,7,18,.4),inset 0 1px 0 rgba(255,255,255,.05);
-  --shadow-lg:0 22px 48px -20px rgba(2,5,14,.8),inset 0 1px 0 rgba(255,255,255,.07);
+  --shadow-sm:0 1px 2px rgba(3,7,18,.4);
+  --shadow:0 2px 10px -4px rgba(3,7,18,.55);
+  --shadow-lg:0 12px 28px -12px rgba(2,5,14,.7);
   --chip-latest-bg:rgba(233,185,73,.16);--chip-latest-fg:#f2cf86;
   --row-hover:rgba(148,163,184,.06);--row-latest:rgba(233,185,73,.05);
   --chart-tick:#8b9bb4;--chart-grid:rgba(148,163,184,.09);--chart-legend:#aab8cc;
@@ -84,9 +77,6 @@ html{color-scheme:dark}
 :root[data-theme="light"]{
   color-scheme:light;
   --bg:#f1f3f7;
-  --bg-tint-1:radial-gradient(1000px 480px at 85% -160px,rgba(210,150,40,.09),transparent 60%);
-  --bg-tint-2:radial-gradient(820px 520px at -10% 0%,rgba(37,99,235,.06),transparent 55%);
-  --glow-lo:.45;--glow-hi:.8;
   --surface:#ffffff;--surface2:#f4f6fa;
   --border:rgba(15,30,55,.11);--border2:rgba(15,30,55,.22);--border3:rgba(15,30,55,.35);
   --ink:#101d33;--ink2:#4d5e78;--ink3:#5f7189;
@@ -98,8 +88,8 @@ html{color-scheme:dark}
   --sel:rgba(210,150,40,.25);
   --console-bg:#f8fafd;
   --shadow-sm:0 1px 2px rgba(16,30,55,.06);
-  --shadow:0 4px 18px -8px rgba(16,30,55,.16),0 1px 3px rgba(16,30,55,.06);
-  --shadow-lg:0 26px 52px -24px rgba(16,30,55,.28),inset 0 1px 0 rgba(255,255,255,.6);
+  --shadow:0 2px 10px -6px rgba(16,30,55,.16);
+  --shadow-lg:0 12px 26px -14px rgba(16,30,55,.25);
   --chip-latest-bg:rgba(180,112,10,.13);--chip-latest-fg:#7a4a04;
   --row-hover:rgba(15,30,55,.045);--row-latest:rgba(180,112,10,.05);
   --chart-tick:#64748b;--chart-grid:rgba(15,30,55,.07);--chart-legend:#5a6a82;
@@ -112,19 +102,6 @@ body{
   color:var(--ink);font-family:var(--font);font-size:var(--fs-body);line-height:1.5;
   min-height:100vh;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
-/* Ambient light: two fixed, compositor-friendly layers that breathe gently
-   behind the content so surfaces read as floating over depth. They sit at
-   z-index -1 (behind every card) and animate only opacity. The global
-   reduced-motion rule freezes them to the low state. */
-body::before{
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:var(--bg-tint-1),var(--bg-tint-2);
-  background-repeat:no-repeat;
-  opacity:var(--glow-lo);
-  animation:breatheGlow 13s ease-in-out infinite alternate;
-  will-change:opacity;
-}
-@keyframes breatheGlow{from{opacity:var(--glow-lo)}to{opacity:var(--glow-hi)}}
 ::selection{background:var(--sel)}
 a{color:var(--brand)}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
@@ -153,12 +130,11 @@ a{color:var(--brand)}
   header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,.macro-trends,#sentiment-row,.chart-actions,.range-row{display:none!important}
   .print-vintage{display:block!important;position:fixed;bottom:.4rem;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:#555;border-top:1px solid #ccc;padding-top:.3rem}
   body{background:#fff;color:#111}
-  body::before{display:none}
   .section{display:none;padding:0;max-width:none}
   .section.active{display:block}
   #charts{grid-template-columns:1fr}
   .chart-card,.mc,.mex,.mctx,.macro-context,.tbl-wrap,.crude-hl,.weekly-summary,.tbl-intro{box-shadow:none;border-color:#ccc;break-inside:avoid}
-  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover{transform:none;box-shadow:none}
+  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover{box-shadow:none}
   .chart-wrap,.chart-wrap.tall,.chart-wrap.wide,.chart-wrap.compact{height:190px}
   footer{border-top:1px solid #ccc;margin-top:1rem}
   a{color:#111;text-decoration:none}
@@ -167,8 +143,8 @@ a{color:var(--brand)}
 /* ─── Header ────────────────────────────────────────────────────────── */
 header{
   background:var(--surface);
-  background:color-mix(in srgb,var(--surface) 82%,transparent);
-  -webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--border);
   padding:.7rem clamp(1rem,3vw,2rem);
   display:flex;align-items:center;justify-content:space-between;gap:.8rem;
@@ -179,11 +155,10 @@ header.header-hidden{transform:translateY(-110%);box-shadow:none}
 header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border2)}
 .logo{display:flex;align-items:center;gap:.65rem;min-width:0}
 .logo-badge{
-  width:34px;height:34px;border-radius:11px;flex-shrink:0;
+  width:34px;height:34px;border-radius:8px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,var(--brand2),var(--brand));
-  color:var(--on-brand);font-weight:700;font-size:17px;line-height:1;
-  box-shadow:0 3px 10px -3px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.25);
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--brand);font-family:var(--mono);font-weight:500;font-size:18px;line-height:1;
 }
 .logo-text{min-width:0}
 .logo-text h1{font-size:14.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -196,10 +171,10 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
   height:32px;display:inline-flex;align-items:center;gap:.45rem;padding:0 .8rem;
   border-radius:calc(var(--r2) - 3px);font-size:12.5px;font-weight:550;letter-spacing:.01em;
   color:var(--ink2);text-decoration:none;white-space:nowrap;
-  transition:background .18s,color .18s,box-shadow .18s;
+  transition:background .18s,color .18s;
 }
 .nav-link:hover{background:var(--row-hover);color:var(--ink)}
-.nav-link.active{background:var(--active-bg);color:var(--active-fg);box-shadow:0 2px 8px -2px rgba(0,0,0,.35)}
+.nav-link.active{background:var(--active-bg);color:var(--active-fg)}
 .nav-link .lucide{width:15px;height:15px;flex-shrink:0}
 /* icon buttons */
 .theme-toggle{
@@ -226,30 +201,7 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 
 /* ─── Sections ───────────────────────────────────────────────────────── */
 .section{display:none;max-width:var(--w);margin:0 auto;padding:1.5rem clamp(1rem,3vw,2rem) 2.6rem}
-.section.active{display:block;animation:sectionIn .38s cubic-bezier(.2,.9,.3,1) both}
-@keyframes sectionIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-/* Weightless entrances: cards drop in like dominoes once their group becomes
-   visible (data loaded, section opened, or rows rendered). Transform/opacity
-   only; disabled entirely under prefers-reduced-motion by the global rule. */
-@keyframes cardIn{from{opacity:0;transform:translateY(13px) scale(.995)}to{opacity:1;transform:none}}
-#metrics.show .mc,.metric-extra-row.show .mex,.pm-metrics .mc,.mc-grid .mctx,
-#crude-kpis .mc,#charts.show .chart-card{
-  animation:cardIn .5s cubic-bezier(.2,.8,.25,1) both;
-}
-#metrics.show .mc:nth-child(2),.metric-extra-row.show .mex:nth-child(2),.pm-metrics .mc:nth-child(2),
-.mc-grid .mctx:nth-child(2),#crude-kpis .mc:nth-child(2),#charts.show .chart-card:nth-child(2){animation-delay:.045s}
-#metrics.show .mc:nth-child(3),.metric-extra-row.show .mex:nth-child(3),.pm-metrics .mc:nth-child(3),
-.mc-grid .mctx:nth-child(3),#crude-kpis .mc:nth-child(3),#charts.show .chart-card:nth-child(3){animation-delay:.09s}
-#metrics.show .mc:nth-child(4),.pm-metrics .mc:nth-child(4),.mc-grid .mctx:nth-child(4),
-.metric-extra-row.show .mex:nth-child(4),#crude-kpis .mc:nth-child(4),#charts.show .chart-card:nth-child(4){animation-delay:.135s}
-#metrics.show .mc:nth-child(5),.pm-metrics .mc:nth-child(5),.mc-grid .mctx:nth-child(5),
-.metric-extra-row.show .mex:nth-child(5),#charts.show .chart-card:nth-child(5){animation-delay:.18s}
-#metrics.show .mc:nth-child(6),.pm-metrics .mc:nth-child(6),.mc-grid .mctx:nth-child(6),
-#charts.show .chart-card:nth-child(6){animation-delay:.225s}
-#metrics.show .mc:nth-child(7),.mc-grid .mctx:nth-child(7),
-#charts.show .chart-card:nth-child(7){animation-delay:.27s}
-.mc-grid .mctx:nth-child(8),#charts.show .chart-card:nth-child(8){animation-delay:.315s}
+.section.active{display:block}
 
 /* ─── Shared surface ─────────────────────────────────────────────────── */
 .note-strip,.fetch-panel,.weekly-summary,.tbl-intro,.tbl-wrap,.chart-card,
@@ -319,21 +271,20 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
   padding:0 1.05rem;background:var(--active-bg);color:var(--active-fg);
   border:none;border-radius:var(--r2);font-family:var(--font);font-size:13px;font-weight:650;
   letter-spacing:.01em;cursor:pointer;
-  transition:filter .18s,transform .18s,box-shadow .18s;
-  box-shadow:0 2px 8px -2px rgba(0,0,0,.35);
+  transition:filter .15s;
 }
-.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
-.btn:active{transform:translateY(0) scale(.98)}
-.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn:hover{filter:brightness(1.07)}
+.btn:active{filter:brightness(.95)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn .lucide{width:15px;height:15px}
 .dl{
   height:32px;display:inline-flex;align-items:center;gap:.5rem;padding:0 .85rem;
   background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r2);
   color:var(--ink2);font-family:var(--font);font-size:12.5px;font-weight:550;cursor:pointer;
-  transition:color .18s,border-color .18s,background .18s,transform .18s;
+  transition:color .18s,border-color .18s,background .18s;
 }
 .dl:hover{color:var(--brand);border-color:var(--brand-line);background:var(--brand-soft)}
-.dl:active{transform:scale(.97)}
+.dl:active{opacity:.85}
 a.dl{text-decoration:none}
 .dl .lucide{width:14px;height:14px}
 .dl-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
@@ -379,9 +330,9 @@ html{-webkit-tap-highlight-color:transparent}
 .mc-grid{grid-template-columns:repeat(auto-fit,minmax(195px,1fr))}
 #metrics.show{opacity:1}.metric-extra-row.show{opacity:1}
 .mc,.mctx,.mex{
-  padding:.85rem .95rem;position:relative;transition:border-color .3s,box-shadow .3s,transform .3s cubic-bezier(.2,.8,.25,1);
+  padding:.85rem .95rem;position:relative;transition:border-color .18s;
 }
-.mc:hover,.mctx:hover,.mex:hover{border-color:var(--border2);box-shadow:var(--shadow-lg);transform:translateY(-3px)}
+.mc:hover,.mctx:hover,.mex:hover{border-color:var(--border2)}
 .mc-label,.mctx-label,.mex-label,.crude-hl-label{
   font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);
   margin-bottom:.45rem;
@@ -422,8 +373,8 @@ html{-webkit-tap-highlight-color:transparent}
 }
 #charts.show{opacity:1}
 #charts .chart-card.span2{grid-column:1/-1}
-.chart-card{padding:1.05rem 1.1rem;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}
-.chart-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.chart-card{padding:1.05rem 1.1rem;margin-bottom:1rem;transition:border-color .18s}
+.chart-card:hover{border-color:var(--border2)}
 #charts .chart-card{margin-bottom:0}
 .chart-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.8rem}
 .chart-actions{display:flex;gap:.35rem;flex-shrink:0}
@@ -440,10 +391,10 @@ html{-webkit-tap-highlight-color:transparent}
 .tab{
   height:28px;padding:0 .75rem;display:inline-flex;align-items:center;border-radius:calc(var(--r2) - 4px);
   font-size:12px;font-weight:550;letter-spacing:.01em;cursor:pointer;border:none;background:transparent;
-  color:var(--ink2);font-family:var(--font);transition:background .18s,color .18s,box-shadow .18s;
+  color:var(--ink2);font-family:var(--font);transition:background .18s,color .18s;
 }
 .tab:hover:not(.on){color:var(--ink);background:var(--row-hover)}
-.tab.on{background:var(--active-bg);color:var(--active-fg);box-shadow:0 1px 5px -1px rgba(0,0,0,.3)}
+.tab.on{background:var(--active-bg);color:var(--active-fg)}
 .tab .lucide{width:13px;height:13px;margin-right:.3rem;vertical-align:-2px}
 
 /* ─── Empty states ──────────────────────────────────────────────────── */
@@ -557,9 +508,9 @@ footer h3{font-size:11px;font-weight:650;letter-spacing:.09em;text-transform:upp
 .src-links{display:flex;flex-direction:column;gap:.55rem;margin-bottom:1.1rem;align-items:flex-start}
 .src-link{
   display:inline-flex;align-items:center;gap:.5rem;font-size:13px;color:var(--brand);
-  text-decoration:none;font-weight:550;transition:color .18s,transform .18s;
+  text-decoration:none;font-weight:550;transition:color .15s;
 }
-.src-link:hover{color:var(--brand2);text-decoration:underline;transform:translateX(2px)}
+.src-link:hover{color:var(--brand2);text-decoration:underline}
 .src-link svg{width:13px;height:13px;flex-shrink:0}
 .src-link.last-week{
   border:1px solid var(--border2);background:var(--surface2);border-radius:var(--r2);
@@ -603,15 +554,10 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
     order:5;width:100%;flex:1 1 100%;min-width:0;display:none;
     margin-top:.15rem;background:transparent;border:none;padding:0;
   }
-  @keyframes navDropIn{from{opacity:0;transform:translateY(-8px) scale(.995)}to{opacity:1;transform:none}}
-  @keyframes navLinkIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
   header.nav-open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:4px;
     background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);padding:.45rem;
-    box-shadow:var(--shadow);transform-origin:top;animation:navDropIn .22s cubic-bezier(.2,.9,.32,1) both}
-  header.nav-open .nav-links .nav-link{animation:navLinkIn .28s cubic-bezier(.2,.9,.32,1) both;white-space:nowrap}
-  header.nav-open .nav-links .nav-link:nth-child(2){animation-delay:.03s}
-  header.nav-open .nav-links .nav-link:nth-child(3){animation-delay:.06s}
-  header.nav-open .nav-links .nav-link:nth-child(4){animation-delay:.09s}
+    box-shadow:var(--shadow)}
+  header.nav-open .nav-links .nav-link{white-space:nowrap}
   .nav-links .nav-link{width:100%;height:42px;padding:0 .7rem;justify-content:flex-start;border-radius:var(--r2)}
   .nav-links .nav-link.active{background:var(--brand-soft);color:var(--brand2);box-shadow:none;border:1px solid var(--brand-line)}
 }
@@ -622,7 +568,6 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
   table{font-size:11.5px}
   td,thead th{padding:.5rem .6rem}
   .chart-card,.mc,.mex,.mctx,.macro-context,.fetch-panel,.weekly-summary,.tbl-intro,.tbl-wrap,.tbl-header{padding-left:14px;padding-right:14px}
-  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover{transform:none;box-shadow:var(--shadow-sm)}
   #charts{grid-template-columns:1fr}
   #charts .chart-card.span2{grid-column:auto}
   .tbl-header h2{font-size:13px}
@@ -635,7 +580,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 @media(max-width:430px){
   .status-pill{padding:0 .6rem 0 .5rem;font-size:11.5px}
   .tab-row{flex-wrap:wrap;width:100%}
-  .logo-badge{width:31px;height:31px;border-radius:10px;font-size:16px}
+  .logo-badge{width:31px;height:31px;border-radius:8px;font-size:16px}
   .logo-text h1{font-size:13.5px}
   .tbl-header{padding:.7rem 12px}
   .mc,.mctx,.mex{padding:.8rem}
@@ -656,8 +601,6 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 .ridge-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y}
 .ridge-note{font-size:11px;color:var(--ink3);margin-top:.4rem}
 .ridge-close{margin-top:.5rem}
-/* GSAP-driven section enter suppresses the CSS keyframe (no double-play) */
-.section.gsap-nav{animation:none}
 
 /* ─── Collapsible pipeline log + read-more notes ────────────────────
    The fetch console and the long methodology notes ship collapsed so
@@ -767,7 +710,6 @@ details.read-more .chart-note{margin-top:.35rem}
   background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:var(--pill);
   color:var(--brand2);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
   transition:background .18s,border-color .18s;
-  animation:cardIn .4s var(--ease-spring) both;
 }
 .new-week-badge:hover{background:var(--brand-line)}
 .new-week-badge .lucide{width:13px;height:13px}
@@ -775,21 +717,6 @@ details.read-more .chart-note{margin-top:.35rem}
 @media(max-width:1280px){
   .new-week-badge{order:2}
 }
-
-/* ─── Compositor-stall rescue ────────────────────────────────────
-   If entrance animations are ever stuck at their first frame (throttled
-   compositor, headless capture, background-restore edge cases), the page
-   must still be readable: html.anim-off force-finishes every entrance by
-   removing the animation, which returns each element to its natural,
-   fully-visible state. Only added by JS when a stall is detected, so
-   normal browsers keep every animation. */
-html.anim-off .section.active,
-html.anim-off #metrics.show .mc,
-html.anim-off .metric-extra-row.show .mex,
-html.anim-off .pm-metrics .mc,
-html.anim-off .mc-grid .mctx,
-html.anim-off #crude-kpis .mc,
-html.anim-off #charts.show .chart-card{animation:none}
 
 /* Macro strip collapse toggle */
 .macro-context h3{justify-content:space-between;flex-wrap:wrap;row-gap:.4rem}
@@ -824,7 +751,6 @@ html,body{overflow-x:clip}
   html{scroll-behavior:auto}
   .dot.running{animation:none}
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
-  .mc:hover,.mex:hover,.mctx:hover,.chart-card:hover,.btn:hover,.nav-link:hover,.tab:hover:not(.on),.dl:hover,.src-link:hover{transform:none!important}
 }
 
 </style>
@@ -1432,19 +1358,9 @@ const DATA_URL = 'rbi-data.json';
 const SYNC_URL = '.netlify/functions/data-sync';
 
 function showSection(name, el) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active','gsap-nav'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const sec = document.getElementById('sec-'+name);
   sec.classList.add('active');
-  // GSAP section enter (Subtle tier: 300ms power1.out). The gsap-nav class
-  // suppresses the CSS keyframe so the two never double-play; without GSAP
-  // the CSS sectionIn animation is the fallback and this block is a no-op.
-  if(canAnimate()){
-    sec.classList.add('gsap-nav');
-    window.gsap.fromTo(sec, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, ease: 'power1.out', overwrite: 'auto', clearProps: 'opacity,transform' });
-    // Safety net: if the tween is interrupted (rAF throttling, tab switch),
-    // never leave a section stuck half-transparent.
-    setTimeout(() => { try { window.gsap.set(sec, { clearProps: 'opacity,transform' }); } catch(_){} }, 500);
-  }
   document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
   if(name==='table' && records.length){
@@ -5383,17 +5299,6 @@ window.addEventListener('DOMContentLoaded', () => {
   loadFngHistory();
   renderPmCares();
   startFetch();
-  // Compositor-stall rescue: if entrance animations are still sitting at
-  // their first frame ~1.2s in (while the tab is visible), force-finish them
-  // so the page can never be caught invisible. No-op in normal browsers.
-  setTimeout(() => {
-    if(!document.getAnimations) return;
-    const stuck = document.getAnimations().some(a => a.currentTime === 0 && a.playState === 'running');
-    if(stuck){
-      document.documentElement.classList.add('anim-off');
-      try { window.gsap && gsap.set('.section.active', { clearProps: 'opacity,transform' }); } catch(_){}
-    }
-  }, 1200);
 });
 
 /* ===== PM CARES FUND — curated year-by-year data =====
