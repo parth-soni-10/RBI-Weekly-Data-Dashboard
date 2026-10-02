@@ -13,7 +13,7 @@
 // Output shape:
 //   {
 //     fetched_at, source_yield, gsec_10y_yield_pct, gsec_10y_date,
-//     repo_rate_pct, repo_rate_date, repo_history, status
+//     repo_rate_pct, repo_rate_date, repo_history, mpc_schedule, status
 //   }
 
 const { get } = require("./_utils/http");
@@ -50,6 +50,19 @@ const REPO_HISTORY = [
   { date: "2024-10-09", pct: 7.00, decision: "hold" },
   { date: "2024-08-08", pct: 7.00, decision: "hold" },
   { date: "2024-06-07", pct: 7.00, decision: "hold" },
+];
+
+// Upcoming MPC meetings, published by RBI in advance (the FY 2026-27 schedule
+// was announced 2026-03-23; the decision lands on the meeting's LAST day).
+// Deliberately NOT part of REPO_HISTORY — these are scheduled dates, not
+// decisions, so nothing that expects a decided rate ever sees a null. The
+// repo chart draws them as hollow diamonds on the in-force plateau. When a
+// meeting resolves: append the decision to the top of REPO_HISTORY, drop the
+// date from here, and add the matching line to MACRO_EVENTS in index.html.
+const MPC_SCHEDULE = [
+  { date: "2026-10-07", meeting: "Oct 5–7, 2026" },
+  { date: "2026-12-04", meeting: "Dec 2–4, 2026" },
+  { date: "2027-02-05", meeting: "Feb 3–5, 2027" },
 ];
 
 async function fetchYahooYield() {
@@ -165,6 +178,7 @@ exports.handler = async () => {
       repo_rate_pct:       last?.pct  ?? null,
       repo_rate_date:      last?.date ?? null,
       repo_history:        REPO_HISTORY,
+      mpc_schedule:         MPC_SCHEDULE,
       policy_peers: {
         fed: { name: "Fed funds (US, upper target)", steps: fedSteps },
         ecb: { name: "ECB main refinancing rate",    steps: ecbSteps },

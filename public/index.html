@@ -1020,7 +1020,7 @@ html,body{overflow-x:clip}
       <div class="chart-empty" id="reer-empty" hidden>Waiting for the REER series from RBI DBIE — the last-known monthly series draws here.</div>
     </div>
     <div class="chart-card">
-      <div class="chart-hdr"><div><h3 class="chart-title">RBI repo rate: MPC path</h3><div class="chart-note">Bi-monthly policy decisions · step = rate effective between meetings · <span class="tag-cut">▼ cut</span> / hold / <span class="tag-hike">▲ hike</span> · faint lines: Fed funds &amp; ECB refi</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cRepo','repo-rate')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">RBI repo rate: MPC path</h3><div class="chart-note">Bi-monthly policy decisions · step = rate effective between meetings · <span class="tag-cut">▼ cut</span> / hold / <span class="tag-hike">▲ hike</span> · <span class="tag-sched">◇ scheduled MPC</span> · faint lines: Fed funds &amp; ECB refi</div></div><span class="chart-actions"><button class="dl" onclick="return dlChartPNG('cRepo','repo-rate')" title="Download this chart as a PNG image"><i data-lucide="image-down"></i></button></span></div>
       <div class="chart-wrap compact"><canvas id="cRepo" role="img" aria-label="Step chart of the RBI repo rate across monetary policy committee decisions, with the US Fed funds and ECB refinancing rates as faint comparison lines"></canvas></div>
       <div class="chart-empty" id="repo-empty" hidden>Waiting for the repo series from fetch-gsec — the MPC decision path draws here.</div>
     </div>
@@ -2486,6 +2486,7 @@ const CH = {
   tick:  cssVar('--chart-tick', '#8b9bb4'),
   grid:  cssVar('--chart-grid', 'rgba(148,163,184,0.09)'),
   legend:cssVar('--chart-legend', '#aab8cc'),
+  surf:  cssVar('--surface',     '#0d1526'),  // card surface — hollow-marker fill
   tbg:   cssVar('--tt-bg', 'rgba(10,17,34,0.97)'),
   tt:    cssVar('--tt-t', '#eef3fb'),
   tb:    cssVar('--tt-b', '#c9d6ea'),
@@ -2899,7 +2900,9 @@ function renderMacroTrends(){
    Step chart from fetch-gsec's REPO_HISTORY (newest-first, official RBI
    MPC decisions): horizontal plateaus between meetings, diamond markers
    colored by decision — green = cut, red = hike, grey = hold. The path
-   extends to today so the current plateau reads as "still in force". */
+   extends to today so the current plateau reads as "still in force",
+   then carries through fetch-gsec's mpc_schedule (RBI's published
+   upcoming meeting dates) as hollow amber diamonds — rate unknown. */
 function renderRepoChart(gsec){
   const hist = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice() : [];
   const empty = document.getElementById('repo-empty');
@@ -2911,11 +2914,29 @@ function renderRepoChart(gsec){
   if(empty) empty.hidden = true;
   // Chronological order (the fetcher lists newest-first).
   const pts = hist.reverse().map(p => ({ date:p.date, v:p.pct, d:(p.decision || '').toLowerCase() }));
-  // Extend to today so the latest plateau visibly continues.
   const todayIso = new Date().toISOString().slice(0, 10);
   const last = pts[pts.length - 1];
-  const ptsExt = last.date < todayIso ? pts.concat([{ date: todayIso, v:last.v, d:last.d }]) : pts;
-  const colors = ptsExt.map(p => p.d === 'cut' ? G : p.d === 'hike' ? R : tickC);
+  // Scheduled (future) MPC meetings from fetch-gsec's mpc_schedule — dates
+  // RBI publishes in advance, NOT decisions. The in-force plateau simply
+  // continues through each date and the marker draws hollow (amber ring =
+  // rate TBD). Entries at or before the newest decision are ignored, so a
+  // schedule that lags a resolved meeting never draws stale markers.
+  const sched = (Array.isArray(gsec.mpc_schedule) ? gsec.mpc_schedule : [])
+    .filter(s => s && /^\d{4}-\d{2}-\d{2}$/.test(s.date || '') && s.date > last.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  // A meeting landing TODAY keeps its hollow marker instead of a duplicate
+  // plateau point (the category axis would show the label twice).
+  const hasToday = sched.some(s => s.date === todayIso);
+  const ptsExt = (last.date < todayIso && !hasToday ? pts.concat([{ date: todayIso, v:last.v, d:last.d }]) : pts)
+    .concat(sched.map(s => ({ date: s.date, v: last.v, d: 'scheduled' })));
+  const schedStart = ptsExt.length - sched.length;  // first hollow-marker index
+  const ptCol  = p => p.d === 'cut' ? G : p.d === 'hike' ? R : tickC;
+  // Amber ring for scheduled markers — grey would read as a "hold" decision.
+  const colors = ptsExt.map(p => p.d === 'scheduled' ? AMB : ptCol(p));
+  // Hollow diamonds: the card-surface fill punches a clean hole in the
+  // plateau line; the amber ring says "scheduled, rate unknown".
+  const fills  = ptsExt.map(p => p.d === 'scheduled' ? CH.surf : ptCol(p));
+  const ptBW   = ptsExt.map(p => p.d === 'scheduled' ? 1.5 : 1);
   // Peer policy rates (Fed funds, ECB refi) as faint stepped comparison lines.
   // The x-axis is a CATEGORY axis of MPC decision dates, so each peer series is
   // sampled AT those dates — "the Fed/ECB rate in force on each RBI decision
@@ -2940,7 +2961,7 @@ function renderRepoChart(gsec){
       stepped:true, fill:false,
       borderColor:AMB, borderWidth:2,
       pointRadius:4, pointHoverRadius:6, pointStyle:'rectRot',
-      pointBackgroundColor:colors, pointBorderColor:colors },
+      pointBackgroundColor:fills, pointBorderColor:colors, pointBorderWidth:ptBW },
   ];
   if(fedS.some(Boolean)) datasets.push(mkPeer('Fed funds (US)', fedS, 'rgba(59,130,246,.55)'));
   if(ecbS.some(Boolean)) datasets.push(mkPeer('ECB refi rate',  ecbS, 'rgba(45,212,191,.55)'));
@@ -2961,6 +2982,9 @@ function renderRepoChart(gsec){
                 return ds.label + ': ' + ctx.parsed.y.toFixed(2) + '%' + (since ? ' — in force since ' + fmtDate(since) : '');
               }
               const i = ctx.dataIndex, p = ptsExt[i];
+              if(p.d === 'scheduled')
+                return (i === schedStart ? 'Next MPC decision — ' : 'MPC meeting scheduled — ')
+                     + 'repo ' + p.v.toFixed(2) + '% in force until then';
               if(i >= pts.length) return 'Repo: ' + p.v.toFixed(2) + '% — still in force';
               const act = p.d === 'cut' ? '▼ cut' : p.d === 'hike' ? '▲ hike' : 'hold';
               const prev = i > 0 ? ptsExt[i-1].v : null;
