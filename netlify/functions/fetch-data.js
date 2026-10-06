@@ -1,5 +1,7 @@
-const fetch = require("node-fetch");
 const XLSX  = require("node-xlsx");
+// Shared HTTP client (UA + timeout) and numeric parser from _utils/http — one
+// place for every scraper instead of a private copy here.
+const { get: httpGet, parseNum: toNum } = require("./_utils/http");
 
 // NOTE: Crude-oil import data is fetched LIVE by the dashboard from
 // /.netlify/functions/fetch-crude (PPAC + TankerMap AIS + Yahoo). No static
@@ -45,22 +47,10 @@ function isoDate(d) {
 }
 
 // ─── HTTP ────────────────────────────────────────────────────
-async function get(url, timeoutMs = 10000) {
-  const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Referer": "https://www.rbi.org.in/" }
-    });
-    clearTimeout(tid);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
-  } catch (e) {
-    clearTimeout(tid);
-    throw e;
-  }
-}
+// Same shared client every other scraper uses, pinned to the RBI referer the
+// upstream expects — with accept:false: RBI's doc CDN (rbidocs, behind an F5
+// bot check) serves an .xlsx challenge page whenever Accept names text/html.
+const get = (url, timeoutMs) => httpGet(url, { timeoutMs, referer: "https://www.rbi.org.in/", accept: false });
 
 // ─── FIND EXCEL LINKS ON RBI PAGE ────────────────────────────
 // Matches the Python logic: look for tr containing "Foreign Exchange Reserves", take its .XLSX link
@@ -103,19 +93,8 @@ function findExcelUrls(html) {
 
 // helper to parse number, strip commas etc.
 // Only accept strings that are purely numeric (after removing commas) to avoid
-// picking numbers out of labels like "1 Total Reserves" or "1.2 Gold"
-function toNum(v) {
-  if (v == null) return NaN;
-  if (typeof v === "number") return v;
-  const s = String(v).trim();
-  // after removing commas, must match pure number pattern
-  const cleaned = s.replace(/,/g, "");
-  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) {
-    return NaN;
-  }
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? NaN : n;
-}
+// picking numbers out of labels like "1 Total Reserves" or "1.2 Gold" —
+// parseNum from _utils/http implements exactly that.
 
 // ─── PARSE RESERVES EXCEL ────────────────────────────────────
 // Strategy: same logic as the Python scraper (row keyword search, then first two

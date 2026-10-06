@@ -11,9 +11,8 @@
 //
 // Output shape:
 //   {
-//     fetched_at, source, status,
-//     equity_cr,  debt_cr,  equity_net_cr, debt_net_cr,
-//     as_of_date
+//     fetched_at, source, status, error?,
+//     equity_net_cr, debt_net_cr, as_of_date
 //   }
 
 const { get, extractHtmlTables, parseNum } = require("./_utils/http");
@@ -27,8 +26,6 @@ const FALLBACK = {
   as_of_date:     "2025-12-30",
   equity_net_cr:  -1245,
   debt_net_cr:     683,
-  source:         "manual fallback (NSDL page unparseable)",
-  note:           "Live NSDL page returned no parseable Equity/Debt rows. Showing last-known figures until parser recovers.",
 };
 
 exports.handler = async () => {

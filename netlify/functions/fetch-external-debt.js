@@ -454,5 +454,3 @@ exports.handler = async (event) => {
 // following the _getFridays/_processOne export precedent from fetch-data.js.
 exports._buildPayload = buildPayload;
 exports._fallbackPayload = fallbackPayload;
-exports._withMaturity = withMaturity;
-exports._SCOPE_NOTE = SCOPE_NOTE;

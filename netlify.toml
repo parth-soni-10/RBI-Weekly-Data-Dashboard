@@ -41,7 +41,20 @@
 [functions.fetch-data]
   timeout = 26
 
-# Long-running data scrapers
+# Long-running data scrapers + on-demand scrapers that walk several upstream
+# weeks/pages sequentially — the default 10s would cut them mid-flight.
+[functions.data-latest]
+  timeout = 26
+
+[functions.data-forex-weekly]
+  timeout = 26
+
+[functions.fetch-external-debt]
+  timeout = 26
+
+[functions.fetch-fwd-latest]
+  timeout = 20
+
 [functions.fetch-fii]
   timeout = 20
 

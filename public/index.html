@@ -261,7 +261,6 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 .cmp-summary{font-size:13.5px;color:var(--ink2);line-height:1.75;margin-bottom:1.1rem}
 .cmp-summary strong{color:var(--ink);font-weight:600}
 .cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:.7rem;margin-bottom:.4rem}
-.cmp-grid .mc{animation:none}
 .cmp-delta-big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:500;margin-top:.45rem;letter-spacing:-.01em}
 .cmp-delta-big .pct{font-size:11px;color:var(--ink3);margin-left:.3rem;font-weight:400}
 
@@ -323,10 +322,10 @@ html{-webkit-tap-highlight-color:transparent}
 #metrics,.pm-metrics,.kpi-grid,.metric-extra-row,.mc-grid,.crude-hl-grid{
   display:grid;gap:.7rem;
 }
-#metrics{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1.25rem;opacity:0;transition:opacity .4s}
+#metrics{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1.25rem;opacity:0}
 .pm-metrics{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:1.1rem}
 .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1rem}
-.metric-extra-row{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:0 0 1.1rem;opacity:0;transition:opacity .4s}
+.metric-extra-row{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:0 0 1.1rem;opacity:0}
 .mc-grid{grid-template-columns:repeat(auto-fit,minmax(195px,1fr))}
 #metrics.show{opacity:1}.metric-extra-row.show{opacity:1}
 .mc,.mctx,.mex{
@@ -369,7 +368,7 @@ html{-webkit-tap-highlight-color:transparent}
 /* ─── Charts ────────────────────────────────────────────────────────── */
 #charts{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(min(430px,100%),1fr));
-  gap:1rem;opacity:0;transition:opacity .4s;
+  gap:1rem;opacity:0;
 }
 #charts.show{opacity:1}
 #charts .chart-card.span2{grid-column:1/-1}
@@ -1586,7 +1585,7 @@ function freshAgeText(ms){
   if(m < 1) return 'just now';
   if(m < 60) return m + 'm ago';
   const h = Math.floor(m / 60), r = m % 60;
-  return h + (h === 1 ? 'h' : 'h') + (r ? ' ' + r + 'm' : '') + ' ago';
+  return h + 'h' + (r ? ' ' + r + 'm' : '') + ' ago';
 }
 function renderFreshness(){
   const main = document.getElementById('status-text');
@@ -1899,10 +1898,6 @@ async function saveForwardToBlob(forward) {
   }
 }
 
-// EM-peers data is already live-fetched per range by the server-side proxy;
-// the per-range cache just avoids refetching on every tab click. Reload busts
-// the cache so the next EM view pulls fresh Yahoo data — refetching the active
-// range immediately when the EM overlay is on screen.
 // EM-peers data is fetched live per range by the server-side proxy; the
 // per-range cache avoids refetching on every tab click. Payloads are persisted
 // in the data-sync blob (key `em`) so repeat reloads restore them instead of
@@ -2235,17 +2230,11 @@ function toggleMacro(){
    Copies the underlying weekly figures (not the rendered pixels) so a
    journalist gets citable numbers in one click. Uses the Clipboard API
    with a textarea fallback; the button label confirms briefly. */
-function copyChartCSV(kind, btn){
-  if(!records.length) return false;
-  const cols = {
-    res:  ['date', 'total_usd', 'total_inr'],
-    gold: ['date', 'gold_usd', 'gold_inr'],
-    fx:   ['date', 'usd_inr', 'eur_inr'],
-    idx:  ['date', 'nifty', 'sensex'],
-  }[kind] || ['date', 'total_usd'];
-  const lines = [cols.join(',')].concat(records.map(r =>
-    cols.map(c => (r[c] == null ? '' : r[c])).join(',')));
-  const csv = lines.join('\n');
+/* Shared clipboard path for the Copy-CSV buttons: the Clipboard API raced
+   against a timeout (a permission prompt can hang — notably headless or
+   first-visit), falling back to a hidden textarea + execCommand. The button
+   label confirms briefly either way. */
+function copyCsvText(csv, btn){
   const done = ok => {
     if(!btn) return;
     const orig = btn.textContent;
@@ -2253,9 +2242,6 @@ function copyChartCSV(kind, btn){
     setTimeout(() => { btn.textContent = orig; }, 1500);
   };
   if(navigator.clipboard && navigator.clipboard.writeText){
-    // Clipboard writes can hang on a permission prompt (notably headless or
-    // first-visit); race an 800ms timeout into the textarea fallback so the
-    // button always answers instead of stalling on its original label.
     let settled = false;
     Promise.race([navigator.clipboard.writeText(csv), new Promise((_, rej) => setTimeout(rej, 800))])
       .then(() => { settled = true; done(true); },
@@ -2274,6 +2260,19 @@ function copyChartCSV(kind, btn){
       done(!!ok);
     } catch(e){ done(false); }
   }
+}
+
+function copyChartCSV(kind, btn){
+  if(!records.length) return false;
+  const cols = {
+    res:  ['date', 'total_usd', 'total_inr'],
+    gold: ['date', 'gold_usd', 'gold_inr'],
+    fx:   ['date', 'usd_inr', 'eur_inr'],
+    idx:  ['date', 'nifty', 'sensex'],
+  }[kind] || ['date', 'total_usd'];
+  const lines = [cols.join(',')].concat(records.map(r =>
+    cols.map(c => (r[c] == null ? '' : r[c])).join(',')));
+  copyCsvText(lines.join('\n'), btn);
   return false;
 }
 
@@ -2980,9 +2979,6 @@ function renderSpreadChart(gsec){
   zoomable(c);
 }
 
-/* ─── Chart PNG export ─────────────────────────────────────────────
-   One click downloads the rendered canvas at its on-screen resolution,
-   composited onto an opaque background so the PNG matches the theme. */
 /* ─── Date-range filter for the weekly tables ───────────────────────
    Both dates optional: pick a From, a To, or both; the three weekly
    tables filter to the Fridays inside the range. */
@@ -3249,6 +3245,9 @@ function labelForFng(s){
   return 'Extreme greed';
 }
 
+/* ─── Chart PNG export ─────────────────────────────────────────
+   One click downloads the rendered canvas at its on-screen resolution,
+   composited onto an opaque background so the PNG matches the theme. */
 function dlChartPNG(id, name){
   const c = charts[id];
   if(!c || !c.canvas) return false;
@@ -3567,7 +3566,6 @@ async function loadCrudeData() {
           monthly:    data.ppac_monthly_barrels  || {},
           quality:    data.quality_metrics       || {},
           prices:     data.live_prices           || {},
-          straits:    data.strait_traffic        || {},
           fetched_at: data.fetched_at            || new Date().toISOString(),
         };
         crudeCheckedAt = Date.now(); // arms the hourly cap on explicit-reload live-checks
@@ -3610,7 +3608,6 @@ async function renderCrudeHighlights() {
   try { c = await loadCrudeData(); } catch(_) { return; }
 
   const daily  = filterCrudeToTimeline(c.daily);
-  const prices = c.prices;
 
   // BPD highlights
   if (daily.length) {
@@ -4852,31 +4849,7 @@ function copyDebtCSV(btn){
     }
   }
   const csv = lines.join('\n');
-  const done = ok => {
-    if(!btn) return;
-    const orig = btn.textContent;
-    btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
-  };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    let settled = false;
-    Promise.race([navigator.clipboard.writeText(csv), new Promise((_, rej) => setTimeout(rej, 800))])
-      .then(() => { settled = true; done(true); },
-            () => { if(!settled){ settled = true; fallbackCopy(); } });
-  } else fallbackCopy();
-  function fallbackCopy(){
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = csv;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      done(!!ok);
-    } catch(e){ done(false); }
-  }
+  copyCsvText(csv, btn);
   return false;
 }
 

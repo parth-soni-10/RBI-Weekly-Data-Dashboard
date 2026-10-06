@@ -3,7 +3,7 @@
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 const DEFAULT_TIMEOUT_MS = 12000;
 
-async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer } = {}) {
+async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer, accept = true } = {}) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -11,7 +11,10 @@ async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer 
       signal: ctrl.signal,
       headers: {
         "User-Agent": UA,
-        "Accept":     "text/html,application/xhtml+xml,application/json,text/plain,*/*",
+        // Document downloads (RBI's rbidocs CDN, behind an F5 bot check) must
+        // send NO Accept header — an Accept that names text/html on an .xlsx
+        // URL trips the challenge page every time. Callers pass accept:false.
+        ...(accept ? { "Accept": "text/html,application/xhtml+xml,application/json,text/plain,*/*" } : {}),
         ...(referer ? { "Referer": referer } : {}),
         ...headers,
       },

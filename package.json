@@ -10,14 +10,13 @@
     "test": "node --test",
     "fetch:data": "node scripts/fetch-all.js && node scripts/make-rss.js",
     "fetch:debt": "node scripts/fetch-debt-rankings.js",
- "snapshot:fng": "node scripts/snapshot-sentiment.js",
+    "snapshot:fng": "node scripts/snapshot-sentiment.js",
     "update:fwd": "node scripts/update-fwd-series.js",
     "update:fwd-monthly": "node scripts/update-fwd-monthly.js",
     "rss": "node scripts/make-rss.js"
   },
   "dependencies": {
     "@netlify/blobs": "^11.0.3",
-    "node-fetch": "^2.7.0",
     "node-xlsx": "^0.23.0"
   }
 }

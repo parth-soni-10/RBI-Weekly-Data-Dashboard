@@ -13,7 +13,7 @@
 // delists it. If everything fails we still return 200 with null prices
 // so the embed can render a "no data" state without a thrown error.
 
-const fetch = require("node-fetch");
+const { get } = require("./_utils/http");
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -22,16 +22,10 @@ const CORS = {
   "Content-Type":                  "application/json",
 };
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
-
 async function yahooPrice(symbol) {
   try {
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 6000);
     const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=15d`;
-    const res  = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": UA } });
-    clearTimeout(tid);
-    if (!res.ok) return { price: null, date: null };
+    const res  = await get(url, { timeoutMs: 6000 });
     const json   = await res.json();
     const result = json?.chart?.result?.[0];
     const closes = result?.indicators?.quote?.[0]?.close || [];

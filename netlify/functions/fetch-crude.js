@@ -1,4 +1,4 @@
-const fetch = require("node-fetch");
+const { get: httpGet, UA } = require("./_utils/http");
 const { withCache } = require("./_utils/cache");
 
 // ─── CONFIG ───────────────────────────────────────────────────
@@ -56,24 +56,10 @@ const MONTH_DISPLAY = {
 const FISCAL_YEARS = ["2025-2026","2024-2025","2023-2024"];
 
 // ─── HTTP ─────────────────────────────────────────────────────
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
-
-async function get(url, timeout = 10000) {
-  const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { "User-Agent": UA, "Accept": "text/html,application/xhtml+xml,*/*" },
-    });
-    clearTimeout(tid);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
-  } catch (e) {
-    clearTimeout(tid);
-    throw e;
-  }
-}
+// Shared UA/client from _utils/http; `get` keeps this file's positional-timeout
+// call style. `post` stays local (the PPAC AJAX endpoint needs its own headers)
+// and rides Node's built-in fetch.
+const get = (url, timeoutMs) => httpGet(url, { timeoutMs });
 
 async function post(url, data, extraHeaders = {}, timeout = 12000) {
   const ctrl = new AbortController();
@@ -111,16 +97,10 @@ function parsePpacVarDump(text) {
     const key   = m[1];
     const block = m[2];
     const rec   = {};
-    const fpRe  = /\["(\w+)"\]=>\s*string\(\d+\)\s*"([^"]*)"/g;
+    const fRe   = /\["(\w+)"\]=>\s*string\(\d+\)\s*"([^"]*)"/g;
     let fm;
-    while ((fm = fpRe.exec(block)) !== null) {
-      rec[fm.group ? fm.group(1) : fm[1]] = fm[2] !== undefined ? fm[2] : fm[2];
-    }
-    // re-run properly
-    const fRe2 = /\["(\w+)"\]=>\s*string\(\d+\)\s*"([^"]*)"/g;
-    let fm2;
-    while ((fm2 = fRe2.exec(block)) !== null) {
-      rec[fm2[1]] = fm2[2];
+    while ((fm = fRe.exec(block)) !== null) {
+      rec[fm[1]] = fm[2];
     }
     if (Object.keys(rec).length) result[key] = rec;
   }

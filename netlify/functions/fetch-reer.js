@@ -53,7 +53,7 @@ exports.handler = async () => {
     for (const rows of tables) {
       for (const row of rows) {
         const joined = row.join(" ").toLowerCase();
-        if (joined.includes("reer") && /reer/i.test(joined) && row.some(c => /\b\d{2,4}\.\d+\b/.test(String(c)))) {
+        if (joined.includes("reer") && row.some(c => /\b\d{2,4}\.\d+\b/.test(String(c)))) {
           const dateGuess = row.find(c => /^\d{4}-\d{2}$/.test(String(c).trim()))
                          || row.find(c => /\b\d{4}\b/.test(String(c)));
           const valGuess  = row.map(parseNum).find(n => !isNaN(n) && n > 50 && n < 200);

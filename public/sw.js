@@ -8,9 +8,8 @@
  *     24-hour-tolerant cache fallback. When the network is unreachable, the
  *     last successfully fetched data still renders — charts, tiles and tables
  *     work offline with the newest numbers this device ever saw.
- *   - Fonts + vendored Lucide: cache-first (immutable, versioned by URL).
- *   - CDN scripts (Chart.js, GSAP, three.js): network-only with an opportunistic
- *     cache write — the dashboard already degrades gracefully without them.
+ *   - Fonts (the only external fetch): cache-first with an opportunistic
+ *     cache write. Everything else scripts-side is vendored in /vendor/.
  *
  * Bump CACHE_VERSION whenever the shell's asset list changes.
  */
@@ -50,10 +49,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) {
-    // Cross-origin: CDN scripts/fonts. Cache them opportunistically on
-    // success, but always go to the network first (they are deferred deps,
-    // not the shell).
-    if (/cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com/.test(url.hostname)) {
+    // Cross-origin: Google Fonts. Cached opportunistically on success, but
+    // always network-first (the shell renders fine without them).
+    if (/fonts\.(googleapis|gstatic)\.com/.test(url.hostname)) {
       event.respondWith((async () => {
         const cache = await caches.open(CACHE_VERSION);
         try {

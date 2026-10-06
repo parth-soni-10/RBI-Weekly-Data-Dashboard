@@ -269,6 +269,10 @@ async function buildPayload(){
   };
 }
 
+// Last successful payload, kept module-side so a blocked Yahoo can serve it
+// back flagged "static fallback" instead of an unavailable meter.
+let lastGood = null;
+
 exports.handler = async () => {
   try {
     const payload = await withCache("fg:" + new Date().toISOString().slice(0, 13), TTL_MS, buildPayload);

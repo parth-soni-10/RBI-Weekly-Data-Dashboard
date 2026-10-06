@@ -63,19 +63,21 @@ async function parseWeek(pubFriday) {
   const url = WSS + fmtRbi(pubFriday);
   let html;
   try {
-    const res = await get(url, 12000);
+    const res = await get(url, { timeoutMs: 12000 });
     html = await res.text();
   } catch (e) {
     throw new Error("page: " + e.message);
   }
   const urls = _findExcelUrls(html);
   if (!urls.reserves) return null; // page exists but no reserves file
-  const res = await get(urls.reserves, 20000);
+  // accept:false — rbidocs (F5 bot check) serves a challenge HTML page for
+  // any .xlsx request whose Accept header names text/html.
+  const res = await get(urls.reserves, { timeoutMs: 20000, accept: false });
   let buf = Buffer.from(await res.arrayBuffer());
   if (!isSpreadsheet(buf)) {
     // Challenged — cool down and retry once.
     await sleep(8000);
-    const res2 = await get(urls.reserves, 20000);
+    const res2 = await get(urls.reserves, { timeoutMs: 20000, accept: false });
     buf = Buffer.from(await res2.arrayBuffer());
     if (!isSpreadsheet(buf)) return { challenge: true };
   }

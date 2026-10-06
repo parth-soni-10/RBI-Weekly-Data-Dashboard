@@ -77,7 +77,7 @@ function buildFallbackSeries() {
 }
 
 // Pull a row of the form [Date, ..., numeric, numeric, ...] from any of the
-// NSDL-formatted tables. Tracks BOTH date columns and trailing numerics.
+// NSDL-formatted tables.
 function extractFlowRow(row) {
   const dateCell = row.find(c => /\d{4}-\d{2}-\d{2}/.test(String(c)))
                  || row.find(c => /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(String(c)));
@@ -95,25 +95,21 @@ function extractFlowRow(row) {
     .map(parseNum)
     .filter(n => !isNaN(n) && n > -1e6 && n < 1e6);
 
-  if (!nums.length) return { date, raw: [], joined: row.join(" ").toLowerCase() };
-  return { date, raw: nums, joined: row.join(" ").toLowerCase() };
+  return { date, raw: nums };
 }
 
 function combineToFlow(row, kind) {
   if (!row) return null;
   const nums = row.raw;
   let equityNet = null, debtNet = null;
-  if (kind === "fii" || kind === "fii-fallback") {
-    // NSdl "Latest" page presents [Buy, Sell, Net, ...]. Net is the third number.
-    if (nums.length >= 3) equityNet = nums[2];
-    else if (nums.length >= 2) equityNet = nums[1] - nums[0];
-    else if (nums.length >= 1) equityNet = nums[0];
-  } else if (kind === "dii") {
-    if (nums.length >= 3) equityNet = nums[2];
-    else if (nums.length >= 2) equityNet = nums[1] - nums[0];
-    else if (nums.length >= 1) equityNet = nums[0];
-  } else if (kind === "archive") {
+  if (kind === "archive") {
+    // The archive lists the two net columns directly: [equity, debt].
     if (nums.length >= 2) { equityNet = nums[0]; debtNet = nums[1]; }
+    else if (nums.length >= 1) equityNet = nums[0];
+  } else {
+    // NSDL "Latest" / DII pages present [Buy, Sell, Net, ...] — net is third.
+    if (nums.length >= 3) equityNet = nums[2];
+    else if (nums.length >= 2) equityNet = nums[1] - nums[0];
     else if (nums.length >= 1) equityNet = nums[0];
   }
   return { date: row.date, equityNet, debtNet };
@@ -121,7 +117,9 @@ function combineToFlow(row, kind) {
 
 async function fetchOne(url, kind) {
   try {
-    const res  = await get(url, { timeoutMs: 15000 });
+    // 4 sources run sequentially inside a 26s function budget — fail fast so
+    // one hung upstream can't starve the curated fallback.
+    const res  = await get(url, { timeoutMs: 6000 });
     const html = await res.text();
     const tables = extractHtmlTables(html);
     const rows = [];
@@ -135,45 +133,25 @@ async function fetchOne(url, kind) {
   } catch (_) { return []; }
 }
 
-// FII equity flow series for fetch-sentiment's flows signal (one request to
-// the NSDL archive page: ~6 months of daily rows; the sentiment meter needs
-// the recent cumulative net, not the DII split this function's handler adds).
-exports._fetchFiiEquitySeries = async function () {
-  const rows = await fetchOne(URLS[2].url, "archive");
-  return rows
-    .filter(r => r.equityNet != null)
-    .map(r => ({ date: r.date, fii_equity_cr: r.equityNet }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-};
-
 exports.handler = async () => {
-  const allRows = [];
-  const errors = [];
-
-  for (const u of URLS) {
-    try {
-      const rows = await fetchOne(u.url, u.kind);
-      if (rows.length) {
-        allRows.push(...rows.map(r => ({
-          date: r.date,
-          fii_equity_cr: r.equityNet,
-          fii_debt_cr:   r.debtNet,
-          dii_equity_cr: u.kind === "dii" ? r.equityNet : null,
-          dii_debt_cr:   u.kind === "dii" ? r.debtNet   : null,
-        })));
-      }
-    } catch (e) { errors.push(`${u.kind}: ${e.message}`); }
-  }
-
-  // De-dupe by date (last source wins on conflict).
+  // Merge every source into one row per date. Each source only fills the
+  // fields it actually knows — the NSDL Latest / CDSL pages carry FII flows,
+  // the DII page carries DII flows, the archive carries FII equity+debt —
+  // so a later source can never null out (or mislabel) an earlier one.
   const byDate = {};
-  for (const r of allRows) {
-    if (!r.date) continue;
-    byDate[r.date] = r;
+  for (const u of URLS) {
+    const rows = await fetchOne(u.url, u.kind);
+    for (const r of rows) {
+      const cur = byDate[r.date] || (byDate[r.date] = { date: r.date });
+      const add = u.kind === "dii"
+        ? { dii_equity_cr: r.equityNet, dii_debt_cr: r.debtNet }
+        : { fii_equity_cr: r.equityNet, fii_debt_cr:   r.debtNet };
+      for (const k of Object.keys(add)) if (add[k] != null) cur[k] = add[k];
+    }
   }
   let series = Object.values(byDate).sort((a,b) => a.date.localeCompare(b.date));
-  let status = series.length ? "ok" : "static fallback";
   let source = "NSDL FII + DII + CDSL fallback";
+  const status = series.length ? "ok" : "static fallback";
 
   if (!series.length) {
     series = buildFallbackSeries();
@@ -210,9 +188,8 @@ exports.handler = async () => {
       source,
       status,
       count: series.length,
-      errors: errors.length ? errors : undefined,
       error: status === "static fallback"
-        ? (errors.length ? errors.join("; ") : "all sources returned no parseable rows") + " - showing curated fallback series"
+        ? "all sources returned no parseable rows - showing curated fallback series"
         : undefined,
       series: recent.map(r => ({
         date: r.date,
