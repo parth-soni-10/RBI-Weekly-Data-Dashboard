@@ -5,10 +5,12 @@
   # with the latest RBI weekly reports, auto-update the forward-book series
   # with the newest official RBI disclosures: the Bulletin's monthly Table 4A
   # (update-fwd-monthly.js) + the Mar/Sep half-yearly FX report anchors
-  # (update-fwd-series.js), and re-pull the World Bank external-debt ranking
-  # (biggest-borrower tiles + chart). See scripts/fetch-all.js +
-  # scripts/update-fwd-*.js + scripts/fetch-debt-rankings.js.
-  command = "npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly && npm run fetch:debt && npm run snapshot:fng"
+  # (update-fwd-series.js), re-pull the World Bank external-debt ranking
+  # (biggest-borrower tiles + chart), and append today's rows to the daily
+  # history files (sentiment + FII/DII flows). See scripts/fetch-all.js +
+  # scripts/update-fwd-*.js + scripts/fetch-debt-rankings.js +
+  # scripts/snapshot-*.js.
+  command = "npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly && npm run fetch:debt && npm run snapshot:fng && npm run snapshot:fii"
 
 [functions]
   node_bundler = "esbuild"

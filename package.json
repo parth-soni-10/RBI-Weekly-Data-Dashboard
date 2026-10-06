@@ -11,6 +11,7 @@
     "fetch:data": "node scripts/fetch-all.js && node scripts/make-rss.js",
     "fetch:debt": "node scripts/fetch-debt-rankings.js",
     "snapshot:fng": "node scripts/snapshot-sentiment.js",
+    "snapshot:fii": "node scripts/snapshot-fii-dii.js",
     "update:fwd": "node scripts/update-fwd-series.js",
     "update:fwd-monthly": "node scripts/update-fwd-monthly.js",
     "rss": "node scripts/make-rss.js"

@@ -895,12 +895,12 @@ html,body{overflow-x:clip}
         <div class="mctx-sub" id="fpi-debt-sub">NSDL · ₹ cr</div>
       </div>
       <div class="mctx">
-        <div class="mctx-label" data-glossary="Year-to-date cumulative net flow across all FPI transactions (equity + debt), in INR crores, since 1 January of the current calendar year. Source: NSDL FII archive, summed in fetch-fii-history.js.">YTD FII Net (cum)</div>
+        <div class="mctx-label" data-glossary="Year-to-date cumulative net flow across all FPI transactions (equity + debt), in INR crores, summed over the accumulated daily history since 1 January. Source: NSDL daily FPI flows accumulated in public/fii-dii-history.json (appended daily), merged with the live feed; summed client-side.">YTD FII Net (cum)</div>
         <div id="fii-ytd" class="mctx-val">—</div>
         <div class="mctx-sub" id="fii-ytd-sub">since 1 Jan · ₹ cr</div>
       </div>
       <div class="mctx">
-        <div class="mctx-label" data-glossary="Year-to-date cumulative net Domestic Institutional Investor flow (mutual funds, insurance, pension funds), in INR crores, since 1 January. Positive means domestic institutions are absorbing supply that foreigners sell. Source: NSDL DII archive.">YTD DII Net (cum)</div>
+        <div class="mctx-label" data-glossary="Year-to-date cumulative net Domestic Institutional Investor flow (mutual funds, insurance, pension funds), in INR crores, summed over the accumulated daily history since 1 January. Positive means domestic institutions are absorbing supply that foreigners sell. Source: NSE daily FII/DII provisional data accumulated in public/fii-dii-history.json.">YTD DII Net (cum)</div>
         <div id="dii-ytd" class="mctx-val">—</div>
         <div class="mctx-sub" id="dii-ytd-sub">since 1 Jan · ₹ cr</div>
       </div>
@@ -1033,11 +1033,11 @@ html,body{overflow-x:clip}
       <div class="chart-empty" id="comp-empty" hidden>Composition rows (FCA / SDR / IMF) arrive with newer WSS files — the chart appears here once present in the data.</div>
     </div>
 
-    <!-- FII + DII 6-month daily history -->
+    <!-- FII + DII daily history (accumulated) -->
     <div class="chart-card span2">
-      <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): past 6 months</h3><div class="chart-note">NSDL FPI + DII. Green = FII equity, amber = FII debt, blue = DII equity.</div></div></div>
+      <div class="chart-hdr"><div><h3 class="chart-title">FII + DII net daily flows (₹ cr): rolling 6 months, daily</h3><div class="chart-note">Three bars per day — green = FII equity, amber = FII debt, blue = DII. NSDL daily FPI split + NSE DII (latest published session); bars are net, hover for gross buy/sell. History accumulates daily.</div></div></div>
       <div class="chart-wrap tall"><canvas id="cFiiHist" role="img" aria-label="Bar chart of FII and DII net daily flows"></canvas></div>
-      <div class="chart-empty" id="fii-empty" hidden>Awaiting the NSDL feed — the 6-month daily flow chart appears here once live data (or the curated fallback) arrives.</div>
+      <div class="chart-empty" id="fii-empty" hidden>Awaiting the daily flow feed — FII (NSDL) and DII (NSE) bars appear here once the accumulated history or the live feed arrives.</div>
     </div>
 
     <!-- World's biggest borrowers — World Bank QEDS ranking via fetch-external-debt.js -->
@@ -4309,7 +4309,7 @@ function printDashboard(){ window.print(); }
 })();
 
 // Macro context cards (NSDL FII, G-Sec yield, REER, FX intervention, tax
-// receipts) plus the 6-month FII/DII history chart load from the Netlify
+// receipts) plus the daily FII/DII history chart load from the Netlify
 // functions. They serve real data when scraping succeeds and fall back to
 // curated values flagged with `status: static fallback` when it doesn't.
 const MACRO_ENDPOINTS = {
@@ -4340,6 +4340,17 @@ async function loadExternalDebt(noStore){
     const r = await fetch('external-debt.json', { cache: 'no-cache' });
     if (r.ok) debtData = await r.json();
   } catch (_) { /* both failed — tiles stay '—' */ }
+}
+// Committed daily FII/DII flow history (public/fii-dii-history.json, appended
+// by scripts/snapshot-fii-dii.js in the daily cron + deploy build). Merged
+// with the live endpoint's rows in fiiMergedSeries(): the file carries the
+// months behind us, the endpoint today's bar.
+let fiiHistRows = [];
+async function loadFiiHistory(){
+  try {
+    const r = await fetch('fii-dii-history.json', { cache: 'no-cache' });
+    if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.series)) fiiHistRows = j.series; }
+  } catch (_) { /* chart falls back to the live endpoint's rows alone */ }
 }
 let emPeerCache = {};
 let emMeta = {}; // range → fetchedAt (ISO) of the cached EM payload
@@ -4389,6 +4400,7 @@ async function fetchAllMacro(noStore){
   // The borrower ranking goes to its own store (it also has a static-file
   // fallback and feeds the chart card); keep it out of macroData.
   await loadExternalDebt(noStore);
+  await loadFiiHistory();
   return true;
 }
 
@@ -4443,23 +4455,30 @@ function renderMacroCards(){
               ? (fii.debt_net_cr >= 0 ? '+' : '') + fii.debt_net_cr.toLocaleString('en-IN')
               : null, fiiSub);
 
-    // FII + DII YTD aggregates from the 6-month history endpoint
-    const fiih = macroData.fiih || {};
-    const ytd  = fiih.ytd || {};
+    // FII + DII YTD aggregates summed from the merged daily history
+    // (committed fii-dii-history.json + the endpoint's live rows), so the
+    // tiles cover every accumulated day, not just the endpoint's month slice.
+    const fser = fiiMergedSeries();
     function fmtCr(n){
       if(n == null || isNaN(n)) return null;
       const sign = n >= 0 ? '+' : '−';
       return sign + Math.round(Math.abs(n)).toLocaleString('en-IN');
     }
-    const ytdFiiCombined = (ytd.fii_equity_cr != null && ytd.fii_debt_cr != null)
-      ? (ytd.fii_equity_cr + (ytd.fii_debt_cr || 0))
-      : (ytd.fii_equity_cr != null ? ytd.fii_equity_cr : null);
+    const yr  = new Date().getFullYear();
+    const ytd = fser.filter(r => r.date >= yr + '-01-01');
+    const sum = k => ytd.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+    // Accumulation may have started mid-year — label what the sum covers
+    // instead of claiming "since 1 Jan" it doesn't have.
+    const first = fser.length ? fser[0].date : '';
+    const since = first && first > yr + '-01-15' ? 'since ' + wkLabel(first) : 'since 1 Jan';
+    const fiiYtd = fser.length ? sum('fii_equity_cr') + sum('fii_debt_cr') : null;
+    const diiYtd = fser.length ? sum('dii_equity_cr') : null;
     setMctxVal('fii-ytd',
-      fmtCr(ytdFiiCombined),
-      ytdFiiCombined != null ? 'FII equity+debt · since 1 Jan' : 'unavailable');
+      fmtCr(fiiYtd),
+      fiiYtd != null ? 'FII equity+debt · ' + since : 'unavailable');
     setMctxVal('dii-ytd',
-      fmtCr(ytd.dii_equity_cr),
-      ytd.dii_equity_cr != null ? 'NSDL DII · since 1 Jan' : 'unavailable');
+      fmtCr(diiYtd),
+      diiYtd != null ? 'NSE DII · ' + since : 'unavailable');
 
     // Render history chart from the same series
     renderFiiHistoryChart();
@@ -4935,13 +4954,27 @@ async function persistEmToBlob(range, peers) {
   } catch (_) { /* persist failure is non-fatal — the session cache still works */ }
 }
 
-// ─── FII + DII 6-month history chart ────────────────────────────────────────
+// ─── FII + DII daily history chart ──────────────────────────────────────────
+// Merged view: committed fii-dii-history.json (accumulated by the daily cron)
+// plus the live endpoint's rows — overlaid field-by-field per date, so today's
+// bar shows immediately and later runs correct it in place. Endpoint rows
+// flagged `static fallback` are ignored: curated bars must never mix into
+// real accumulated history.
+function fiiMergedSeries(){
+  const byDate = {};
+  for (const r of (fiiHistRows || [])) if (r && r.date) byDate[r.date] = Object.assign({}, r);
+  const live = (macroData.fiih && macroData.fiih.status !== 'static fallback' && macroData.fiih.series) || [];
+  for (const r of live) {
+    const cur = byDate[r.date] || (byDate[r.date] = { date: r.date });
+    for (const k of Object.keys(r)) if (r[k] != null) cur[k] = r[k];
+  }
+  return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+}
 function renderFiiHistoryChart(){
-  const fiih = macroData.fiih;
   const ctxEl   = document.getElementById('cFiiHist');
   if(!ctxEl) return;
-  if(!fiih || !fiih.series || !fiih.series.length){ setChartEmpty('cFiiHist', 'fii-empty', true); return; }
-  const series = fiih.series.slice(-180); // ~6 months of trading days
+  const series = fiiMergedSeries().slice(-180); // rolling ~6-month window
+  if(!series.length){ setChartEmpty('cFiiHist', 'fii-empty', true); return; }
   const labels  = series.map(r => (r.date || '').slice(5));
   const eq      = series.map(r => r.fii_equity_cr || 0);
   const debt    = series.map(r => r.fii_debt_cr   || 0);
@@ -4953,9 +4986,10 @@ function renderFiiHistoryChart(){
     data: {
       labels,
       datasets: [
-        { label:'FII Equity', data: eq,   backgroundColor:G, borderRadius:2, borderSkipped:false, stack:'fii' },
-        { label:'FII Debt',   data: debt, backgroundColor:CH.gold, borderRadius:2, borderSkipped:false, stack:'fii' },
-        { label:'DII Equity', data: dii,  backgroundColor:BLUE, borderRadius:2, borderSkipped:false, stack:'fii' },
+        // `gross` = the buy/sell legs behind each net bar, for the tooltip.
+        { label:'FII Equity', data: eq,   gross:{ buy:'fii_equity_buy_cr', sell:'fii_equity_sell_cr' }, backgroundColor:G, borderRadius:2, borderSkipped:false },
+        { label:'FII Debt',   data: debt, gross:{ buy:'fii_debt_buy_cr',   sell:'fii_debt_sell_cr'   }, backgroundColor:CH.gold, borderRadius:2, borderSkipped:false },
+        { label:'DII',        data: dii,  gross:{ buy:'dii_buy_cr',        sell:'dii_sell_cr'        }, backgroundColor:BLUE, borderRadius:2, borderSkipped:false },
       ],
     },
     options: {
@@ -4963,12 +4997,18 @@ function renderFiiHistoryChart(){
       plugins: {
         legend: { position:'top', labels:{ font:{ size:10.5, family:'Inter', weight:'500' }, color:CH.legend, boxWidth: 10 } },
         tooltip: { backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb,
-                   callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toLocaleString('en-IN')} ₹ cr` } }
+                   callbacks: { label: ctx => {
+                     const r  = series[ctx.dataIndex] || {};
+                     const g  = ctx.dataset.gross || {};
+                     const net = `${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toLocaleString('en-IN')} ₹ cr`;
+                     if(r[g.buy] == null || r[g.sell] == null) return `${ctx.dataset.label}: ${net}`;
+                     return `${ctx.dataset.label}: ${net} · buy ${Math.round(r[g.buy]).toLocaleString('en-IN')} / sell ${Math.round(r[g.sell]).toLocaleString('en-IN')}`;
+                   } } }
       },
       scales: {
-        x: { ticks: { color:tickC, font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, autoSkip:true, maxTicksLimit: 12 }, grid: { color:gridC }, stacked: true },
+        x: { ticks: { color:tickC, font:{size:9,family:'Inter',weight:'500'}, maxRotation:0, autoSkip:true, maxTicksLimit: 12 }, grid: { color:gridC } },
         y: { ticks: { color:tickC, font:{size:9.5,family:'Inter',weight:'500'}, callback: v => (v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0)) },
-             grid: { color:gridC }, stacked: true }
+             grid: { color:gridC } }
       }
     }
   });

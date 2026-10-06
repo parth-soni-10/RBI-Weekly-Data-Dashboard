@@ -4,7 +4,8 @@
  *   - App shell (index.html, icons, manifest): network-first with cache
  *     fallback, so a deploy ships immediately when online and the shell still
  *     opens offline.
- *   - Data (rbi-data.json, external-debt.json): network-first with a
+ *   - Data (rbi-data.json, external-debt.json, fii-dii-history.json):
+ *     network-first with a
  *     24-hour-tolerant cache fallback. When the network is unreachable, the
  *     last successfully fetched data still renders — charts, tiles and tables
  *     work offline with the newest numbers this device ever saw.
@@ -24,7 +25,7 @@ const SHELL = [
   './icons/maskable-512.png',
   './lucide.min.js',
 ];
-const DATA_URLS = ['rbi-data.json', 'external-debt.json'];
+const DATA_URLS = ['rbi-data.json', 'external-debt.json', 'fii-dii-history.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

@@ -1,0 +1,62 @@
+name: Snapshot FII/DII daily flows
+
+# Appends the day's NSDL FPI (equity/debt) + NSE DII flow rows to the
+# committed public/fii-dii-history.json that the dashboard's FII/DII chart
+# renders. NSDL publishes the day's flows on the evening of the same day, so
+# this runs at 16:00 UTC (~21:30 IST) — late enough to capture today's
+# finalized block while the trading day is still the current month (NSDL's
+# Monthly page only ever lists the current month, so a month's last trading
+# day must be caught before the month rolls over).
+#
+# The script fails open: if NSDL/NSE are unreachable it exits 0 and leaves the
+# file untouched, so a bad evening never breaks the run.
+
+on:
+  schedule:
+    - cron: "0 16 * * *" # 21:30 IST daily
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write
+
+# Serialize runs (cron + manual) so the push step can't lose a race.
+concurrency:
+  group: fii-dii-history
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Syntax-check every function/script before anything is written — the
+      # snapshot reuses the fetch-fii-history parser, so a broken edit must
+      # not be committed as data.
+      - name: Syntax check
+        run: npm run check
+
+      - name: Append today's FII/DII rows
+        run: npm run snapshot:fii
+
+      - name: Commit updated history (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/fii-dii-history.json
+          if git diff --cached --quiet; then
+            echo "No new rows — nothing to commit."
+          else
+            git commit -m "chore(data): append FII/DII daily flow history"
+            # A manual push can land on main while this run scrapes — rebase
+            # our single data commit first; retry once on a fresh race.
+            git pull --rebase origin main && git push || \
+              { sleep 20; git pull --rebase origin main && git push; }
+            echo "Pushed refreshed FII/DII history."
+          fi
