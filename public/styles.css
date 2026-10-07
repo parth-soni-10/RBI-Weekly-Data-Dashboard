@@ -645,7 +645,7 @@ details.read-more .chart-note{margin-top:.35rem}
 .fng-bars li{display:grid;grid-template-columns:minmax(150px,1.25fr) 1fr auto;gap:.6rem;align-items:center;font-size:12px}
 .fng-bars .fl{color:var(--ink2);line-height:1.35}
 .fng-bars .fb{height:7px;border-radius:99px;background:var(--border2);overflow:hidden;position:relative}
-.fng-bars .fb i{position:absolute;top:0;bottom:0;border-radius:99px}
+.fng-bars .fb i{position:absolute;top:0;bottom:0;border-radius:99px;width:var(--w,0%);background:var(--c,transparent)}
 .fng-bars .fb::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1.5px;background:var(--ink3);opacity:.55}
 .fng-bars .fs{min-width:4.2em;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
 @media (max-width:640px){

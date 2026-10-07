@@ -1729,6 +1729,21 @@ function fngMaybeZoneAlert(d){
     });
 }
 
+// Paint the per-signal fills. The width and colour go on as CSS custom
+// properties through CSSOM rather than a style= attribute: the deployed policy
+// is style-src 'self', so an attribute is refused and every bar renders
+// zero-width and colourless. 'unsafe-hashes' could not rescue it either - it
+// does not apply to style attributes without those hashes, and these values
+// change with every reading, so a hash would have to be regenerated each time.
+// Deliberately a call from the one renderer rather than a document-wide
+// observer: this panel is the only place that builds a .fb fill.
+function paintFngBars(bars){
+  for(const i of bars.querySelectorAll('i[data-w]')){
+    const w = Number(i.dataset.w);
+    i.style.setProperty('--w', (Number.isFinite(w) ? Math.max(0, Math.min(100, w)) : 0) + '%');
+    i.style.setProperty('--c', i.dataset.c || 'transparent');
+  }
+}
 function renderFngGauge(d){
   const empty = document.getElementById('fng-empty');
   const wrap  = document.getElementById('sentiment-row');
@@ -1773,10 +1788,11 @@ function renderFngGauge(d){
         : '—';
       return '<li>' +
         '<span class="fl" title="' + escHtml(c.label || '') + '">' + escHtml(c.label || c.key) + '</span>' +
-        '<span class="fb"><i style="width:' + w + '%;background:' + col + '"></i></span>' +
+        '<span class="fb"><i data-w="' + w + '" data-c="' + col + '"></i></span>' +
         '<span class="fs">' + escHtml(val + ' · ' + c.score) + '</span>'
       + '</li>';
     }).join('');
+    paintFngBars(bars);
   }
 
   // Half-doughnut gauge: one colored segment sized by the score over a neutral
