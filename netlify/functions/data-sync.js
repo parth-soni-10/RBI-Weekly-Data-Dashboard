@@ -30,7 +30,12 @@
 //   1. Same-origin writes. A browser sends Origin on a cross-site POST, so a
 //      page on another site is refused (403). Requests with no Origin at all
 //      (curl, a script, CI) pass through to the checks below — an operator may
-//      legitimately seed the cache that way.
+//      legitimately seed the cache that way. Note what this does and does not
+//      buy: shape validation (3) is what stops a write from becoming markup, but
+//      it cannot tell a *true* record from a well-formed false one. An
+//      unauthenticated writer can therefore put believable wrong numbers in
+//      front of every visitor. Set SYNC_WRITE_TOKEN to close that, which is the
+//      only defence against integrity rather than injection.
 //   2. An optional shared secret. Set SYNC_WRITE_TOKEN in the Netlify env and
 //      every write must present it as the x-sync-token header (401 otherwise);
 //      the dashboard sends it from localStorage("rbi-sync-token") when present.
@@ -201,7 +206,9 @@ function sameOrigin(event) {
 }
 
 // Optional shared secret: enforced only when the operator sets it, so a plain
-// deploy keeps working while a locked-down one refuses everyone else.
+// deploy keeps working while a locked-down one refuses everyone else. See note 2
+// in the header for why the default is open, and SYNC_WRITE_TOKEN in
+// .env.example for how to close it.
 function tokenOk(event) {
   const expected = process.env.SYNC_WRITE_TOKEN || "";
   if (!expected) return true;

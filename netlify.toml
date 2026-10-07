@@ -24,18 +24,34 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
-# Long-cache the vendored libraries + icons (they change only with a deploy).
+# Long-cache the vendored libraries (they change only with a deploy).
+#
+# Deliberately NOT `immutable`: these filenames carry no hash or version segment
+# (chart.umd.js, gsap.min.js, three.min.js), and `immutable` promises the bytes
+# at a URL can never change. The day one of them is bumped, every returning
+# visitor would keep the old copy for a year with no way to revoke it — the
+# promise the header makes is the thing that makes it unrecoverable. A week plus
+# stale-while-revalidate still keeps repeat visits off the network.
 [[headers]]
   for = "/vendor/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
 
 [[headers]]
   for = "/icons/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+# The self-hosted fonts. Same week-plus-stale policy as /vendor/* and for the
+# same reason: the filenames carry no content hash, so `immutable` would be a
+# promise that the bytes at this URL can never change — and the day a font is
+# replaced, every returning visitor would pin the old one for a year.
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
 
 [functions.fetch-crude]
   timeout = 26

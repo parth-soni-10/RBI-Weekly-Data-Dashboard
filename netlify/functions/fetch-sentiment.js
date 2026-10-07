@@ -65,17 +65,6 @@ function scale(val, worst, best){
   return clamp01(t * 100);
 }
 
-// Percentile of `x` within `arr` (linear interpolation), arr unsorted ok.
-function pctRank(arr, x){
-  const s = arr.filter(v => isFinite(v)).sort((a, b) => a - b);
-  if(!s.length) return null;
-  let lo = 0, hi = s.length;
-  while(lo < hi){ const mid = (lo + hi) >> 1; if(s[mid] < x) lo = mid + 1; else hi = mid; }
-  if(lo === 0) return 0;
-  if(lo === s.length) return 100;
-  return (lo / s.length) * 100; // rank fraction; good enough for zone mapping
-}
-
 function sma(closes, n){
   if(closes.length < n) return null;
   const slice = closes.slice(-n);
