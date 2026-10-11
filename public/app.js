@@ -3011,11 +3011,13 @@ let macroData  = {};
 // cards, plus a static-file fallback (external-debt.json, regenerated on
 // every deploy/cron) for local previews without the Netlify functions.
 let debtData = null;
-async function loadExternalDebt(noStore){
-  // noStore (explicit Reload) also appends ?refresh=1 so the function busts
+async function loadExternalDebt(noStore, debtRefresh){
+  if(debtRefresh === undefined) debtRefresh = noStore;
+  // debtRefresh (explicit Reload) also appends ?refresh=1 so the function busts
   // its own 6h in-process memo and re-pulls the World Bank API — not just the
-  // browser cache.
-  const url = noStore ? MACRO_ENDPOINTS.debt + '?refresh=1' : MACRO_ENDPOINTS.debt;
+  // browser cache. Plain page loads re-check past the browser cache but keep
+  // the server memo (World Bank QEDS moves quarterly).
+  const url = debtRefresh ? MACRO_ENDPOINTS.debt + '?refresh=1' : MACRO_ENDPOINTS.debt;
   try {
     const r = await fetch(url, noStore ? { cache: 'no-store' } : { cache: 'default' });
     if (r.ok) { debtData = await r.json(); return; }
@@ -3058,6 +3060,7 @@ const MACRO_EVENTS = [
   { date:'2026-04-09', label:'RBI MPC: cut to 5.50%' },
   { date:'2026-06-06', label:'RBI MPC: cut to 5.25%' },
   { date:'2026-08-08', label:'RBI MPC: hold 5.25%' },
+  { date:'2026-10-07', label:'RBI MPC: hike to 5.50%' },
   { date:'2024-09-18', label:'Fed: 50bps cut' },
   { date:'2024-11-07', label:'Fed: 25bps cut' },
   { date:'2024-12-18', label:'Fed: 25bps cut' },
@@ -3068,7 +3071,7 @@ const MACRO_EVENTS = [
 // cache (used by the Reload live refresh); returns false only when the fetch
 // loop itself blew up (offline etc.) — individual endpoint failures just store
 // null, exactly like the initial load.
-async function fetchAllMacro(noStore){
+async function fetchAllMacro(noStore, debtRefresh){
   const keys = Object.keys(MACRO_ENDPOINTS);
   let settled;
   try {
@@ -3083,13 +3086,18 @@ async function fetchAllMacro(noStore){
   }
   // The borrower ranking goes to its own store (it also has a static-file
   // fallback and feeds the chart card); keep it out of macroData.
-  await loadExternalDebt(noStore);
+  await loadExternalDebt(noStore, debtRefresh);
   await loadFiiHistory();
   return true;
 }
 
 async function loadMacroData(){
-  await fetchAllMacro(false);
+  // Every page load re-checks every macro value past the browser HTTP cache
+  // (function responses carry a short max-age, but a refresh minutes after a
+  // visit must still revalidate). debtRefresh stays false here: the debt
+  // endpoint's 6h server memo stands on plain loads, and only an explicit
+  // Reload busts it with ?refresh=1.
+  await fetchAllMacro(true, false);
   renderMacroCards();
   const mex = document.getElementById('metric-extras');
   if(mex) mex.classList.add('show');
@@ -3097,8 +3105,9 @@ async function loadMacroData(){
 
 // Reload-time refresh of the macro cards: FII flows + history, G-Sec yield,
 // tax receipts, REER, and the forward-book source. Same endpoints as the
-// initial load but with the browser HTTP cache busted so every tile re-pulls
-// live data; renderMacroCards() re-renders the FII history chart, the forward
+// initial load (which already busts the browser HTTP cache); Reload
+// additionally busts the debt endpoint's 6h server memo with ?refresh=1.
+// renderMacroCards() re-renders the FII history chart, the forward
 // chart, and the reserve KPIs from the refreshed macroData.
 async function refreshMacroData(){
   const ok = await fetchAllMacro(true);
@@ -3200,7 +3209,7 @@ function renderMacroCards(){
     if (gsec.repo_rate_pct != null) {
       document.getElementById('repo-rate').textContent = gsec.repo_rate_pct.toFixed(2) + '%';
       document.getElementById('repo-rate-detail').textContent =
-        `last MPC: ${gsec.repo_rate_date || '—'} · stored in fetch-gsec.js`;
+        `last MPC: ${gsec.repo_rate_date || '—'} · live-checked via fetch-gsec.js`;
     }
   } catch (_) { /* never crash the page over a macro card */ }
 }

@@ -17,14 +17,19 @@
 
 # Security headers for every page + asset. The site is fully static with
 # same-origin scripts/styles/fonts only; functions live under /.netlify/*.
+#
+# frame-ancestors names the Dashboard Portal alongside 'self': the portal shows
+# this dashboard in a preview frame, and 'none' made every preview refuse to
+# load. The legacy X-Frame-Options header is gone for the same reason - a DENY
+# there contradicts the allowance below. The allowance stays origin-scoped to
+# the portal rather than `*`, so no other site can frame us.
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://dashboards-home.netlify.app; base-uri 'self'; form-action 'self'"
 
 # Long-cache the vendored libraries (they change only with a deploy).
 #
