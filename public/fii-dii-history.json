@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-12T22:44:14.620Z",
+  "updated_at": "2026-10-13T21:00:26.484Z",
   "source": "NSDL Monthly (FII split) + NSE fii-dii (DII)",
   "series": [
     {
@@ -79,6 +79,18 @@
       "dii_equity_cr": 3045.02,
       "dii_buy_cr": 15506.73,
       "dii_sell_cr": 12461.71
+    },
+    {
+      "date": "2026-10-13",
+      "fii_equity_cr": 2000.73,
+      "fii_equity_buy_cr": 14757.06,
+      "fii_equity_sell_cr": 12756.33,
+      "fii_debt_cr": -1838.45,
+      "fii_debt_buy_cr": 1621.91,
+      "fii_debt_sell_cr": 3460.36,
+      "dii_equity_cr": 2439.24,
+      "dii_buy_cr": 16232.97,
+      "dii_sell_cr": 13793.73
     }
   ]
 }
