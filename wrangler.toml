@@ -1,0 +1,49 @@
+# Cloudflare Workers config for the RBI weekly dashboard.
+#
+# The site is the `public/` directory — the same publish directory Netlify used —
+# and the sixteen functions under netlify/functions/ are bundled into worker.js
+# rather than copied. See worker.js for what it wires up: the /data/* public API
+# the dashboard calls, the /.netlify/functions/* paths, the environment, and the
+# KV store behind data-sync.
+#
+#   npx wrangler dev      → local test on http://localhost:8787
+#   npx wrangler deploy   → publish to <name>.<your-subdomain>.workers.dev
+#
+# `run_worker_first` is scoped to the two API prefixes only, so page and asset
+# requests are served straight from the assets layer and never invoke the Worker.
+
+name = "rbi-weekly-dashboard"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Served from the workers.dev hostname; versioned Preview URLs are off. They
+# would serve this same Worker — data-sync's write endpoint included — from a
+# second hostname nobody asked for.
+workers_dev = true
+preview_urls = false
+
+# fetch-data.js parses the RBI weekly press release with node-xlsx, and every
+# scraper uses Buffer/AbortController; nodejs_compat supplies them.
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+run_worker_first = ["/.netlify/functions/*", "/data/*"]
+
+# data-sync's durable merge cache. It was a Netlify Blob; the blob API the
+# function used (get / setJSON) is now served from this namespace, so the
+# dashboard's Reload button still persists merged weeks across visitors and
+# deploys. The key is `records`, under the store name it always used
+# (`rbi-data-sync/records`), so nothing about the payload changed.
+[[kv_namespaces]]
+binding = "SYNC_KV"
+id = "722040ed409f423ca8d6ed9c8ca81153"
+
+# No [triggers] here on purpose. Netlify ran the data-refresh scripts
+# (scripts/fetch-all.js and friends) as part of every deploy; Cloudflare has no
+# build step, so the committed public/*.json is what ships. Running
+# `npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly &&
+# npm run fetch:debt && npm run snapshot:fng && npm run snapshot:fii` locally
+# and committing the result is how that data is refreshed now. The live figures
+# on the page do not depend on it: the fetch-* endpoints scrape on request.

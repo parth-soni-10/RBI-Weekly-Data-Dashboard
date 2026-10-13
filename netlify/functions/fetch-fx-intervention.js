@@ -139,7 +139,7 @@ exports.handler = async () => {
         ...(p.approx ? { approx: true } : {}),
         source: p.source,
       })),
-      note: "RBI's net forward position, month-end, USD bn (signed): net assets while long, net liabilities while short. Month-end figures are added AUTOMATICALLY from the RBI Bulletin's Current Statistics table 4A (Maturity Breakdown of Outstanding Forwards) by scripts/update-fwd-monthly.js, which runs in the daily cron and on every deploy; Mar/Sep points are cross-checked to RBI's Half-Yearly FX Reserves Reports (scripts/update-fwd-series.js). RBI publishes no currency split, so there is no separate euro forward figure.",
+      note: "RBI's net forward position, month-end, USD bn (signed): net assets while long, net liabilities while short. Month-end figures come from the RBI Bulletin's Current Statistics table 4A (Maturity Breakdown of Outstanding Forwards), read live by this endpoint, and are folded into the committed series by scripts/update-fwd-monthly.js (a local refresh on Cloudflare, where there is no deploy-time build); Mar/Sep points are cross-checked to RBI's Half-Yearly FX Reserves Reports (scripts/update-fwd-series.js). RBI publishes no currency split, so there is no separate euro forward figure.",
     }),
   };
 };

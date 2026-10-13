@@ -9,7 +9,8 @@
 // live check on its newest record, and only re-scrapes RBI when something newer
 // actually exists — repeat reloads never re-fetch the same weeks.
 //
-// The blob also carries a `forward` entry (the newest official RBI forward
+// The store (a Netlify Blob, now Cloudflare KV — see setStore below) also carries
+// a `forward` entry (the newest official RBI forward
 // figure found by a live check, so repeat reloads skip the fetch-fwd-latest
 // rbi.org.in scrape), an `em` entry (per-range EM-peers payloads, so repeat
 // reloads skip the Yahoo fetches too), and a `pmcares` entry (a durable mirror
@@ -48,11 +49,31 @@
 //      neither a fresh write nor a payload stored before this check existed can
 //      reach the page as HTML. public/index.html escapes on render as well.
 // ---------------------------------------------------------------------------
-const { getStore } = require("@netlify/blobs");
 const { timingSafeEqual } = require("node:crypto");
 
 const STORE_NAME = "rbi-data-sync";
 const KEY = "records";
+
+// The durable store is injected rather than opened here: worker.js hands in a
+// KV-backed object with the two calls this file makes — `get(key, {type:'json'})`
+// and `setJSON(key, value)` — which is the shape the Netlify Blob store had, so
+// the validation and the guards below did not change with the move. The tests
+// inject an in-memory stub the same way. Nothing here holds a credential or a
+// connection, which is why there is no configuration to read either.
+let injectedStore = null;
+
+function setStore(store) {
+  injectedStore = store || null;
+}
+
+function openStore() {
+  if (!injectedStore) {
+    const error = new Error("no durable store is bound to this Worker (SYNC_KV)");
+    error.code = "NO_STORE";
+    throw error;
+  }
+  return injectedStore;
+}
 
 // Netlify accepts ~6 MB request bodies for a synchronous function; the merge
 // payload never needs anywhere near that, so fail fast well below it.
@@ -239,18 +260,15 @@ exports.handler = async (event) => {
 
   let store;
   try {
-    // In the Netlify function runtime getStore() auto-configures from the
-    // environment; a named store is durable across deploys.
-    store = getStore({ name: STORE_NAME });
+    store = openStore();
   } catch (err) {
-    // Blobs auto-configures only inside the Netlify runtime (deployed site, or
-    // `netlify dev` logged into the linked site). Anywhere else getStore()
-    // throws MissingBlobsEnvironmentError — report it as 503 with a code the
-    // dashboard can turn into one honest log line instead of mystery noise.
+    // No store bound (a Worker deployed without the SYNC_KV binding, or a local
+    // run that forgot to inject one) — report it as 503 with the code the
+    // dashboard already turns into one honest log line instead of mystery noise.
     return json(503, {
-      error: `blob store unavailable: ${err.message}`,
+      error: `durable store unavailable: ${err.message}`,
       code: "BLOB_UNAVAILABLE",
-      hint: "Deploy via Netlify, or run netlify dev logged into the linked site.",
+      hint: "The Worker needs its SYNC_KV binding — see wrangler.toml.",
     });
   }
 
@@ -341,3 +359,6 @@ exports.handler = async (event) => {
     return json(200, { records: null, savedAt: null, forward: null, em: null, pmcares: null });
   }
 };
+
+// worker.js injects the KV-backed store; tests inject a stub.
+exports.setStore = setStore;

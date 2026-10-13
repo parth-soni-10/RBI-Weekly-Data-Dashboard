@@ -1,0 +1,49 @@
+# Response headers for the RBI weekly dashboard.
+#
+# This is the port of the [[headers]] blocks that used to live in netlify.toml,
+# moved to where Cloudflare reads them: `_headers` in the assets directory. The
+# file itself is never served (Cloudflare parses it and answers 404 for the path
+# — verified on the Dashboard Portal), so the policy is public and the file is
+# not.
+#
+# Netlify's per-function `timeout = 20/26` settings have no equivalent here and
+# need none: a Worker invocation is not cut off at ten seconds the way a
+# synchronous Netlify function was, so the scrapers that walk several upstream
+# weeks or pages sequentially have more room, not less.
+#
+# The site is fully static with same-origin scripts/styles/fonts only; the
+# function API lives under /data/* and /.netlify/functions/*.
+
+# frame-ancestors names the Dashboard Portal alongside 'self': the portal shows
+# this dashboard in a preview frame, and 'none' made every preview refuse to
+# load. The legacy X-Frame-Options header is gone for the same reason - a DENY
+# there contradicts the allowance below. The allowance stays origin-scoped to
+# the portal rather than `*`, so no other site can frame us.
+/*
+
+  X-Content-Type-Options: nosniff
+
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://dashboards-home.soni-soni-parth.workers.dev; base-uri 'self'; form-action 'self'
+
+# Long-cache the vendored libraries and the icons (they change only with a
+# deploy).
+#
+# Deliberately NOT `immutable`: these filenames carry no hash or version segment
+# (chart.umd.js, gsap.min.js, three.min.js), and `immutable` promises the bytes
+# at a URL can never change. The day one of them is bumped, every returning
+# visitor would keep the old copy for a year with no way to revoke it — the
+# promise the header makes is the thing that makes it unrecoverable. A week plus
+# stale-while-revalidate still keeps repeat visits off the network.
+/vendor/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/icons/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# The self-hosted fonts. Same week-plus-stale policy, same reason.
+/fonts/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400

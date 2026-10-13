@@ -8,8 +8,9 @@
 // values read back out of the store — so a future edit cannot quietly reopen
 // the hole that let a record's "date" execute as markup.
 //
-// @netlify/blobs is replaced with an in-memory stub before the function is
-// required, so no Netlify runtime is needed.
+// The durable store is injected as an in-memory stub, which is the same seam the
+// Worker uses to hand the function its KV namespace — so these tests need no
+// runtime at all, and they exercise the function exactly as deployed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -18,15 +19,9 @@ const fakeStore = {
   async get() { return saved; },
   async setJSON(_key, value) { saved = value; },
 };
-const blobsPath = require.resolve("@netlify/blobs");
-require.cache[blobsPath] = {
-  id: blobsPath,
-  filename: blobsPath,
-  loaded: true,
-  exports: { getStore: () => fakeStore },
-};
 
-const { handler } = require("../netlify/functions/data-sync.js");
+const { handler, setStore } = require("../netlify/functions/data-sync.js");
+setStore(fakeStore);
 
 const HOST = "rbi-dashboard.example.netlify.app";
 const post = (body, headers = {}) => handler({

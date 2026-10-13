@@ -42,7 +42,15 @@
 const fs = require("fs");
 const path = require("path");
 
-const FN = process.env.FWD_FN || path.join(__dirname, "..", "netlify", "functions", "fetch-fx-intervention.js");
+// The CLI writes into the function's source file, so it needs a path on disk —
+// but fetch-fwd-latest.js imports `fetchLatestOfficial` from this module, which
+// means the whole file is bundled into the Worker, where `__dirname` does not
+// exist (ESM has no such binding) and referencing it at module scope failed the
+// Worker at startup. The guard keeps the CLI's default path under Node and
+// leaves FN empty where there is no filesystem to write to; nothing the function
+// calls reads it.
+const FN = process.env.FWD_FN
+  || (typeof __dirname === "string" ? path.join(__dirname, "..", "netlify", "functions", "fetch-fx-intervention.js") : "");
 const FRONT_URL = "https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx";
 const TABLE_URL = id => `https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx?Id=${id}`;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
