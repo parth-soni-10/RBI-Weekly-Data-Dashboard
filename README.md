@@ -58,7 +58,7 @@ Quick checks: `npm run check` verifies the syntax of every script in the repo.
 
 ## Built with
 
-A hand-written **HTML / CSS / JavaScript** site hosted on **Netlify**, with a bit of **Node** automation behind the scenes that fetches the reports and tidies the numbers. No database, no accounts, no sign-up.
+A hand-written **HTML / CSS / JavaScript** site hosted as a **Cloudflare Worker**, with a bit of **Node** automation behind the scenes that fetches the reports and tidies the numbers. No database, no accounts, no sign-up.
 
 ---
 

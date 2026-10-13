@@ -17,7 +17,6 @@
     "rss": "node scripts/make-rss.js"
   },
   "dependencies": {
-    "@netlify/blobs": "^11.0.3",
     "node-xlsx": "^0.23.0"
   }
 }
