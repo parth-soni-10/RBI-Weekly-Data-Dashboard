@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SITE = process.env.RSS_SITE_URL || 'https://rbiweeklydashboard.netlify.app/';
+const SITE = process.env.RSS_SITE_URL || 'https://rbi-weekly-dashboard.parth10.workers.dev/';
 const SRC = path.join(__dirname, '..', 'public', 'rbi-data.json');
 const OUT = path.join(__dirname, '..', 'public', 'feed.xml');
 

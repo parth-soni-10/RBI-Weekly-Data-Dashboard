@@ -3,4 +3,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://rbiweeklydashboard.netlify.app/sitemap.xml
+Sitemap: https://rbi-weekly-dashboard.parth10.workers.dev/sitemap.xml
