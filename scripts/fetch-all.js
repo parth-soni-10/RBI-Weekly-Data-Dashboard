@@ -17,6 +17,11 @@
  *     and gets picked up instead of being skipped forever.
  *   - Merges + dedupes by date, sorts ascending, writes the file back.
  *
+ * buildRbiDataFile() is that whole job as a pure function of the text already on
+ * disk, because the scheduled Worker (netlify/functions/refresh-data.js) runs it
+ * against the copy the repository holds — one implementation, so a refresh can
+ * only ever write the JSON this CLI writes. main() is the file I/O around it.
+ *
  * Usage:
  *   node scripts/fetch-all.js [startYear] [--limit=N]
  *   npm run fetch:data
@@ -25,7 +30,11 @@ const fs = require("fs");
 const path = require("path");
 const { _getFridays, _processOne } = require("../netlify/functions/fetch-data");
 
-const OUT = path.join(__dirname, "..", "public", "rbi-data.json");
+// Where the CLI writes. The scheduled Worker imports the builder below and reads
+// its "prior" text from the repository instead, and in a Worker `__dirname` is not
+// a binding at all — the `typeof` guard is what keeps this module importable there
+// (scripts/update-fwd-monthly.js documents the same trap). Only main() reads OUT.
+const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "rbi-data.json") : "";
 
 function iso(d) {
   return d.toISOString().slice(0, 10);
@@ -34,30 +43,36 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function main() {
-  const argYear   = parseInt(process.argv[2], 10);
-  const curYear   = new Date().getFullYear();
-  const limitArg  = process.argv.find(a => a.startsWith("--limit="));
-  const limit     = limitArg ? parseInt(limitArg.split("=")[1], 10) : null;
-
+/**
+ * Produce the rbi-data.json document from the file's current text.
+ *
+ * `priorText` is the committed file (null when there is none). `limit` caps how
+ * many weeks one call fetches: the scheduled Worker has a wall-clock budget, so
+ * a long backlog drains over a few runs instead of being killed mid-scrape with
+ * nothing to show. Returns the exact text to write, plus the numbers to log.
+ */
+async function buildRbiDataFile({ priorText = null, startYear = null, limit = null, log = () => {} } = {}) {
   // 1. Prior records (kept on transient failures so the file never goes empty).
   let prior = [];
   try {
-    const parsed = JSON.parse(fs.readFileSync(OUT, "utf8"));
-    if (Array.isArray(parsed.records)) prior = parsed.records;
+    const parsed = JSON.parse(priorText);
+    if (parsed && Array.isArray(parsed.records)) prior = parsed.records;
   } catch (_) { /* no prior file — first run */ }
+
+  const curYear = new Date().getFullYear();
+  const wanted = Number.isFinite(startYear) ? startYear : null;
 
   // Anchor the Friday list on the oldest record's year when data already
   // exists (covers year-boundary weeks), else use the requested/current year.
-  let startYear;
+  let anchor;
   if (prior.length) {
     const oldestYear = prior.reduce((acc, r) => Math.min(acc, parseInt(String(r.date).slice(0, 4), 10) || curYear), curYear);
-    startYear = Math.min(argYear || curYear, oldestYear);
+    anchor = Math.min(wanted || curYear, oldestYear);
   } else {
-    startYear = argYear || curYear;
+    anchor = wanted || curYear;
   }
 
-  const fridays = _getFridays(`${startYear}-01-01`);
+  const fridays = _getFridays(`${anchor}-01-01`);
   const newestDate = prior.length ? prior.map(r => r.date).sort().pop() : null;
 
   // 2. Only fetch weeks newer than what we already have.
@@ -71,18 +86,19 @@ async function main() {
     const nextIso = iso(nextPub);
     todo = fridays.filter(f => iso(f) > nextIso);
   }
+  const pending = todo.length;
   if (limit && limit > 0) todo = todo.slice(0, limit);
 
-  console.log(`Start year: ${startYear} · ${fridays.length} Fridays in range · ${prior.length} already on file · ${todo.length} to fetch`);
+  log(`Start year: ${anchor} · ${fridays.length} Fridays in range · ${prior.length} already on file · ${todo.length} to fetch`);
 
   const fresh = [];
   for (const f of todo) {
     const res = await _processOne(f);
     if (res.record) {
       fresh.push(res.record);
-      console.log(`✓ ${res.record.date} | Reserves $${res.record.total_usd?.toLocaleString()}M | USD/INR ${res.record.usd_inr ?? "N/A"}`);
+      log(`✓ ${res.record.date} | Reserves $${res.record.total_usd?.toLocaleString()}M | USD/INR ${res.record.usd_inr ?? "N/A"}`);
     } else {
-      console.log(`⚠ ${res.iso} — ${res.error}`);
+      log(`⚠ ${res.iso} — ${res.error}`);
     }
     await sleep(300); // be polite to RBI + Yahoo
   }
@@ -93,20 +109,46 @@ async function main() {
     .filter(r => { if (seen.has(r.date)) return false; seen.add(r.date); return true; })
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // 4. Write the file.
-  const out = {
+  // 4. Build the file.
+  const doc = {
     fetched_at: new Date().toISOString(),
     source: "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
     generated_by: "scripts/fetch-all.js",
     count: merged.length,
     records: merged,
   };
-  fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  fs.writeFileSync(OUT, JSON.stringify(out, null, 2));
-  console.log(`✅ Wrote ${merged.length} weeks → public/rbi-data.json${fresh.length ? ` (${fresh.length} new this run)` : ""}`);
+
+  return {
+    text: JSON.stringify(doc, null, 2),
+    count: merged.length,
+    fresh: fresh.length,
+    pending,
+  };
 }
 
-main().catch(e => {
-  console.error("❌ fetch-all failed:", e.message);
-  process.exit(1);
-});
+async function main() {
+  const argYear = parseInt(process.argv[2], 10);
+  const limitArg = process.argv.find(a => a.startsWith("--limit="));
+  const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : null;
+
+  let priorText = null;
+  try { priorText = fs.readFileSync(OUT, "utf8"); } catch (_) { /* no prior file — first run */ }
+
+  const { text, count, fresh } = await buildRbiDataFile({ priorText, startYear: argYear, limit, log: console.log });
+
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, text);
+  console.log(`✅ Wrote ${count} weeks → public/rbi-data.json${fresh ? ` (${fresh} new this run)` : ""}`);
+}
+
+// Only when run as a CLI. The scheduled Worker imports buildRbiDataFile() from
+// this file, and a module-scope main() would make it stop at startup: there is
+// no filesystem there, and no stdout either.
+if (require.main === module) {
+  main().catch(e => {
+    console.error("❌ fetch-all failed:", e.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { buildRbiDataFile };

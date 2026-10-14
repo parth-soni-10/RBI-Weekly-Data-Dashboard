@@ -99,7 +99,7 @@
 
   <div id="empty">
     <h2>No data yet</h2>
-    <p>Run <code>npm run fetch:data</code> to generate <code>public/rbi-data.json</code>, then reload this page. On Netlify the data file is regenerated automatically on every deploy.</p>
+    <p>Run <code>npm run fetch:data</code> to generate <code>public/rbi-data.json</code>, then reload this page. The weekly Worker cron regenerates the committed data files and commits them, so a deploy always ships what that run wrote.</p>
   </div>
   <div id="metrics">
     <div class="mc"><div class="mc-label">Forex reserves</div><div class="mc-val" id="m-res-usd">—</div>
@@ -160,7 +160,7 @@
     </div>
   </div>
 
-  <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Netlify functions below; fall back to curated last-known figures when the live scrape fails. -->
+  <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Worker's endpoints below; fall back to curated last-known figures when the live scrape fails. -->
   <div class="macro-context" id="macro-context">
     <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention, market sentiment</span><button class="tab" id="macro-toggle" aria-expanded="true" aria-controls="macro-grid" data-click="return toggleMacro">Collapse</button></h3>
     <div class="mc-grid" id="macro-grid">

@@ -1,34 +1,37 @@
-name: Refresh RBI data
+name: Refresh RBI data (manual)
 
-# Keeps public/rbi-data.json up to date automatically so the deployed
-# dashboard always ships the latest weekly RBI reports, without requiring a
-# manual deploy or a Netlify-scheduled function.
+# MANUAL ONLY — the weekly run happens in the Worker now.
 #
-# The RBI Weekly Statistical Supplement is published every Friday evening IST,
-# so a daily run is more than enough to catch it (and re-runs are cheap — the
-# fetch script is incremental and only pulls weeks newer than the newest record
-# already in the file).
+# The refresh lives in the Cloudflare Worker's cron trigger: wrangler.toml
+# [triggers] → worker.js `scheduled` → netlify/functions/refresh-data.js, which
+# reads each committed data file through the GitHub API, regenerates it from the
+# live sources, and commits the changed ones (Friday 22:00 UTC). That is the
+# replacement for the Netlify build command this workflow was written to mirror:
+# a Workers deploy has no build step, so a deploy ships the committed files and
+# something else has to keep them current.
 #
-# Also runs the forward-book updaters, which append/upgrade FWD_SERIES from
-# official RBI disclosures whenever a newer one lands: scripts/update-fwd-series.js
-# (Mar/Sep half-yearly FX reserves reports, published ~May and ~Nov) and
-# scripts/update-fwd-monthly.js (the Bulletin's monthly Table 4A figure, whose
-# page advances with each new Bulletin issue) — plus fetch-debt-rankings.js,
-# which re-pulls the World Bank external-debt ranking (biggest-borrower tiles
-# + chart) from the live api.worldbank.org on every run.
+# Two systems refreshing the same files on the same Friday would only race each
+# other's commits and deploy twice, so this workflow keeps its steps and loses its
+# schedule. What it is for now:
+#
+#   - the fallback, when the Worker's cron cannot run — a missing or expired
+#     GH_TOKEN secret, a Cloudflare-side outage, or a branch experiment;
+#   - backfill-decomp.js, which walks the WSS archive with deliberate delays and
+#     is deliberately NOT part of the Worker's bounded invocation.
+#
+# Its steps are the same builders `npm run refresh` (scripts/refresh-static.js)
+# calls, so a manual run and a cron run cannot produce different data. Note that
+# backfill-decomp.js drains one batch per run, so a backlog may need the button
+# pressed again.
 
 on:
-  schedule:
-    # Every day at 00:30 UTC (~06:00 IST). The weekly report appears Friday
-    # evening IST, so by 06:00 Saturday the latest publication is picked up.
-    - cron: "30 0 * * *"
   workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
 
 permissions:
   contents: write
 
-# Serialize runs (cron + manual): two refreshes racing each other is the other
-# way the push step can lose — a rejected non-fast-forward.
+# Serialize runs (a manual run while another is going is the way the push step
+# loses — a rejected non-fast-forward).
 concurrency:
   group: refresh-data
   cancel-in-progress: false
@@ -71,9 +74,9 @@ jobs:
         run: npm run fetch:debt
 
       # Snapshot today's composite Fear & Greed score into the committed
-      # sentiment-history.json (one row per day, updated in place intraday,
-      # 400-point window). Feeds the sentiment trend chart; fails open — a
-      # blocked Yahoo never breaks the run.
+      # sentiment-history.json (one row per run — a Friday point now that this
+      # runs weekly — updated in place, 400-point window). Feeds the sentiment
+      # trend chart; fails open — a blocked Yahoo never breaks the run.
       - name: Snapshot daily sentiment score
         run: npm run snapshot:fng
 
@@ -93,7 +96,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/rbi-data.json public/external-debt.json public/sentiment-history.json netlify/functions/fetch-fx-intervention.js
+          # feed.xml too: `npm run fetch:data` rewrites it from the records it
+          # just fetched, and leaving it out only produced a dirty tree.
+          git add public/rbi-data.json public/external-debt.json public/sentiment-history.json public/feed.xml netlify/functions/fetch-fx-intervention.js
           if git diff --cached --quiet; then
             echo "No new data — nothing to commit."
           else

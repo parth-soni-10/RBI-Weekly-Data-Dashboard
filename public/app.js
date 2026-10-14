@@ -18,7 +18,7 @@ let records = [], charts = {}, modes = {res:'usd',gold:'usd',fx:'usd',idx:'nifty
    via `npm run fetch:data`). The dashboard just loads that file — no
    browser cache, no per-week scraping in the frontend. */
 const DATA_URL = 'rbi-data.json';
-// Durable merge cache (Netlify Blob behind the data-sync function): the
+// Durable merge cache (KV, behind the data-sync function): the
 // dashboard persists merged live weeks here so repeat reloads don't re-scrape
 // them from RBI. Falls back silently when the function isn't deployed.
 const SYNC_URL = '.netlify/functions/data-sync';
@@ -267,7 +267,7 @@ function renderFreshness(){
 }
 setInterval(renderFreshness, 30 * 1000);
 
-// After the static file loads, live-check the Netlify fetch-data function for
+// After the static file loads, live-check the fetch-data function for
 // weeks newer than the newest record in the file, merge them in, and re-render.
 // Falls back silently to file-only when the function isn't deployed (local
 // preview / static hosting). The function processes one week per call via
@@ -357,7 +357,7 @@ async function mergeLiveUpdates() {
   }
 }
 
-// Read the merged records previously persisted by data-sync (Netlify Blob).
+// Read the merged records previously persisted by data-sync (KV).
 // Returns null when unavailable — callers fall back to file + live check.
 // Last blob payload read (records + forward + em + pmcares) — loaded once per
 // Reload in mergeLiveUpdates, reused by the forward/EM live checks so they
@@ -378,7 +378,7 @@ function markSyncDown(reason){
   return syncDown;
 }
 // Per-browser mirror of the sync payload — localStorage backing for when the
-// Netlify Blob store is unavailable (local preview, static hosting, or a 503).
+// The KV store is unavailable (local preview, static hosting, or a 503).
 const SYNC_LOCAL_KEY = 'rbi-sync-cache-v1';
 function syncLocalRead(){
   try {
@@ -398,7 +398,7 @@ function syncLocalWrite(patch){
 // PMCARES array is the source of truth and always wins when present).
 let pmcaresData = null;
 
-// Read the merged records previously persisted by data-sync (Netlify Blob).
+// Read the merged records previously persisted by data-sync (KV).
 // Falls back to the localStorage mirror when the function is unavailable, and
 // to null when there's nothing saved anywhere — callers fall back to file +
 // live check.
@@ -2993,7 +2993,7 @@ function printDashboard(){ window.print(); }
 })();
 
 // Macro context cards (NSDL FII, G-Sec yield, REER, FX intervention, tax
-// receipts) plus the daily FII/DII history chart load from the Netlify
+// receipts) plus the daily FII/DII history chart load from the
 // functions. They serve real data when scraping succeeds and fall back to
 // curated values flagged with `status: static fallback` when it doesn't.
 const MACRO_ENDPOINTS = {
@@ -3009,7 +3009,7 @@ const MACRO_ENDPOINTS = {
 let macroData  = {};
 // World's biggest-borrower ranking (World Bank QEDS): loaded with the macro
 // cards, plus a static-file fallback (external-debt.json, regenerated on
-// every deploy/cron) for local previews without the Netlify functions.
+// every deploy/cron) for local previews without the live functions.
 let debtData = null;
 async function loadExternalDebt(noStore, debtRefresh){
   if(debtRefresh === undefined) debtRefresh = noStore;

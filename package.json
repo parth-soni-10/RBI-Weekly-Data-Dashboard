@@ -1,13 +1,15 @@
 {
-  "name": "rbi-weekly-dashboard-netlify",
+  "name": "rbi-weekly-dashboard",
   "version": "1.2.0",
-  "description": "Netlify functions for RBI weekly reserves scraper + live crude oil data + macro context (FII/FPI flows, FX intervention, G-Sec, REER, tax receipts)",
+  "description": "Server-side scrapers and the Cloudflare Worker for the RBI weekly reserves dashboard + live crude oil data + macro context (FII/FPI flows, FX intervention, G-Sec, REER, tax receipts)",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "check": "node scripts/check-syntax.js",
     "test": "node --test",
+    "refresh": "node scripts/refresh-static.js",
+    "refresh:check": "node scripts/refresh-static.js --check",
     "fetch:data": "node scripts/fetch-all.js && node scripts/make-rss.js",
     "fetch:debt": "node scripts/fetch-debt-rankings.js",
     "snapshot:fng": "node scripts/snapshot-sentiment.js",

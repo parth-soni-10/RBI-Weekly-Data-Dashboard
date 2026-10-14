@@ -4,6 +4,10 @@ node_modules/
 # Netlify build output (esbuild bundles functions here, regenerated each deploy)
 .netlify/
 
+# Wrangler's local state: dev/dry-run output, local KV, the cache from
+# `wrangler secret put`. Never part of the Worker that gets deployed.
+.wrangler/
+
 # Environment & secrets
 .env
 .env.*

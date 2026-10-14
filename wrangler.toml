@@ -4,10 +4,12 @@
 # and the sixteen functions under netlify/functions/ are bundled into worker.js
 # rather than copied. See worker.js for what it wires up: the /data/* public API
 # the dashboard calls, the /.netlify/functions/* paths, the environment, and the
-# KV store behind data-sync.
+# KV store behind data-sync. netlify/functions/refresh-data.js is bundled the same
+# way but is NOT a function: it has no route, only the cron trigger below.
 #
-#   npx wrangler dev      → local test on http://localhost:8787
-#   npx wrangler deploy   → publish to <name>.<your-subdomain>.workers.dev
+#   npx wrangler dev --test-scheduled   → local test, plus /__scheduled to fire
+#                                         the weekly refresh by hand
+#   npx wrangler deploy                 → publish to <name>.<your-subdomain>.workers.dev
 #
 # `run_worker_first` is scoped to the two API prefixes only, so page and asset
 # requests are served straight from the assets layer and never invoke the Worker.
@@ -40,10 +42,39 @@ run_worker_first = ["/.netlify/functions/*", "/data/*"]
 binding = "SYNC_KV"
 id = "722040ed409f423ca8d6ed9c8ca81153"
 
-# No [triggers] here on purpose. Netlify ran the data-refresh scripts
-# (scripts/fetch-all.js and friends) as part of every deploy; Cloudflare has no
-# build step, so the committed public/*.json is what ships. Running
-# `npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly &&
-# npm run fetch:debt && npm run snapshot:fng && npm run snapshot:fii` locally
-# and committing the result is how that data is refreshed now. The live figures
-# on the page do not depend on it: the fetch-* endpoints scrape on request.
+# The weekly data refresh. Netlify ran the refresh scripts (scripts/fetch-all.js
+# and friends) as part of every deploy, so a deploy shipped freshly scraped data;
+# Cloudflare has no build step, so a deploy ships the committed public/*.json
+# instead. This cron is what keeps those files current again: `scheduled` in
+# worker.js runs the plan in netlify/functions/refresh-data.js — it reads each
+# file through the GitHub API, regenerates it from the live sources, and commits
+# the changed ones in a single commit, which Workers Builds then deploys.
+#
+# Friday 22:00 UTC (03:30 IST Saturday) — hours after that day's RBI Weekly
+# Statistical Supplement is published and after NSDL posts the day's FPI flows,
+# so one run covers the whole week. A run that finds nothing new commits nothing
+# (scrape timestamps do not count as change), so a quiet Friday costs nothing.
+[triggers]
+crons = ["0 22 * * 5"]
+
+[vars]
+# The repository the refresh reads and commits through (owner/repo).
+GH_REPO = "parth-soni-10/RBI-Weekly-Data-Dashboard"
+GH_BRANCH = "main"
+# Weeks one invocation may fetch. The refresh is incremental, so a normal Friday
+# fetches 0–1; the cap bounds the cold or badly lagged case, because a cron
+# invocation is bounded (30s wall clock on the Free plan, 15 minutes on Paid) and
+# being cut off mid-scrape commits nothing. The remainder drains on the next run.
+REFRESH_WEEK_LIMIT = "8"
+# Base URL for the links public/feed.xml carries. The same value as the default in
+# scripts/make-rss.js, stated here so a deployed feed's links are a config fact.
+RSS_SITE_URL = "https://rbiweeklydashboard.pages.dev/"
+
+# GH_TOKEN is the refresh's only credential — a fine-grained personal access token
+# with `Contents: read and write` on the repo above. It is a secret, so it is set
+# out of band and never written into this file:
+#
+#   npx wrangler secret put GH_TOKEN
+#
+# With it unset the cron logs one line and does nothing at all — no baseline to
+# read and nowhere to commit, so it does not scrape either.

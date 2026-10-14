@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
         }
       })());
     }
-    return; // Netlify functions and everything else: browser default (live data)
+    return; // The live function endpoints and everything else: browser default
   }
 
   // Data files: network-first, fall back to the newest cached copy (stale

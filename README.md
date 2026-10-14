@@ -41,7 +41,7 @@ Every week the RBI publishes a new report as a raw spreadsheet. This project kee
 
 ## How it stays up to date
 
-The data refreshes automatically. A small automated job checks for the latest RBI report each day — and re-pulls the World Bank borrower ranking — updating the dashboard on its own. The ranking is also refreshed from the live World Bank API on every deploy, and the in-page Reload button always bypasses caches.
+The data refreshes automatically. A scheduled job runs once a week, on Friday evening — after that week's RBI report is published — and at the same time re-pulls the World Bank borrower ranking, the forward-book series and the FII/DII flows, committing whatever changed so the site deploys with the new numbers. Nothing needs pressing; the in-page Reload button still live-checks RBI for a newer week and always bypasses caches.
 
 ## Run it locally
 

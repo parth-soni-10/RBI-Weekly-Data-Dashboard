@@ -7,12 +7,17 @@
  * economy's official FX reserves (WDI FI.RES.TOTL.CD, for debt-cover
  * ratios) from the live World Bank API and writes it as a static file the
  * dashboard ships with.
- * Runs on every deploy (netlify.toml build command) and in the daily GitHub
- * cron (refresh-data.yml), so every run re-pulls the authenticated source.
+ *
+ * Runs in the weekly refresh (npm run refresh / the scheduled Worker, which was
+ * the Netlify build command before that), so every run re-pulls the
+ * authenticated source.
  *
  * Fails open: on network/parse errors the committed file is refreshed from
  * the function's curated fallback (clearly flagged), never left stale and
- * never deleted — a slow/blocked api.worldbank.org can't break a deploy.
+ * never deleted — a slow/blocked api.worldbank.org can't break a refresh.
+ *
+ * buildExternalDebtFile() is the whole job as a pure function, so the CLI and
+ * the scheduled Worker produce the same bytes.
  *
  * Usage:
  *   node scripts/fetch-debt-rankings.js
@@ -21,10 +26,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const OUT = path.join(__dirname, "..", "public", "external-debt.json");
+// CLI path only — the scheduled Worker commits the text the builder returns.
+// `__dirname` does not exist in a Worker, hence the guard (see
+// scripts/update-fwd-monthly.js for the same trap).
+const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "external-debt.json") : "";
 const { _buildPayload, _fallbackPayload } = require("../netlify/functions/fetch-external-debt");
 
-async function main() {
+/** → { text, payload, note, detail }. Throws only on a bug — both failures below are data. */
+async function buildExternalDebtFile() {
   let payload;
   let note = "live World Bank API";
   try {
@@ -34,18 +43,35 @@ async function main() {
     note = "curated fallback (API unreachable)";
   }
 
+  // The file this builder lives in. The scheduled Worker drives it too, but no
+  // per-run stamp goes in here: a value that names the caller would make the
+  // file differ every week and commit on every run.
   payload.generated_by = "scripts/fetch-debt-rankings.js";
-  fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  fs.writeFileSync(OUT, JSON.stringify(payload, null, 2));
-  console.log(
-    `✅ Wrote external-debt.json (${note}) · #1 ${payload.top_borrowers[0].name} ` +
-    `$${payload.top_borrowers[0].value_bn}bn (${payload.top_borrowers[0].period}) · ` +
-    `India #${payload.india.rank} $${payload.india.value_bn}bn (${payload.india.period}) · ` +
-    `${payload.top_borrowers.length} of ${payload.ranked_count} ranked economies`
-  );
+
+  const top = payload.top_borrowers[0];
+  return {
+    text: JSON.stringify(payload, null, 2),
+    payload,
+    note,
+    detail:
+      `${note} · #1 ${top.name} $${top.value_bn}bn (${top.period}) · ` +
+      `India #${payload.india.rank} $${payload.india.value_bn}bn (${payload.india.period}) · ` +
+      `${payload.top_borrowers.length} of ${payload.ranked_count} ranked economies`,
+  };
 }
 
-main().catch(e => {
-  console.error("❌ fetch-debt-rankings failed:", e.message);
-  process.exit(1);
-});
+async function main() {
+  const { text, detail } = await buildExternalDebtFile();
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, text);
+  console.log(`✅ Wrote external-debt.json (${detail})`);
+}
+
+if (require.main === module) {
+  main().catch(e => {
+    console.error("❌ fetch-debt-rankings failed:", e.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { buildExternalDebtFile };

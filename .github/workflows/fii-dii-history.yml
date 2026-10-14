@@ -1,25 +1,41 @@
-name: Snapshot FII/DII daily flows
+name: Snapshot FII/DII daily flows (manual)
 
-# Appends the day's NSDL FPI (equity/debt) + NSE DII flow rows to the
-# committed public/fii-dii-history.json that the dashboard's FII/DII chart
-# renders. NSDL publishes the day's flows on the evening of the same day, so
-# this runs at 16:00 UTC (~21:30 IST) — late enough to capture today's
-# finalized block while the trading day is still the current month (NSDL's
-# Monthly page only ever lists the current month, so a month's last trading
-# day must be caught before the month rolls over).
+# MANUAL ONLY — the weekly snapshot happens in the Worker now.
+#
+# Appends NSDL FPI (equity/debt) + NSE DII flow rows to the committed
+# public/fii-dii-history.json that the dashboard's FII/DII chart renders. The
+# scheduled Worker's Friday cron (wrangler.toml [triggers], 22:00 UTC) runs the
+# same snapshot — netlify/functions/refresh-data.js calls
+# scripts/snapshot-fii-dii.js — so this workflow is the fallback for when that
+# cron cannot run: a missing or expired GH_TOKEN secret, or a Cloudflare-side
+# outage.
+#
+# The 16:00 UTC schedule it used to carry was set by the sources rather than by
+# preference — NSDL publishes the day's flows on the evening of the same day. The
+# Worker's single Friday run sits later than that, so it covers the day too, and
+# there is no second Friday job left for it to race.
+#
+# A weekly run does NOT lose Monday-to-Thursday of the week it runs in. The
+# script merges NSDL's whole current-month table rather than the latest session
+# alone, so each run captures every trading day of that month so far, including
+# the days before it.
+#
+# What it cannot capture is the tail of a month whose last trading days fall
+# AFTER that month's last Friday: NSDL's Monthly page only ever lists the current
+# month, so those rows are gone by the next run. A daily schedule was what covered
+# that. Named here so it is a known trade-off rather than a gap someone
+# eventually notices in the FII/DII chart.
 #
 # The script fails open: if NSDL/NSE are unreachable it exits 0 and leaves the
 # file untouched, so a bad evening never breaks the run.
 
 on:
-  schedule:
-    - cron: "0 16 * * *" # 21:30 IST daily
   workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
 
 permissions:
   contents: write
 
-# Serialize runs (cron + manual) so the push step can't lose a race.
+# Serialize runs (two manual runs at once is how the push step loses a race).
 concurrency:
   group: fii-dii-history
   cancel-in-progress: false

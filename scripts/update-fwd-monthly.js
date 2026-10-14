@@ -21,7 +21,7 @@
  * from the page, never assumed.
  *
  * Usage:
- *   node scripts/update-fwd-monthly.js              # newest-issue sync (every deploy)
+ *   node scripts/update-fwd-monthly.js              # newest-issue sync (every weekly refresh)
  *   node scripts/update-fwd-monthly.js --backfill   # walk ALL issues (one-off)
  *
  * Newest-issue sync:
@@ -37,7 +37,9 @@
  * values. Idempotent; never removes data.
  *
  * Fails open: a slow/blocked/unparseable RBI site logs a warning and exits 0,
- * so a deploy is never broken by this step.
+ * so a refresh is never broken by this step. The newest-issue sync is also what
+ * the scheduled Worker runs (netlify/functions/refresh-data.js), through
+ * buildFwdMonthlyFile() below — the same code, so the two paths cannot drift.
  */
 const fs = require("fs");
 const path = require("path");
@@ -199,7 +201,7 @@ function rewriteSeries(src, rows, changed) {
   const marker = "const FWD_SERIES = [";
   const start = src.indexOf(marker);
   const arrEnd = src.indexOf("];", start + marker.length);
-  if (start < 0 || arrEnd < 0) throw new Error("FWD_SERIES block not found in " + FN);
+  if (start < 0 || arrEnd < 0) throw new Error("FWD_SERIES block not found in " + (FN || "the fetch-fx-intervention module"));
   const changedMap = new Map(changed.map(c => [c.date, c]));
   const lines = rows.map((r, i) => {
     const last = i === rows.length - 1;
@@ -269,28 +271,50 @@ async function fetchLatestOfficial() {
   };
 }
 
+// ── Newest-issue sync, as a function of the file's current source ───────
+// Returns { text, detail, warn? }: `text` is null when the series already
+// carries the newest Bulletin figure, so there is nothing to write. This is what
+// the scheduled Worker runs (netlify/functions/refresh-data.js) — the --backfill
+// walk below stays a manual one-off: it reads ~65 issues with throttling, which
+// is the wrong shape for a cron invocation.
+async function buildFwdMonthlyFile(src, { log = () => {} } = {}) {
+  const entries = loadSeries(src);
+  if (!entries.length) throw new Error("could not parse FWD_SERIES from " + (FN || "the fetch-fx-intervention module"));
+
+  const latest = await fetchLatestOfficial();
+  if (latest.error === "no-table") return { text: null, detail: "No 4A (Outstanding Forwards of RBI) table found on the Bulletin front page", warn: true };
+  if (latest.error === "unparseable") return { text: null, detail: `Could not parse Table 4A from page ${latest.id}`, warn: true };
+  log(`Bulletin front page: newest 4A forward table id ${latest.id}`);
+  log(`Table 4A: ${latest.asOn} — net ${latest.netMn >= 0 ? "+" : "−"}$${Math.abs(latest.netMn).toLocaleString("en-US")}mn (long ${latest.longMn.toLocaleString("en-US")}, short ${latest.shortMn.toLocaleString("en-US")}) → period ${latest.date}`);
+
+  const official = { date: latest.date, netFwd: latest.netFwd, source: latest.source };
+  const res = applyOfficial(entries, official);
+  if (!res.changed.length) return { text: null, detail: `Up to date — ${res.summary}.` };
+  const marker = res.summary.startsWith("inserted") ? " (auto-appended)" : " (official)";
+  res.changed[0].source += marker;
+  return {
+    text: rewriteSeries(src, res.rows, res.changed),
+    detail: `${res.summary} → ${official.netFwd >= 0 ? "+$" : "−$"}${Math.abs(official.netFwd).toFixed(2)}B`,
+  };
+}
+
 async function main() {
   const backfill = process.argv.includes("--backfill");
   const src = fs.readFileSync(FN, "utf8");
-  const entries = loadSeries(src);
-  if (!entries.length) throw new Error("could not parse FWD_SERIES from " + FN);
 
   if (!backfill) {
-    const latest = await fetchLatestOfficial();
-    if (latest.error === "no-table") { console.log("⚠ No 4A (Outstanding Forwards of RBI) table found on the Bulletin front page — leaving FWD_SERIES unchanged."); return; }
-    if (latest.error === "unparseable") { console.log(`⚠ Could not parse Table 4A from page ${latest.id} — leaving FWD_SERIES unchanged.`); return; }
-    console.log(`Bulletin front page: newest 4A forward table id ${latest.id}`);
-    console.log(`Table 4A: ${latest.asOn} — net ${latest.netMn >= 0 ? "+" : "−"}$${Math.abs(latest.netMn).toLocaleString("en-US")}mn (long ${latest.longMn.toLocaleString("en-US")}, short ${latest.shortMn.toLocaleString("en-US")}) → period ${latest.date}`);
-    const official = { date: latest.date, netFwd: latest.netFwd, source: latest.source };
-    const res = applyOfficial(entries, official);
-    if (!res.changed.length) { console.log(`✓ Up to date — ${res.summary}.`); return; }
-    const marker = res.summary.startsWith("inserted") ? " (auto-appended)" : " (official)";
-    res.changed[0].source += marker;
-    const out = rewriteSeries(src, res.rows, res.changed);
-    fs.writeFileSync(FN, out, "utf8");
-    console.log(`✎ ${res.summary} → ${official.netFwd >= 0 ? "+$" : "−$"}${Math.abs(official.netFwd).toFixed(2)}B`);
+    const res = await buildFwdMonthlyFile(src, { log: console.log });
+    if (!res.text) {
+      console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} — leaving FWD_SERIES unchanged.`);
+      return;
+    }
+    fs.writeFileSync(FN, res.text, "utf8");
+    console.log(`✎ ${res.detail}`);
     return;
   }
+
+  const entries = loadSeries(src);
+  if (!entries.length) throw new Error("could not parse FWD_SERIES from " + (FN || "the fetch-fx-intervention module"));
 
   // ── Backfill: walk every issue 2021-05 → newest ──
   const formId = (await newestTableId()) || "24382";
@@ -341,4 +365,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { fetchLatestOfficial };
+module.exports = { fetchLatestOfficial, buildFwdMonthlyFile };

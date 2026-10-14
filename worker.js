@@ -27,12 +27,27 @@
  *               them over as bindings, so they are copied onto process.env
  *               before any handler runs (nodejs_compat supplies the object).
  *
+ *   CDN cache   Netlify's CDN held each handler's response for the Cache-Control
+ *               the handler already declares (`public, max-age=900` on the
+ *               data-* endpoints), so repeat and embed traffic never re-scraped.
+ *               A Worker's response is not edge-cached unless the Worker puts it
+ *               there, and these handlers scrape live on request — data-latest
+ *               walks back up to six Fridays — so the missing layer showed up as
+ *               36–54 seconds per request instead of a cache hit. `fetch` now
+ *               stores a response in the colo cache under exactly the policy the
+ *               handler asked for; see EDGE CACHE below.
+ *
  *   build       Netlify ran scripts/fetch-all.js and the forward-book updaters
  *               on every deploy to regenerate the committed public/*.json. There
- *               is no build step here: a deploy ships what the repository holds.
- *               Refreshing that data is a local step now (see wrangler.toml).
- *               The live figures are unaffected — the fetch-* endpoints scrape
- *               on request.
+ *               is no build step here — a deploy ships what the repository holds
+ *               — so the same chain runs on a cron trigger instead: `scheduled`
+ *               below regenerates every committed data file and commits the
+ *               changed ones through the GitHub API (netlify/functions/
+ *               refresh-data.js), and the Workers Builds deploy that follows
+ *               ships them. netlify/functions/refresh-data.js is bundled but not
+ *               routed: a refresh can only be started by the cron. The live
+ *               figures never depended on any of this — the fetch-* endpoints
+ *               scrape on request.
  *
  * Handlers are called with the same event shape they declare ({ httpMethod,
  * headers, queryStringParameters, body, ... }), and their { statusCode, headers,
@@ -55,6 +70,7 @@ import fetchGsec from "./netlify/functions/fetch-gsec.js";
 import fetchReer from "./netlify/functions/fetch-reer.js";
 import fetchSentiment from "./netlify/functions/fetch-sentiment.js";
 import fetchTax from "./netlify/functions/fetch-tax.js";
+import refreshData from "./netlify/functions/refresh-data.js";
 
 const ROUTES = {
   "/.netlify/functions/data-latest": dataLatest,
@@ -92,6 +108,39 @@ const PUBLIC_API = {
   "/data/sentiment.json": fetchSentiment,
   "/data/external-debt.json": fetchExternalDebt,
 };
+
+/**
+ * EDGE CACHE — the layer Netlify's CDN used to be.
+ *
+ * A response is stored only when the handler itself asked for it: `public` with
+ * a positive `max-age`, and no `Set-Cookie`. That is deliberately narrower than
+ * "anything with a Cache-Control header". Every error path in these handlers
+ * sends `no-store`, and data-sync sends `no-store` on its reads as well as its
+ * writes, so nothing that should stay fresh is held — the same policy the site
+ * had in front of it before. A response we decline to store is simply returned,
+ * which is the behaviour without this block.
+ *
+ * The Cache API takes the entry's lifetime from the response's own Cache-Control,
+ * so the handler's `max-age=900` is the TTL again, and no second copy of that
+ * number lives here to drift away from it.
+ *
+ * This layer was load-bearing rather than a nicety: the netlify.toml this file
+ * replaced gave data-latest and data-forex-weekly a 26-second budget, so a live
+ * scrape that overran it was only ever survivable because the answer was then
+ * served from cache until the 900s expired. The same two endpoints measured 36s
+ * and 54s without it.
+ */
+const NO_STORE = /(?:^|,|\s)(?:no-store|private)\b/i;
+const PUBLIC_SHARED = /(?:^|,|\s)public\b/i;
+const MAX_AGE = /max-age\s*=\s*(\d+)/i;
+
+export function storeable(response) {
+  const cc = response.headers.get("Cache-Control") || "";
+  if (!cc || NO_STORE.test(cc) || !PUBLIC_SHARED.test(cc)) return false;
+  const ttl = cc.match(MAX_AGE);
+  if (!ttl || Number(ttl[1]) <= 0) return false;
+  return !response.headers.has("Set-Cookie");
+}
 
 /** The two calls data-sync made to a Netlify Blob, served from KV. */
 function storeFromKv(kv) {
@@ -137,19 +186,49 @@ async function toEvent(request, url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async scheduled(event, env) {
+    // The weekly refresh (wrangler.toml [triggers]; event.cron names the trigger). Every step fails open, so
+    // this never throws its way out of the cron; the one-line summary from
+    // refresh-data.js goes to the Workers log, which `wrangler tail` shows.
+    try {
+      wireBindings(env);
+      const summary = await refreshData.scheduledRefresh(env);
+      if (!summary.ok) {
+        console.error("weekly refresh finished with problems:", JSON.stringify(summary.failed && summary.failed.length ? summary.failed : summary.detail || summary.commitError));
+      }
+    } catch (error) {
+      console.error("weekly refresh failed:", (error && error.stack) || error);
+    }
+  },
+
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const mod = ROUTES[url.pathname] || PUBLIC_API[url.pathname];
     if (!mod) return env.ASSETS.fetch(request);
 
     wireBindings(env);
 
+    // Only a GET is looked up or stored. A HEAD shares a GET's cache entry but
+    // is not how this API is called, and every other method is a write.
+    const edge = request.method === "GET";
+    if (edge) {
+      const hit = await caches.default.match(request);
+      if (hit) return hit;
+    }
+
     try {
       const result = await mod.handler(await toEvent(request, url));
-      return new Response(result.body, {
+      const response = new Response(result.body, {
         status: result.statusCode || 200,
         headers: result.headers || {},
       });
+      // Stored after the reply is on its way, so a slow scrape is never the
+      // reason a first visitor waits even longer.
+      if (edge && ctx) {
+        const copy = response.clone();
+        if (storeable(copy)) ctx.waitUntil(caches.default.put(request, copy).catch(() => {}));
+      }
+      return response;
     } catch (error) {
       console.error(`${url.pathname} failed:`, (error && error.stack) || error);
       return new Response(JSON.stringify({ error: String((error && error.message) || error) }), {

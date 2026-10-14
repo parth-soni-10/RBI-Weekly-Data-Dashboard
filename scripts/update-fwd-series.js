@@ -17,8 +17,12 @@
  *     source to the official figure (drops any `approx` flag)
  *   - otherwise → "up to date", no change
  *
- * Idempotent, fails open (network/parse errors never break deploys), and never
+ * Idempotent, fails open (network/parse errors never break a refresh), and never
  * removes data.
+ *
+ * buildFwdSeriesFile() is the whole job as a pure function of the file's current
+ * text — the scheduled Worker hands it the copy the repository holds and commits
+ * the result, while the CLI writes it to `FWD_FN`.
  *
  * Usage:
  *   node scripts/update-fwd-series.js
@@ -27,7 +31,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const FN = process.env.FWD_FN || path.join(__dirname, "..", "netlify", "functions", "fetch-fx-intervention.js");
+// The CLI writes into the function's source file, so it needs a path on disk —
+// but the scheduled Worker imports buildFwdSeriesFile() from this module, which
+// bundles the whole file into the Worker, where `__dirname` does not exist and
+// referencing it at module scope failed the Worker at startup. The guard keeps the
+// CLI's default path under Node and leaves FN empty where there is no filesystem;
+// nothing the builder does reads it.
+const FN = process.env.FWD_FN
+  || (typeof __dirname === "string" ? path.join(__dirname, "..", "netlify", "functions", "fetch-fx-intervention.js") : "");
 const INDEX_URL = "https://www.rbi.org.in/scripts/HalfYearlyPublications.aspx?head=Report%20on%20Foreign%20Exchange%20Reserves";
 const REPORT_URL = id => `https://www.rbi.org.in/Scripts/PublicationsView.aspx?id=${id}`;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
@@ -114,7 +125,7 @@ function applyEdit(src, action){
   const marker = "const FWD_SERIES = [";
   const start = src.indexOf(marker);
   const arrEnd = src.indexOf("];", start + marker.length);
-  if (start < 0 || arrEnd < 0) throw new Error("FWD_SERIES block not found in " + FN);
+  if (start < 0 || arrEnd < 0) throw new Error("FWD_SERIES block not found in " + (FN || "the fetch-fx-intervention module"));
   let block = src.slice(start + marker.length, arrEnd);
 
   if (action.type === "append") {
@@ -140,20 +151,25 @@ function applyEdit(src, action){
   return src.slice(0, start + marker.length) + block + src.slice(arrEnd);
 }
 
-async function main(){
-  const src = fs.readFileSync(FN, "utf8");
+/**
+ * The current source → { text, detail, warn? }. `text` is null when the series
+ * already matches the newest official report, i.e. when there is nothing to
+ * write. Throws on a failure worth surfacing (no FWD_SERIES block, RBI down) —
+ * both callers fail open around it.
+ */
+async function buildFwdSeriesFile(src, { log = () => {} } = {}) {
   const series = loadSeries(src);
-  if (!series.length) throw new Error("could not parse FWD_SERIES from " + FN);
+  if (!series.length) throw new Error("could not parse FWD_SERIES from " + (FN || "the fetch-fx-intervention module"));
   series.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const byDate = new Map(series.map(e => [e.date, e]));
 
   const report = await newestReport();
-  if (!report) { console.log("⚠ No half-yearly FX report found on the index — leaving FWD_SERIES unchanged."); return; }
-  console.log(`Report index: newest = ${report.title.replace(/\s+/g, " ").slice(0, 90)} (id ${report.id}, period ${report.date})`);
+  if (!report) return { text: null, detail: "No half-yearly FX report found on the index", warn: true };
+  log(`Report index: newest = ${report.title.replace(/\s+/g, " ").slice(0, 90)} (id ${report.id}, period ${report.date})`);
 
   const fig = await reportFigure(report.id);
-  if (!fig) { console.log(`⚠ Could not extract the I.3 figure from report ${report.id} — leaving FWD_SERIES unchanged.`); return; }
-  console.log(`I.3 figure: ${fig.raw}`);
+  if (!fig) return { text: null, detail: `Could not extract the I.3 figure from report ${report.id}`, warn: true };
+  log(`I.3 figure: ${fig.raw}`);
 
   const existing = byDate.get(fig.date);
   let action;
@@ -174,16 +190,29 @@ async function main(){
     }
   }
 
-  if (action.type === "none") {
-    console.log(`✓ Up to date — ${action.reason}.`);
-    return;
-  }
-  const out = applyEdit(src, action);
-  fs.writeFileSync(FN, out, "utf8");
-  console.log(`✎ ${action.type === "append" ? "Appended" : "Upgraded"} ${fig.date} → ${fig.net_fwd >= 0 ? "+$" : "−$"}${Math.abs(fig.net_fwd).toFixed(2)}B (${action.source})`);
+  if (action.type === "none") return { text: null, detail: `Up to date — ${action.reason}.` };
+  return {
+    text: applyEdit(src, action),
+    detail: `${action.type === "append" ? "Appended" : "Upgraded"} ${fig.date} → ${fig.net_fwd >= 0 ? "+$" : "−$"}${Math.abs(fig.net_fwd).toFixed(2)}B (${action.source})`,
+  };
 }
 
-main().catch(e => {
-  // fail open: never break a deploy because RBI was slow/blocked/unparseable
-  console.warn(`⚠ update-fwd-series skipped (${e.message}) — FWD_SERIES unchanged.`);
-});
+async function main(){
+  const src = fs.readFileSync(FN, "utf8");
+  const res = await buildFwdSeriesFile(src, { log: console.log });
+  if (!res.text) {
+    console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} — leaving FWD_SERIES unchanged.`);
+    return;
+  }
+  fs.writeFileSync(FN, res.text, "utf8");
+  console.log(`✎ ${res.detail}`);
+}
+
+if (require.main === module) {
+  main().catch(e => {
+    // fail open: never break a refresh because RBI was slow/blocked/unparseable
+    console.warn(`⚠ update-fwd-series skipped (${e.message}) — FWD_SERIES unchanged.`);
+  });
+}
+
+module.exports = { buildFwdSeriesFile };

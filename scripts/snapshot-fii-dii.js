@@ -15,36 +15,31 @@
 //     skipped: fabricated bars must never enter the accumulated history.
 //   - Keeps the most recent 400 rows (≈ 19 months of trading days, enough for
 //     a rolling 6-month chart window plus a full-year YTD sum).
-//   - Writes only when the series actually changed, so a quiet weekend run
-//     produces no commit churn.
+//   - When the merge changes nothing, the file is returned verbatim, so a quiet
+//     run produces no commit churn (and no timestamp-only diff).
+//
+// buildFiiHistoryFile() is the whole job as a pure function of the file's
+// current text, so the CLI and the scheduled Worker produce the same bytes.
 //
 // Fail-open: any error exits 0 with a note on stderr and leaves the existing
-// file untouched, so a blocked NSDL/NSE never breaks the deploy or the cron.
+// file untouched, so a blocked NSDL/NSE never breaks a refresh.
 //
 // Run: node scripts/snapshot-fii-dii.js
-
 const fs = require("fs");
 const path = require("path");
+const { _buildPayload } = require("../netlify/functions/fetch-fii-history");
 
-const OUT = path.join(__dirname, "..", "public", "fii-dii-history.json");
+// CLI path only — the scheduled Worker commits the text the builder returns.
+// `__dirname` does not exist in a Worker, hence the guard (see
+// scripts/update-fwd-monthly.js for the same trap).
+const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "fii-dii-history.json") : "";
 const MAX_ROWS = 400;
 
-async function main() {
-  const { _buildPayload } = require("../netlify/functions/fetch-fii-history");
-  let payload;
-  try {
-    payload = await _buildPayload();
-  } catch (e) {
-    console.error("ℹ FII/DII snapshot skipped — sources unreachable: " + String(e.message || e));
-    return; // exit 0, keep existing history
-  }
-  if (!payload || payload.status !== "ok" || !Array.isArray(payload.series) || !payload.series.length) {
-    console.error("ℹ FII/DII snapshot skipped — no live rows (status: " + (payload && payload.status) + ")");
-    return;
-  }
-
+/** prevText + a live payload → { text, changed, rows }. */
+function mergeFiiHistory(prevText, payload) {
   let prev = null;
-  try { prev = JSON.parse(fs.readFileSync(OUT, "utf8")); } catch (_) { /* first run */ }
+  try { prev = JSON.parse(prevText); } catch (_) { /* first run */ }
+
   const byDate = {};
   if (prev && Array.isArray(prev.series)) {
     for (const r of prev.series) {
@@ -60,14 +55,46 @@ async function main() {
   let series = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
   if (series.length > MAX_ROWS) series = series.slice(-MAX_ROWS);
 
-  const next = { updated_at: new Date().toISOString(), source: payload.source, series };
-  if (prev && JSON.stringify(prev.series) === JSON.stringify(series)) {
-    console.log(`✓ fii-dii-history.json unchanged: ${series.length} rows (newest ${series[series.length - 1].date})`);
-    return;
-  }
+  const changed = !(prev && JSON.stringify(prev.series) === JSON.stringify(series));
+  if (!changed) return { text: prevText, changed: false, rows: series.length };
 
-  fs.writeFileSync(OUT, JSON.stringify(next, null, 2) + "\n");
-  console.log(`✓ fii-dii-history.json: ${series.length} row${series.length > 1 ? "s" : ""} · newest ${series[series.length - 1].date} · ${payload.source}`);
+  const next = { updated_at: new Date().toISOString(), source: payload.source, series };
+  return { text: JSON.stringify(next, null, 2) + "\n", changed: true, rows: series.length, newest: series[series.length - 1].date };
 }
 
-main().catch(e => { console.error("ℹ FII/DII snapshot failed (kept existing file): " + String(e.message || e)); });
+/** → { text|null, detail }. text is null when there is nothing usable to write. */
+async function buildFiiHistoryFile({ priorText = null } = {}) {
+  let payload;
+  try {
+    payload = await _buildPayload();
+  } catch (e) {
+    return { text: null, detail: `skipped — sources unreachable (${String((e && e.message) || e)})` };
+  }
+  if (!payload || payload.status !== "ok" || !Array.isArray(payload.series) || !payload.series.length) {
+    return { text: null, detail: `skipped — no live rows (status: ${payload && payload.status})` };
+  }
+
+  const merged = mergeFiiHistory(priorText, payload);
+  return {
+    text: merged.text,
+    detail: `${merged.rows} rows${merged.newest ? ` · newest ${merged.newest}` : ""}`,
+    changed: merged.changed,
+  };
+}
+
+async function main() {
+  let priorText = null;
+  try { priorText = fs.readFileSync(OUT, "utf8"); } catch (_) { /* first run */ }
+  const res = await buildFiiHistoryFile({ priorText });
+  if (!res.text) { console.error(`ℹ FII/DII snapshot skipped — ${res.detail}`); return; }
+  fs.writeFileSync(OUT, res.text);
+  console.log(`✓ fii-dii-history.json: ${res.detail}`);
+}
+
+if (require.main === module) {
+  main().catch(e => {
+    console.error("ℹ FII/DII snapshot failed (kept existing file): " + String((e && e.message) || e));
+  });
+}
+
+module.exports = { buildFiiHistoryFile, mergeFiiHistory };
