@@ -2,7 +2,7 @@
 //
 //   npm test          (node --test, no dependencies)
 //
-// worker.js stores a routed response in the colo cache so the data-* endpoints
+// functions/_router.js stores a routed response in the colo cache so the data-* endpoints
 // answer from the edge for the 900s the handlers already declare, instead of
 // re-scraping RBI on every request. That is only safe while the gate stays
 // narrow: a response may be stored when its own Cache-Control says `public`
@@ -16,7 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import worker, { storeable } from "../worker.js";
+import worker, { storeable } from "../functions/_router.js";
 
 const response = (headers) => new Response("{}", { headers });
 
@@ -62,7 +62,7 @@ test("a response that sets a cookie is not stored", () => {
 // The fetch path itself, driven through the Worker's own export.
 //
 // The colo cache is the one piece of the runtime these tests stand in for: a
-// Map with match/put is the whole interface worker.js uses. Stubbing it means
+// Map with match/put is the whole interface the router uses. Stubbing it means
 // the assertions are about which requests reach a handler and which responses
 // get stored — no network, no scraper, no 40-second wait.
 // ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ test("a write is neither served from cache nor stored", async () => {
 });
 
 test("the cache entry's lifetime is the handler's own max-age", () => {
-  // worker.js does not restate a TTL of its own: the Cache API reads the
+  // functions/_router.js does not restate a TTL of its own: the Cache API reads the
   // response's Cache-Control. This is what makes the handler's declaration the
   // single source of the number, so read it back out the same way.
   const res = response({ "Cache-Control": "public, max-age=1800" });

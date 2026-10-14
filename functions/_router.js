@@ -1,19 +1,21 @@
 /**
- * RBI weekly dashboard — Cloudflare Worker.
+ * RBI weekly dashboard — the routing half of this site's Pages Function.
  *
  * This file only adapts how the sixteen functions under netlify/functions/ are
- * hosted. Wrangler bundles those files into this Worker, so the scrapers, the
- * parsers, the validation in data-sync and the response caching keep exactly one
- * implementation — the one the site ran on.
+ * hosted. Pages compiles this directory (see `functions/[[path]].js`, the
+ * catch-all route) and it imports those files, so the scrapers, the parsers, the
+ * validation in data-sync and the response caching keep exactly one
+ * implementation — the one the site ran on. The `_` prefix keeps this file out of
+ * the routing table: the only route is the catch-all beside it.
  *
  * What the Netlify runtime used to provide, and what replaces it here:
  *
  *   routing     `public/_redirects` mapped the dashboard's public API — the
  *               /data/*.json paths — onto functions. Those rewrites are handled
  *               here instead (PUBLIC_API below), because on Cloudflare a
- *               rewrite in `_redirects` only reaches this Worker if the
- *               post-rewrite path is also in `run_worker_first`, which makes the
- *               same rule depend on two files agreeing. The /data/* paths are
+ *               rewrite in `_redirects` only reaches the function if the
+ *               post-rewrite path is also routed to it, which makes the same rule
+ *               depend on two files agreeing. The /data/* paths are
  *               still the public API and still answer exactly as they did; the
  *               `_redirects` file stays as the record of that contract.
  *
@@ -55,22 +57,22 @@
  * body } result is turned straight back into a Response.
  */
 
-import dataLatest from "./netlify/functions/data-latest.js";
-import dataForexWeekly from "./netlify/functions/data-forex-weekly.js";
-import dataCrudeBpd from "./netlify/functions/data-crude-bpd.js";
-import dataSync from "./netlify/functions/data-sync.js";
-import fetchData from "./netlify/functions/fetch-data.js";
-import fetchCrude from "./netlify/functions/fetch-crude.js";
-import fetchEmPeers from "./netlify/functions/fetch-em-peers.js";
-import fetchExternalDebt from "./netlify/functions/fetch-external-debt.js";
-import fetchFii from "./netlify/functions/fetch-fii.js";
-import fetchFiiHistory from "./netlify/functions/fetch-fii-history.js";
-import fetchFwdLatest from "./netlify/functions/fetch-fwd-latest.js";
-import fetchFxIntervention from "./netlify/functions/fetch-fx-intervention.js";
-import fetchGsec from "./netlify/functions/fetch-gsec.js";
-import fetchReer from "./netlify/functions/fetch-reer.js";
-import fetchSentiment from "./netlify/functions/fetch-sentiment.js";
-import fetchTax from "./netlify/functions/fetch-tax.js";
+import dataLatest from "../netlify/functions/data-latest.js";
+import dataForexWeekly from "../netlify/functions/data-forex-weekly.js";
+import dataCrudeBpd from "../netlify/functions/data-crude-bpd.js";
+import dataSync from "../netlify/functions/data-sync.js";
+import fetchData from "../netlify/functions/fetch-data.js";
+import fetchCrude from "../netlify/functions/fetch-crude.js";
+import fetchEmPeers from "../netlify/functions/fetch-em-peers.js";
+import fetchExternalDebt from "../netlify/functions/fetch-external-debt.js";
+import fetchFii from "../netlify/functions/fetch-fii.js";
+import fetchFiiHistory from "../netlify/functions/fetch-fii-history.js";
+import fetchFwdLatest from "../netlify/functions/fetch-fwd-latest.js";
+import fetchFxIntervention from "../netlify/functions/fetch-fx-intervention.js";
+import fetchGsec from "../netlify/functions/fetch-gsec.js";
+import fetchReer from "../netlify/functions/fetch-reer.js";
+import fetchSentiment from "../netlify/functions/fetch-sentiment.js";
+import fetchTax from "../netlify/functions/fetch-tax.js";
 
 const ROUTES = {
   "/.netlify/functions/data-latest": dataLatest,

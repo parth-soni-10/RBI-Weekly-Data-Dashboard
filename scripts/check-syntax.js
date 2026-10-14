@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 
-const dirs = ['netlify/functions', 'netlify/functions/_utils', 'scripts'];
+// `functions/` is the Pages Function Pages compiles at deploy time: a syntax
+// error in it is a failed deploy rather than a failing test, so it is checked
+// here with everything else.
+const dirs = ['functions', 'netlify/functions', 'netlify/functions/_utils', 'scripts'];
 const files = [];
 for (const dir of dirs) {
   for (const name of fs.readdirSync(dir)) {

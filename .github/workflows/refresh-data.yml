@@ -3,8 +3,9 @@ name: Refresh data
 # The weekly data refresh — the schedule that used to be a Cloudflare cron
 # trigger.
 #
-# It ran on the Worker (`[triggers]` in wrangler.toml → worker.js `scheduled` →
-# netlify/functions/refresh-data.js over the GitHub API) for one reason: a
+# It ran on the Worker (`[triggers]` in what was then a Workers config → the
+# handler's `scheduled` → netlify/functions/refresh-data.js over the GitHub API)
+# for one reason: a
 # Cloudflare deploy has no build step, so a deploy ships the committed data
 # files and something else had to keep them current. This site is served from
 # Cloudflare Pages now, which has no cron triggers either, so the schedule lives

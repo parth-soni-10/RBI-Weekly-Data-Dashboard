@@ -70,7 +70,7 @@
 //   - Steps fail open, one at a time: a dead source costs its own file and
 //     nothing else, and the rest of the plan still commits.
 //
-// This module is not routed — worker.js has no HTTP path to it. The only thing
+// This module is not routed — functions/_router.js has no HTTP path to it. The only thing
 // that runs it is the weekly workflow (or a developer running `npm run refresh`).
 
 const { buildRbiDataFile } = require("../../scripts/fetch-all.js");

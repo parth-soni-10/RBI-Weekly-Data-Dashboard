@@ -4,9 +4,13 @@ node_modules/
 # Netlify build output (esbuild bundles functions here, regenerated each deploy)
 .netlify/
 
-# Wrangler's local state: dev/dry-run output, local KV, the cache from
-# `wrangler secret put`. Never part of the Worker that gets deployed.
+# Wrangler's local state: dev output, local KV, the cache from
+# `wrangler secret put`. Never part of what gets deployed.
 .wrangler/
+
+# Deploy staging output, written by tools/deploy-pages.mjs. Build output; the
+# staged directory is the upload, so it is never committed.
+.pages-dist/
 
 # Environment & secrets
 .env

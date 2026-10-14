@@ -1,36 +1,39 @@
-# Bundle input for this site's Pages build — NOT a deployment.
+# The one config this site has: its Cloudflare Pages project.
 #
-# The Cloudflare Pages project runs, as its build command:
+#   npx wrangler pages dev public      → local test on http://localhost:8788
+#   npx wrangler pages deploy          → publish .pages-dist to the project
 #
-#   npx --yes wrangler@4 deploy --dry-run --outdir .pages-bundle
-#   && node tools/deploy-pages.mjs --assets public --bundle .pages-bundle --out .pages-dist
+# There is no Worker config and no Worker. What answers `/data/*.json` is a
+# Pages Function: `functions/[[path]].js` catches every request and hands it to
+# `functions/_router.js`, which routes it to the module under netlify/functions/
+# that answers it and caches the response at the colo. Pages compiles those files
+# as part of the deploy, so nothing is bundled here, there is no `_worker.js` to
+# stage, and `wrangler deploy` is not a command this repository has any use for.
 #
-# and this file is read for the first half of that only: `--dry-run` bundles
-# `main` below into the worker.js that tools/deploy-pages.mjs stages as the
-# project's `_worker.js`. Nothing is deployed from here, and nothing should be —
-# this site has one host, the Pages project. A `wrangler deploy` run in this
-# directory would publish a second copy of the same code to a workers.dev
-# hostname nobody links to, which is precisely what the host consolidation
-# removed.
-#
-# Everything the deployed site needs lives where the deploy reads it:
-# `pages/wrangler.toml` carries the project name, its SYNC_KV binding and its
-# vars (GH_REPO, GH_BRANCH, REFRESH_WEEK_LIMIT, RSS_SITE_URL), `public/_headers`
-# carries the response headers, and the weekly refresh is a GitHub Actions
-# workflow (.github/workflows/refresh-data.yml) because Pages has no cron
-# triggers.
-#
-# Not published: this directory is not the staged upload at all — the build
-# hands tools/deploy-pages.mjs `public/` — so nothing here can reach the site.
+# The build only stages: `pages_build_output_dir` names the upload that
+# tools/deploy-pages.mjs writes from `public/`, and it regenerates no data — the
+# committed `public/*.json` is what a deploy ships, which is why the weekly
+# refresh is .github/workflows/refresh-data.yml and not a build step.
 
-name = "rbi-weekly-dashboard"
-main = "worker.js"
+name = "rbiweeklydashboard"
+pages_build_output_dir = ".pages-dist"
 compatibility_date = "2026-10-01"
 
 # fetch-data.js parses the RBI weekly press release with node-xlsx, and every
-# scraper uses Buffer/AbortController; nodejs_compat supplies them. The flag is
-# kept here as well as in pages/wrangler.toml on purpose: it is what tells
-# wrangler to leave a node builtin as a `node:` external while bundling, so the
-# force is what the deployed runtime expects. The runtime's own flags are the
-# Pages project's (it runs the bundle); this file only produces it.
+# scraper uses Buffer/AbortController. Pages compiles functions/ with this flag,
+# so those builtins are left as `node:` externals in the deployment.
 compatibility_flags = ["nodejs_compat"]
+
+# The KV namespace data-sync's merge cache lives in — the only copy.
+[[kv_namespaces]]
+binding = "SYNC_KV"
+id = "722040ed409f423ca8d6ed9c8ca81153"
+
+[vars]
+# Non-secret coordinates: the repository the refresh workflow commits into, how
+# far back the forward-book walker may look, and the site's own address for the
+# RSS feed's channel link.
+GH_REPO = "parth-soni-10/RBI-Weekly-Data-Dashboard"
+GH_BRANCH = "main"
+REFRESH_WEEK_LIMIT = "8"
+RSS_SITE_URL = "https://rbiweeklydashboard.pages.dev/"

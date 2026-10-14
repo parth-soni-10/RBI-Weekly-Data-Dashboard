@@ -54,7 +54,7 @@ const { timingSafeEqual } = require("node:crypto");
 const STORE_NAME = "rbi-data-sync";
 const KEY = "records";
 
-// The durable store is injected rather than opened here: worker.js hands in a
+// The durable store is injected rather than opened here: functions/_router.js hands in a
 // KV-backed object with the two calls this file makes — `get(key, {type:'json'})`
 // and `setJSON(key, value)` — which is the shape the Netlify Blob store had, so
 // the validation and the guards below did not change with the move. The tests
@@ -360,5 +360,5 @@ exports.handler = async (event) => {
   }
 };
 
-// worker.js injects the KV-backed store; tests inject a stub.
+// functions/_router.js injects the KV-backed store; tests inject a stub.
 exports.setStore = setStore;
