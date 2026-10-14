@@ -134,6 +134,34 @@ test("caps and shape checks reject oversized or malformed writes", async () => {
   assert.equal(saved, null);
 });
 
+test("the monthly forward the dashboard actually sends is accepted", async () => {
+  // Regression: fetch-fwd-latest answers `date: "2026-07"` — the forward book is
+  // published monthly and every consumer keys it by month — while this store
+  // demanded an ISO day, so the dashboard's save failed with 400 on every load
+  // and the figure was never persisted. Both spellings are valid now.
+  saved = null;
+  const monthly = await post({ records: [record()], forward: { date: "2026-07", net_fwd: -136.768 } });
+  assert.equal(monthly.statusCode, 200, "a month-keyed forward must be stored");
+  assert.equal(saved.forward.date, "2026-07");
+
+  const back = await get();
+  assert.equal(JSON.parse(back.body).forward.date, "2026-07");
+
+  const daily = await post({ records: [record()], forward: { date: "2026-07-31", net_fwd: -136.768 } });
+  assert.equal(daily.statusCode, 200, "a day-keyed forward stays valid");
+});
+
+test("a write that carries no records keeps the stored ones", async () => {
+  saved = null;
+  await post({ records: [record("2026-09-04"), record("2026-09-11")] });
+  assert.equal(saved.records.length, 2);
+
+  const forwardOnly = await post({ records: [], forward: { date: "2026-07", net_fwd: -136.768 } });
+  assert.equal(forwardOnly.statusCode, 200);
+  assert.equal(saved.records.length, 2, "an empty array must not shrink the shared cache");
+  assert.equal(saved.forward.date, "2026-07", "the rest of the payload is still written");
+});
+
 test("GET on an empty store reports no records rather than failing", async () => {
   saved = null;
   const res = await get();

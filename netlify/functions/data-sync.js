@@ -88,10 +88,26 @@ const MAX_TEXT = 400;
 const MAX_NOTE = 800;
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const SAFE_KEY = /^[A-Za-z0-9_]{1,40}$/;
 const SAFE_RANGE = /^[A-Za-z0-9_-]{1,24}$/;
 
 const isIsoDay = (v) => typeof v === "string" && ISO_DAY.test(v) && !Number.isNaN(Date.parse(v));
+
+// The forward book is published MONTHLY (RBI Bulletin Table 4A) and every
+// consumer keys it by month: the deployed series is `{ date: "2026-07", net_fwd }`
+// (scripts/update-fwd-monthly.js), fetch-fx-intervention answers `month: "2026-07"`,
+// and fetch-fwd-latest — the endpoint the dashboard persists this figure from —
+// answers `date: "2026-07"` with the day itself in `asOn`.
+//
+// Demanding a day here made that save fail every time: measured on the live site,
+// the dashboard logged `⚠ Could not save forward figure (HTTP 400)` on a clean
+// load, and the store answered `body.forward must be an object with date
+// (YYYY-MM-DD)...` for `{ date: "2026-07", net_fwd: -136.768 }` while accepting
+// `{ date: "2026-07-31" }`. A weekly record's date is still a day, and still must
+// be (cleanRecord, above) — this is the other series, with the other key.
+const isIsoMonth = (v) => typeof v === "string" && ISO_MONTH.test(v);
+const isForwardDate = (v) => isIsoDay(v) || isIsoMonth(v);
 
 // Strip the two characters that turn a value into executable markup and cap the
 // length. Applied to every string this function stores or returns.
@@ -153,11 +169,11 @@ function cleanTextFields(obj, max) {
   return out;
 }
 
-// forward: { date: ISO day, net_fwd: number }
+// forward: { date: ISO month (the published series) or ISO day, net_fwd: number }
 function cleanForward(fwd) {
   if (fwd === undefined || fwd === null) return null;
   if (typeof fwd !== "object" || Array.isArray(fwd)) return null;
-  if (!isIsoDay(fwd.date) || !Number.isFinite(fwd.net_fwd)) return null;
+  if (!isForwardDate(fwd.date) || !Number.isFinite(fwd.net_fwd)) return null;
   return { date: fwd.date, net_fwd: fwd.net_fwd };
 }
 
@@ -290,16 +306,32 @@ exports.handler = async (event) => {
     if (body.records.length > MAX_RECORDS) {
       return json(400, { error: `body.records must hold at most ${MAX_RECORDS} entries` });
     }
-    const records = cleanRecords(body.records);
+    let records = cleanRecords(body.records);
     if (records === null || records.length !== body.records.length) {
       return json(400, {
         error: "every record needs a real date (YYYY-MM-DD) and at most " + MAX_FIELDS + " plain fields",
       });
     }
 
+    // An explicitly empty array is kept out of the store the same way an omitted
+    // key is: the store is a shared cache of the weeks the dashboard already
+    // merged, so replacing forty of them with none makes every visitor's next
+    // load re-scrape RBI for weeks it had. The empty state is still reachable —
+    // it is a store that has never been written (GET answers `records: null`) —
+    // and the page's own write always carries its full merged set, so nothing
+    // legitimate is lost by refusing to shrink it to nothing.
+    if (!records.length) {
+      let prev = null;
+      try {
+        prev = await store.get(KEY, { type: "json" });
+      } catch (_) { /* no previous value */ }
+      const kept = prev && Array.isArray(prev.records) ? cleanRecords(prev.records) : null;
+      if (kept && kept.length) records = kept;
+    }
+
     const fwd = body.forward;
     if (fwd !== undefined && fwd !== null && !cleanForward(fwd)) {
-      return json(400, { error: "body.forward must be an object with date (YYYY-MM-DD) and net_fwd (number)" });
+      return json(400, { error: "body.forward must be an object with date (YYYY-MM or YYYY-MM-DD) and net_fwd (number)" });
     }
     const em = body.em;
     if (em !== undefined && em !== null && !cleanEm(em)) {
