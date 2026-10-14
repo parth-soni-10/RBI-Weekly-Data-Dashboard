@@ -19,6 +19,10 @@
 # load. The legacy X-Frame-Options header is gone for the same reason - a DENY
 # there contradicts the allowance below. The allowance stays origin-scoped to
 # the portal rather than `*`, so no other site can frame us.
+#
+# The portal's workers.dev hostname used to be listed here beside its Pages
+# address, because both hosts served it and a frame's origin is whichever it
+# loaded from. The Workers are gone; the Pages address is the only one left.
 /*
 
   X-Content-Type-Options: nosniff
@@ -27,7 +31,7 @@
 
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://dashboards-home.parth10.workers.dev https://dashboards-home-portal.pages.dev; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://dashboards-home-portal.pages.dev; base-uri 'self'; form-action 'self'
 
 # Long-cache the vendored libraries and the icons (they change only with a
 # deploy).

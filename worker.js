@@ -40,14 +40,15 @@
  *   build       Netlify ran scripts/fetch-all.js and the forward-book updaters
  *               on every deploy to regenerate the committed public/*.json. There
  *               is no build step here — a deploy ships what the repository holds
- *               — so the same chain runs on a cron trigger instead: `scheduled`
- *               below regenerates every committed data file and commits the
- *               changed ones through the GitHub API (netlify/functions/
- *               refresh-data.js), and the Workers Builds deploy that follows
- *               ships them. netlify/functions/refresh-data.js is bundled but not
- *               routed: a refresh can only be started by the cron. The live
- *               figures never depended on any of this — the fetch-* endpoints
- *               scrape on request.
+ *               — so the same chain is run by .github/workflows/refresh-data.yml
+ *               (Friday 22:00 UTC) over a checked-out tree, and its data commit
+ *               is what the Pages build that follows deploys. It was this file's
+ *               `scheduled` handler calling netlify/functions/refresh-data.js
+ *               over the GitHub API while the site ran on a Worker; Pages has no
+ *               cron triggers, and a runner has the filesystem the API call was
+ *               standing in for. Nothing in this file regenerates data any more.
+ *               The live figures never depended on any of it — the fetch-*
+ *               endpoints scrape on request.
  *
  * Handlers are called with the same event shape they declare ({ httpMethod,
  * headers, queryStringParameters, body, ... }), and their { statusCode, headers,
@@ -70,7 +71,6 @@ import fetchGsec from "./netlify/functions/fetch-gsec.js";
 import fetchReer from "./netlify/functions/fetch-reer.js";
 import fetchSentiment from "./netlify/functions/fetch-sentiment.js";
 import fetchTax from "./netlify/functions/fetch-tax.js";
-import refreshData from "./netlify/functions/refresh-data.js";
 
 const ROUTES = {
   "/.netlify/functions/data-latest": dataLatest,
@@ -186,21 +186,6 @@ async function toEvent(request, url) {
 }
 
 export default {
-  async scheduled(event, env) {
-    // The weekly refresh (wrangler.toml [triggers]; event.cron names the trigger). Every step fails open, so
-    // this never throws its way out of the cron; the one-line summary from
-    // refresh-data.js goes to the Workers log, which `wrangler tail` shows.
-    try {
-      wireBindings(env);
-      const summary = await refreshData.scheduledRefresh(env);
-      if (!summary.ok) {
-        console.error("weekly refresh finished with problems:", JSON.stringify(summary.failed && summary.failed.length ? summary.failed : summary.detail || summary.commitError));
-      }
-    } catch (error) {
-      console.error("weekly refresh failed:", (error && error.stack) || error);
-    }
-  },
-
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const mod = ROUTES[url.pathname] || PUBLIC_API[url.pathname];

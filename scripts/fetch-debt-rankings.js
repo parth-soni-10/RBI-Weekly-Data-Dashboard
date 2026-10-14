@@ -8,8 +8,8 @@
  * ratios) from the live World Bank API and writes it as a static file the
  * dashboard ships with.
  *
- * Runs in the weekly refresh (npm run refresh / the scheduled Worker, which was
- * the Netlify build command before that), so every run re-pulls the
+ * Runs in the weekly refresh (npm run refresh, and the Friday workflow — this
+ * was the Netlify build command before that), so every run re-pulls the
  * authenticated source.
  *
  * Fails open: on network/parse errors the committed file is refreshed from
@@ -17,7 +17,7 @@
  * never deleted — a slow/blocked api.worldbank.org can't break a refresh.
  *
  * buildExternalDebtFile() is the whole job as a pure function, so the CLI and
- * the scheduled Worker produce the same bytes.
+ * the weekly refresh produce the same bytes.
  *
  * Usage:
  *   node scripts/fetch-debt-rankings.js
@@ -26,7 +26,7 @@
 const fs = require("fs");
 const path = require("path");
 
-// CLI path only — the scheduled Worker commits the text the builder returns.
+// CLI path only — the weekly refresh commits the text the builder returns.
 // `__dirname` does not exist in a Worker, hence the guard (see
 // scripts/update-fwd-monthly.js for the same trap).
 const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "external-debt.json") : "";
@@ -43,7 +43,7 @@ async function buildExternalDebtFile() {
     note = "curated fallback (API unreachable)";
   }
 
-  // The file this builder lives in. The scheduled Worker drives it too, but no
+  // The file this builder lives in. The weekly refresh drives it too, but no
   // per-run stamp goes in here: a value that names the caller would make the
   // file differ every week and commit on every run.
   payload.generated_by = "scripts/fetch-debt-rankings.js";

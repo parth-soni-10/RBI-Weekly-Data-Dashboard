@@ -1,7 +1,7 @@
 {
   "name": "rbi-weekly-dashboard",
   "version": "1.2.0",
-  "description": "Server-side scrapers and the Cloudflare Worker for the RBI weekly reserves dashboard + live crude oil data + macro context (FII/FPI flows, FX intervention, G-Sec, REER, tax receipts)",
+  "description": "Server-side scrapers and the worker script behind the RBI weekly reserves dashboard + live crude oil data + macro context (FII/FPI flows, FX intervention, G-Sec, REER, tax receipts), published by Cloudflare Pages",
   "engines": {
     "node": ">=18"
   },

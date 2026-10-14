@@ -21,7 +21,7 @@
  * removes data.
  *
  * buildFwdSeriesFile() is the whole job as a pure function of the file's current
- * text — the scheduled Worker hands it the copy the repository holds and commits
+ * text — the weekly refresh hands it the copy the repository holds and commits
  * the result, while the CLI writes it to `FWD_FN`.
  *
  * Usage:
@@ -32,7 +32,7 @@ const fs = require("fs");
 const path = require("path");
 
 // The CLI writes into the function's source file, so it needs a path on disk —
-// but the scheduled Worker imports buildFwdSeriesFile() from this module, which
+// but the weekly refresh imports buildFwdSeriesFile() from this module, which
 // bundles the whole file into the Worker, where `__dirname` does not exist and
 // referencing it at module scope failed the Worker at startup. The guard keeps the
 // CLI's default path under Node and leaves FN empty where there is no filesystem;

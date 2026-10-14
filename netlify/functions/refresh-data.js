@@ -8,13 +8,18 @@
 //   npm run fetch:debt && npm run snapshot:fng && npm run snapshot:fii
 //
 // — so every deploy regenerated the committed data files and shipped freshly
-// scraped numbers whatever the repository held. Cloudflare Workers has no build
+// scraped numbers whatever the repository held. A Cloudflare deploy has no build
 // step: a deploy ships the files as committed, which turned "the data is current"
 // into a manual step someone had to remember. This module is that chain, written
-// once, and the Worker's cron trigger runs it: Friday 22:00 UTC, regenerate, and
-// commit the result through the GitHub API (netlify/functions/_utils/github.js).
-// The commit is what closes the loop — Workers Builds is connected to this repo,
-// so the push deploys a site carrying the new data.
+// once, and .github/workflows/refresh-data.yml runs it on a schedule: Friday
+// 22:00 UTC, regenerate, commit what changed. The commit is what closes the
+// loop — the Pages project is connected to this repo, so the push deploys a site
+// carrying the new data.
+//
+// (While the site ran on a Worker this same plan ran from the Worker's cron
+// trigger, over the GitHub API, because a Worker has no filesystem. Pages has no
+// cron triggers; a runner has both the schedule and the checkout, so the
+// API-backed io and the Worker secret it needed are gone.)
 //
 // THE PLAN
 //
@@ -28,8 +33,8 @@
 //   fii-dii       public/fii-dii-history.json         scripts/snapshot-fii-dii.js
 //
 // Every step calls the builder that its CLI calls, so `npm run refresh` and the
-// scheduled Worker write the same bytes — the reason those builders were split
-// out of the scripts instead of being reimplemented here.
+// scheduled run write the same bytes — the reason those builders were split out
+// of the scripts instead of being reimplemented here.
 //
 // The two forward-book steps edit the same file on purpose: the half-yearly
 // anchor and the monthly Bulletin table are different official disclosures, and
@@ -38,11 +43,11 @@
 // HOW IT RUNS SOMEWHERE ELSE
 //
 // The plan is driven through an `io` seam — read(path), commit({ files, message })
-// — which is the whole reason it can run in a Worker at all:
+// — which is the whole reason it can run over a filesystem it did not create:
 //
-//   Node      scripts/refresh-static.js passes a filesystem io (`npm run refresh`)
-//   Worker    scheduledRefresh(env) passes the GitHub API, which is both the
-//             baseline it reads and the commit it writes
+//   npm run refresh                     scripts/refresh-static.js passes a
+//                                       filesystem io and reports to the console
+//   the weekly workflow                 the same entry point, on a runner
 //
 // `steps` is an injection point for the same reason data-sync takes its store
 // through setStore(): the tests drive this exact driver with fake steps, so the
@@ -65,8 +70,8 @@
 //   - Steps fail open, one at a time: a dead source costs its own file and
 //     nothing else, and the rest of the plan still commits.
 //
-// This module is not routed — worker.js has no HTTP path to it, only `scheduled`.
-// Nothing can trigger a refresh from outside except Cloudflare's cron.
+// This module is not routed — worker.js has no HTTP path to it. The only thing
+// that runs it is the weekly workflow (or a developer running `npm run refresh`).
 
 const { buildRbiDataFile } = require("../../scripts/fetch-all.js");
 const { buildFeedFile } = require("../../scripts/make-rss.js");
@@ -75,7 +80,6 @@ const { buildFwdMonthlyFile } = require("../../scripts/update-fwd-monthly.js");
 const { buildExternalDebtFile } = require("../../scripts/fetch-debt-rankings.js");
 const { buildSentimentFile } = require("../../scripts/snapshot-sentiment.js");
 const { buildFiiHistoryFile } = require("../../scripts/snapshot-fii-dii.js");
-const { makeGitHubIo } = require("./_utils/github.js");
 
 const RBI = "public/rbi-data.json";
 const FEED = "public/feed.xml";
@@ -86,9 +90,10 @@ const FII_DII = "public/fii-dii-history.json";
 
 // How many weeks one invocation may fetch. fetch-all is incremental, so in a
 // normal Friday this is 0 or 1; the cap exists for the other case — a cold or
-// badly lagged file — because a cron Worker is a bounded invocation (30s wall
-// clock on the Free plan, 15 minutes on Paid) and being killed mid-scrape
-// commits nothing. The remainder drains on the next run.
+// badly lagged file — because every host this has run on bounds a run somehow
+// (a Worker invocation on wall clock, a CI job on its own timeout, and RBI's
+// upstream in patience) and being killed mid-scrape commits nothing. The
+// remainder drains on the next run.
 const DEFAULT_WEEK_LIMIT = 8;
 
 const STEPS = [
@@ -170,7 +175,7 @@ function commitMessage(files, results) {
     "",
     ...detail,
     "",
-    "Regenerated and committed by the scheduled Worker (Cloudflare cron).",
+    "Regenerated and committed by the weekly data refresh (GitHub Actions).",
   ].join("\n") + "\n";
 }
 
@@ -277,47 +282,11 @@ async function runRefresh({ io, steps = STEPS, options = {}, log = () => {} }) {
   };
 }
 
-function intOr(value, fallback) {
-  const n = parseInt(value, 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
-/**
- * What the Worker's `scheduled` handler calls.
- *
- * Without GH_TOKEN/GH_REPO there is nowhere to read a baseline or put a result,
- * so nothing is scraped at all — a misconfigured secret costs no upstream
- * requests and says so in one line of the log.
- */
-async function scheduledRefresh(env = {}, { log = console.log, fetchImpl } = {}) {
-  const token = env.GH_TOKEN || "";
-  const repo = env.GH_REPO || "";
-  const branch = env.GH_BRANCH || "main";
-  if (!token || !repo) {
-    const detail = "GH_TOKEN and GH_REPO must both be set — no scrape, no commit";
-    log(`✗ weekly refresh skipped: ${detail}`);
-    return { ok: false, skipped: true, detail, steps: [] };
-  }
-
-  const io = makeGitHubIo({ token, repo, branch, ...(fetchImpl ? { fetchImpl } : {}) });
-  const options = {
-    weekLimit: intOr(env.REFRESH_WEEK_LIMIT, DEFAULT_WEEK_LIMIT),
-    siteUrl: env.RSS_SITE_URL || null,
-  };
-
-  log(`Weekly refresh → ${repo}@${branch} (week limit ${options.weekLimit})`);
-  const summary = await runRefresh({ io, options, log });
-  log(summarise(summary));
-  return summary;
-}
-
 module.exports = {
   runRefresh,
-  scheduledRefresh,
   summarise,
   commitMessage,
   comparable,
-  intOr,
   STEPS,
   DEFAULT_WEEK_LIMIT,
   PATHS: { RBI, FEED, FX_INTERVENTION, DEBT, SENTIMENT, FII_DII },

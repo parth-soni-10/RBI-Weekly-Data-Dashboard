@@ -38,7 +38,7 @@
  *
  * Fails open: a slow/blocked/unparseable RBI site logs a warning and exits 0,
  * so a refresh is never broken by this step. The newest-issue sync is also what
- * the scheduled Worker runs (netlify/functions/refresh-data.js), through
+ * the weekly refresh runs (netlify/functions/refresh-data.js), through
  * buildFwdMonthlyFile() below — the same code, so the two paths cannot drift.
  */
 const fs = require("fs");
@@ -274,7 +274,7 @@ async function fetchLatestOfficial() {
 // ── Newest-issue sync, as a function of the file's current source ───────
 // Returns { text, detail, warn? }: `text` is null when the series already
 // carries the newest Bulletin figure, so there is nothing to write. This is what
-// the scheduled Worker runs (netlify/functions/refresh-data.js) — the --backfill
+// the weekly refresh runs (netlify/functions/refresh-data.js) — the --backfill
 // walk below stays a manual one-off: it reads ~65 issues with throttling, which
 // is the wrong shape for a cron invocation.
 async function buildFwdMonthlyFile(src, { log = () => {} } = {}) {

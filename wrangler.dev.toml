@@ -1,0 +1,41 @@
+# Local development config — for `wrangler dev` only, never for a deploy.
+#
+#     npx wrangler dev --config wrangler.dev.toml --persist-to .wrangler/state
+#
+# Why this is a second file: wrangler.toml is the Pages build's bundle input, and
+# a bundle input carries only what bundling reads (name, main, the compatibility
+# date and flags). The assets directory and the KV namespace below are what a
+# running process needs, not what esbuild needs — and leaving them in
+# wrangler.toml is how a `wrangler deploy` run from this directory silently
+# publishes a second copy of this site to a workers.dev hostname. This site has
+# one host, the Pages project.
+#
+# Kept in step with pages/wrangler.toml by hand: the KV namespace id is the same
+# namespace the deployed site writes to, which is what makes a local reload
+# against real data meaningful. `--persist-to` keeps the local cache out of the
+# repository (and out of the file watcher's way).
+#
+# The site in production is served from `.pages-dist`, staged by the Pages build
+# command (tools/deploy-pages.mjs) — so to test the Worker as deployed, run that
+# same command and then `npx wrangler pages dev .pages-dist`.
+
+name = "rbi-weekly-dashboard"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+run_worker_first = ["/.netlify/functions/*", "/data/*"]
+
+# data-sync's durable merge cache — the same namespace the deployed site uses.
+[[kv_namespaces]]
+binding = "SYNC_KV"
+id = "722040ed409f423ca8d6ed9c8ca81153"
+
+[vars]
+GH_REPO = "parth-soni-10/RBI-Weekly-Data-Dashboard"
+GH_BRANCH = "main"
+REFRESH_WEEK_LIMIT = "8"
+RSS_SITE_URL = "https://rbiweeklydashboard.pages.dev/"

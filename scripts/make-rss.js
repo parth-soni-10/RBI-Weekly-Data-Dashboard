@@ -1,7 +1,7 @@
 // scripts/make-rss.js — generate public/feed.xml (RSS 2.0) from rbi-data.json.
 // Lets people subscribe to "new RBI week published" in any reader without
-// visiting the dashboard. Runs in the weekly refresh (npm run fetch:data +
-// the scheduled Worker), so every refresh ships a feed whose newest item
+// visiting the dashboard. Runs in the weekly refresh (npm run fetch:data, and
+// the Friday workflow), so every refresh ships a feed whose newest item
 // matches the newest week.
 //
 // buildFeed() is pure: records in, feed out, and every date in the file derives
@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SITE = process.env.RSS_SITE_URL || 'https://rbiweeklydashboard.pages.dev/';
-// CLI paths only: the scheduled Worker hands buildFeedFile() the rbi-data text it
+// CLI paths only: the weekly refresh hands buildFeedFile() the rbi-data text it
 // just built. `__dirname` does not exist in a Worker, so the guard keeps this
 // module importable there (same trap as scripts/update-fwd-monthly.js).
 const SRC = typeof __dirname === 'string' ? path.join(__dirname, '..', 'public', 'rbi-data.json') : '';

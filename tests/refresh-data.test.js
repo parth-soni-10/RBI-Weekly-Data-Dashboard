@@ -2,29 +2,25 @@
 //
 //   npm test          (node --test, no dependencies)
 //
-// The refresh is the one thing in this repo that writes to main unattended: a
-// cron Worker regenerates the committed data files and commits them through the
-// GitHub API, and the commit deploys. These tests pin the rules that keep that
-// safe, with no network anywhere:
+// The refresh is the one thing in this repo that writes to main unattended: the
+// weekly workflow regenerates the committed data files, and the commit deploys.
+// These tests pin the rules that keep that safe, with no network anywhere:
 //
 //   - the commit decision (a quiet run must commit nothing — including a run that
 //     only re-stamped a scrape timestamp, which would otherwise deploy every
 //     Friday for no reason);
 //   - a read that FAILED must never be read as "the repo has no such file", or
 //     fetch-all would refetch 40 weeks and clobber the file it could not read;
-//   - the GitHub write sequence: one commit for every changed file, a fast-forward
-//     ref update, and one retry when the branch moved under us;
+//   - what a commit carries and what it says;
 //   - the history merges the refactor moved, because they are where a careless
 //     edit would silently drop data (a DII-only row erasing the FII split).
 //
-// The driver takes its io and its steps through parameters — the same seam the
-// scheduled Worker passes a GitHub-backed io through — so these tests exercise the
-// real driver, the real GitHub client and the real merge functions.
+// The driver takes its io and its steps through parameters, so these tests
+// exercise the real driver and the real merge functions against a fake io.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { runRefresh, commitMessage, comparable } = require("../netlify/functions/refresh-data.js");
-const { makeGitHubIo, encode, decode } = require("../netlify/functions/_utils/github.js");
 const { mergeFiiHistory } = require("../scripts/snapshot-fii-dii.js");
 const { mergeSentimentHistory } = require("../scripts/snapshot-sentiment.js");
 const { buildFeed } = require("../scripts/make-rss.js");
@@ -151,125 +147,6 @@ test("commitMessage names the files and lists what each step did", () => {
   assert.match(msg, /^chore\(data\): weekly refresh — rbi-data\.json, fetch-fx-intervention\.js$/m);
   assert.match(msg, /^- public\/rbi-data\.json: 41 weeks · 1 new$/m);
   assert.ok(!msg.includes("public/feed.xml"), "unchanged files stay out of the body");
-});
-
-// ── The GitHub client ───────────────────────────────────────────────────────
-// A recording stub for the REST API, so the write sequence can be checked
-// without a token, a repo, or a network.
-function ghStub({ onRef, blobs = {}, refStatus = 200 } = {}) {
-  const calls = [];
-  let headCommit = 0;
-  const impl = async (url, init) => {
-    const method = init.method;
-    const path = url.replace("https://api.github.com", "");
-    const body = init.body ? JSON.parse(init.body) : undefined;
-    calls.push({ method, path, body, headers: init.headers });
-    const reply = (status, json) => ({ ok: status >= 200 && status < 300, status, text: async () => JSON.stringify(json || {}) });
-
-    if (path.startsWith("/repos/x/y/contents/public/rbi-data.json")) {
-      return reply(200, { content: encode('{"records":[1]}'), sha: "blob-sha-1" });
-    }
-    if (path.includes("/contents/")) return reply(404, { message: "Not Found" });
-    if (method === "GET" && path.endsWith("/git/ref/heads/main")) return reply(200, { object: { sha: "head-1" } });
-    if (method === "GET" && path.includes("/git/commits/")) return reply(200, { tree: { sha: "base-tree" } });
-    if (method === "POST" && path.endsWith("/git/blobs")) return reply(201, { sha: blobs[body.content] || `blob-${calls.length}` });
-    if (method === "POST" && path.endsWith("/git/trees")) {
-      assert.equal(body.base_tree, "base-tree");
-      return reply(201, { sha: "new-tree" });
-    }
-    if (method === "POST" && path.endsWith("/git/commits")) {
-      headCommit++;
-      return reply(201, { sha: `commit-${headCommit}`, html_url: `https://github.com/x/y/commit/commit-${headCommit}` });
-    }
-    if (method === "PATCH" && path.endsWith("/git/refs/heads/main")) {
-      const status = onRef ? onRef(calls) : refStatus;
-      return status === 200
-        ? reply(200, { object: { sha: body.sha } })
-        : reply(status, { message: "Update is not a fast forward" });
-    }
-    return reply(500, { message: `unexpected ${method} ${path}` });
-  };
-  return { impl, calls };
-}
-
-test("reads a committed file, and treats a 404 as 'no such file yet'", async () => {
-  const gh = ghStub();
-  const io = makeGitHubIo({ token: "t", repo: "x/y", fetchImpl: gh.impl });
-  const found = await io.read("public/rbi-data.json");
-  assert.equal(found.ok, true);
-  assert.equal(found.text, '{"records":[1]}');
-  assert.equal(found.sha, "blob-sha-1");
-
-  const missing = await io.read("public/never-committed.json");
-  assert.deepEqual({ ok: missing.ok, text: missing.text }, { ok: true, text: null });
-});
-
-test("a failing read is an error, never an absent file", async () => {
-  const io = makeGitHubIo({ token: "t", repo: "x/y", fetchImpl: async () => ({ ok: false, status: 500, text: async () => "upstream" }) });
-  const res = await io.read("public/rbi-data.json");
-  assert.equal(res.ok, false);
-  assert.match(res.error, /HTTP 500/);
-  assert.equal(res.text, null);
-});
-
-test("commits every file in one commit and fast-forwards the branch", async () => {
-  const gh = ghStub();
-  const io = makeGitHubIo({ token: "t", repo: "x/y", fetchImpl: gh.impl });
-  const res = await io.commit({
-    files: [{ path: "public/rbi-data.json", content: "one" }, { path: "public/feed.xml", content: "two" }],
-    message: "chore(data): weekly refresh",
-  });
-  assert.equal(res.ok, true);
-  assert.equal(res.commit, "commit-1");
-  assert.equal(res.attempts, 1);
-
-  const posted = gh.calls.filter(c => c.method === "POST" && c.path.endsWith("/git/commits"));
-  assert.equal(posted.length, 1, "one commit for two files");
-  assert.deepEqual(posted[0].body.parents, ["head-1"], "the commit is built on the branch head");
-  assert.equal(posted[0].body.message, "chore(data): weekly refresh");
-
-  const tree = gh.calls.find(c => c.path.endsWith("/git/trees"));
-  assert.deepEqual(tree.body.tree.map(t => [t.path, t.mode, t.type]), [
-    ["public/rbi-data.json", "100644", "blob"],
-    ["public/feed.xml", "100644", "blob"],
-  ]);
-
-  const ref = gh.calls.find(c => c.method === "PATCH");
-  assert.equal(ref.path, "/repos/x/y/git/refs/heads/main");
-  assert.equal(ref.body.force, false, "a refresh never rewrites history");
-  assert.equal(ref.body.sha, "commit-1");
-});
-
-test("a ref race is retried once against the new head", async () => {
-  let refCalls = 0;
-  const gh = ghStub({ onRef: () => (++refCalls === 1 ? 422 : 200) });
-  const io = makeGitHubIo({ token: "t", repo: "x/y", fetchImpl: gh.impl });
-  const res = await io.commit({ files: [{ path: "public/rbi-data.json", content: "x" }], message: "m" });
-  assert.equal(res.ok, true, "the retry is what turns a lost race into a landed commit");
-  assert.equal(res.attempts, 2);
-  assert.equal(gh.calls.filter(c => c.method === "PATCH").length, 2);
-});
-
-test("a rejected credential is not retried, and no commit is attempted", async () => {
-  const gh = ghStub();
-  const io = makeGitHubIo({
-    token: "t",
-    repo: "x/y",
-    fetchImpl: async (url, init) => (init.method === "POST" && url.endsWith("/git/blobs")
-      ? { ok: false, status: 401, text: async () => JSON.stringify({ message: "Bad credentials" }) }
-      : gh.impl(url, init)),
-  });
-  const res = await io.commit({ files: [{ path: "public/rbi-data.json", content: "x" }], message: "m" });
-  assert.equal(res.ok, false);
-  assert.match(res.error, /Bad credentials/);
-  assert.equal(res.attempts, 1);
-  assert.equal(gh.calls.filter(c => c.path.endsWith("/git/commits")).length, 0);
-});
-
-test("base64 round-trips the characters these files actually carry", () => {
-  const text = '{"note":"₹1,234 cr — FII/DII, Δ 8.2%","date":"2026-10-09"}';
-  assert.equal(decode(encode(text)), text);
-  assert.equal(decode("  " + encode(text) + "  "), text, "the Contents API wraps base64 in whitespace");
 });
 
 // ── The merges the refactor moved ───────────────────────────────────────────

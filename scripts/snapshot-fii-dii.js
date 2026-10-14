@@ -19,7 +19,7 @@
 //     run produces no commit churn (and no timestamp-only diff).
 //
 // buildFiiHistoryFile() is the whole job as a pure function of the file's
-// current text, so the CLI and the scheduled Worker produce the same bytes.
+// current text, so the CLI and the weekly refresh produce the same bytes.
 //
 // Fail-open: any error exits 0 with a note on stderr and leaves the existing
 // file untouched, so a blocked NSDL/NSE never breaks a refresh.
@@ -29,7 +29,7 @@ const fs = require("fs");
 const path = require("path");
 const { _buildPayload } = require("../netlify/functions/fetch-fii-history");
 
-// CLI path only — the scheduled Worker commits the text the builder returns.
+// CLI path only — the weekly refresh commits the text the builder returns.
 // `__dirname` does not exist in a Worker, hence the guard (see
 // scripts/update-fwd-monthly.js for the same trap).
 const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "fii-dii-history.json") : "";

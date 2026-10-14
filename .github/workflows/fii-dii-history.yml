@@ -1,19 +1,21 @@
 name: Snapshot FII/DII daily flows (manual)
 
-# MANUAL ONLY — the weekly snapshot happens in the Worker now.
+# MANUAL ONLY — the weekly snapshot happens in the Friday refresh now.
 #
 # Appends NSDL FPI (equity/debt) + NSE DII flow rows to the committed
 # public/fii-dii-history.json that the dashboard's FII/DII chart renders. The
-# scheduled Worker's Friday cron (wrangler.toml [triggers], 22:00 UTC) runs the
-# same snapshot — netlify/functions/refresh-data.js calls
-# scripts/snapshot-fii-dii.js — so this workflow is the fallback for when that
-# cron cannot run: a missing or expired GH_TOKEN secret, or a Cloudflare-side
-# outage.
+# weekly refresh (.github/workflows/refresh-data.yml, Friday 22:00 UTC) runs the
+# same snapshot — its plan (netlify/functions/refresh-data.js) calls
+# scripts/snapshot-fii-dii.js — so this workflow is the fallback for a week that
+# refresh misses, and the way to append rows by hand between runs.
 #
 # The 16:00 UTC schedule it used to carry was set by the sources rather than by
 # preference — NSDL publishes the day's flows on the evening of the same day. The
-# Worker's single Friday run sits later than that, so it covers the day too, and
-# there is no second Friday job left for it to race.
+# weekly run sits later than that, so it covers the day too, and there is no
+# second Friday job left for it to race. Restoring a daily schedule here is a
+# one-line change if the month-tail gap below ever matters more than the extra
+# runs; it is not restored by default because it would write the same file the
+# weekly refresh writes, for a difference that only shows up at a month's end.
 #
 # A weekly run does NOT lose Monday-to-Thursday of the week it runs in. The
 # script merges NSDL's whole current-month table rather than the latest session

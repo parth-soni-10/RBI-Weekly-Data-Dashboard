@@ -6,14 +6,15 @@
 # names the upload that tools/deploy-pages.mjs stages.
 #
 # No [triggers] here, and that is not an omission: Pages has no cron triggers, so
-# the Friday 22:00 UTC refresh stays on the `rbi-weekly-dashboard` Worker.
+# the Friday 22:00 UTC refresh lives in .github/workflows/refresh-data.yml.
 
 name = "rbiweeklydashboard"
 pages_build_output_dir = "../.pages-dist"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
-# The same KV namespace the Worker syncs into, so both homes read one store.
+# The KV namespace data-sync's merge cache lives in — the only copy, now that
+# this deployment is the site's only home.
 [[kv_namespaces]]
 binding = "SYNC_KV"
 id = "722040ed409f423ca8d6ed9c8ca81153"

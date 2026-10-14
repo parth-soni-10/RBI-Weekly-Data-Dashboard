@@ -2,7 +2,7 @@
 /**
  * refresh-static.js — the weekly refresh, run locally, over the filesystem.
  *
- * The same plan the scheduled Worker runs (netlify/functions/refresh-data.js):
+ * The same plan the weekly refresh runs (netlify/functions/refresh-data.js):
  * rbi-data.json + feed.xml, the forward-book series, external-debt.json, and the
  * sentiment + FII/DII histories. This is the replacement for the chain Netlify
  * used to run as its build command — one command, one implementation, so a local
@@ -21,7 +21,7 @@
  *
  * Exit status: 0 when every step did something or had nothing to do (skips are
  * normal — a blocked source, an already-current series), 1 when a step failed
- * outright, 2 for a bad --only. The scheduled Worker ignores exit status; there
+ * outright, 2 for a bad --only. The weekly refresh ignores exit status; there
  * it is the log that reports.
  */
 const fs = require("fs");

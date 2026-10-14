@@ -18,7 +18,7 @@
  *   - Merges + dedupes by date, sorts ascending, writes the file back.
  *
  * buildRbiDataFile() is that whole job as a pure function of the text already on
- * disk, because the scheduled Worker (netlify/functions/refresh-data.js) runs it
+ * disk, because the weekly refresh (netlify/functions/refresh-data.js) runs it
  * against the copy the repository holds — one implementation, so a refresh can
  * only ever write the JSON this CLI writes. main() is the file I/O around it.
  *
@@ -30,7 +30,7 @@ const fs = require("fs");
 const path = require("path");
 const { _getFridays, _processOne } = require("../netlify/functions/fetch-data");
 
-// Where the CLI writes. The scheduled Worker imports the builder below and reads
+// Where the CLI writes. The weekly refresh imports the builder below and reads
 // its "prior" text from the repository instead, and in a Worker `__dirname` is not
 // a binding at all — the `typeof` guard is what keeps this module importable there
 // (scripts/update-fwd-monthly.js documents the same trap). Only main() reads OUT.
@@ -47,7 +47,7 @@ function sleep(ms) {
  * Produce the rbi-data.json document from the file's current text.
  *
  * `priorText` is the committed file (null when there is none). `limit` caps how
- * many weeks one call fetches: the scheduled Worker has a wall-clock budget, so
+ * many weeks one call fetches: the weekly refresh has a wall-clock budget, so
  * a long backlog drains over a few runs instead of being killed mid-scrape with
  * nothing to show. Returns the exact text to write, plus the numbers to log.
  */
@@ -141,7 +141,7 @@ async function main() {
   console.log(`✅ Wrote ${count} weeks → public/rbi-data.json${fresh ? ` (${fresh} new this run)` : ""}`);
 }
 
-// Only when run as a CLI. The scheduled Worker imports buildRbiDataFile() from
+// Only when run as a CLI. The weekly refresh imports buildRbiDataFile() from
 // this file, and a module-scope main() would make it stop at startup: there is
 // no filesystem there, and no stdout either.
 if (require.main === module) {
