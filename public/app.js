@@ -4114,7 +4114,7 @@ function csvCellText(v){
 function dlPmCaresCSV(){
   pmCsvMode = true; // the pmRows() read below returns formula-neutralised text
   const header = 'financial_year,opening_balance,receipts,interest_earned,disbursed,closing_balance,calamities_emdat_cy,relief_to_calamities,highlights';
-  const rows = pmRows().map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'"\"')}"`].join(','));
+  const rows = pmRows().map(r=>[r.fy, r.open, r.recap, r.int, r.disp, r.close, r.cal, r.relief, `"${r.note.replace(/"/g,'""')}"`].join(','));
   const csv = header + '\n' + rows.join('\n');
   const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a');

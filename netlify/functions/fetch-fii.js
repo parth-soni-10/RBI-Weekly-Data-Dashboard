@@ -55,17 +55,17 @@ exports.handler = async () => {
         const r = rows[i];
         if (!r || !r.length) continue;
         const joined = r.join(" ");
-        if (!/\b20\d{2}\b/.test(joined) && !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(joined)) continue;
+        if (!/\b20\d{2}\b/.test(joined) && !/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/.test(joined)) continue;
         latestRow = r;
       }
       if (!latestRow) continue;
 
       // Pull date from the row
-      const dateCell = latestRow.find(c => /\b20\d{2}\b/.test(String(c)) || /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(String(c)));
+      const dateCell = latestRow.find(c => /\b20\d{2}\b/.test(String(c)) || /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/.test(String(c)));
       if (dateCell) {
         let normalised;
         const isoM = String(dateCell).match(/^(\d{4})-(\d{2})-(\d{2})/);
-        const slM  = String(dateCell).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+        const slM  = String(dateCell).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
         if (isoM)       normalised = `${isoM[1]}-${isoM[2]}-${isoM[3]}`;
         else if (slM)   normalised = `${slM[3].length === 2 ? "20"+slM[3] : slM[3]}-${slM[2].padStart(2,"0")}-${slM[1].padStart(2,"0")}`;
         if (normalised) as_of_date = as_of_date || normalised;
@@ -75,7 +75,7 @@ exports.handler = async () => {
         // Look at rightmost numeric >= 100 (or negative) — net flows are in cr.
         const nums = latestRow
           .map(c => String(c).replace(/[()]/g, "").trim())
-          .filter(c => /^-?[\d,\.]+$/.test(c))
+          .filter(c => /^-?[\d,.]+$/.test(c))
           .map(parseNum)
           .filter(n => !isNaN(n));
         if (nums.length) {
@@ -89,7 +89,7 @@ exports.handler = async () => {
       if (hasDebt) {
         const nums = latestRow
           .map(c => String(c).replace(/[()]/g, "").trim())
-          .filter(c => /^-?[\d,\.]+$/.test(c))
+          .filter(c => /^-?[\d,.]+$/.test(c))
           .map(parseNum)
           .filter(n => !isNaN(n));
         if (nums.length) {

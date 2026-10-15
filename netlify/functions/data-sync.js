@@ -51,7 +51,6 @@
 // ---------------------------------------------------------------------------
 const { timingSafeEqual } = require("node:crypto");
 
-const STORE_NAME = "rbi-data-sync";
 const KEY = "records";
 
 // The durable store is injected rather than opened here: functions/_router.js hands in a
