@@ -69,11 +69,11 @@ let rbiSessionCookie = '';
 // Captures Set-Cookie from each response so later retries in the same
 // invocation can use a refreshed session. Returns null only when every
 // attempt fails, so the caller skips the week and retries on the next Reload.
-async function downloadSpreadsheet(url, timeoutMs = 20000) {
-  const MAX_ATTEMPTS = 5;
-  // Shorter, tighter backoff so a single invocation stays within the Pages
-  // function budget while still waiting out transient F5 rate limits.
-  const backoffMs = [5000, 10000, 15000, 20000];
+async function downloadSpreadsheet(url, timeoutMs = 10000) {
+  const MAX_ATTEMPTS = 4;
+  // Tight backoff so a single invocation stays well within the Pages function
+  // budget while still waiting out transient F5 rate limits.
+  const backoffMs = [3000, 6000, 9000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf;
     try {
