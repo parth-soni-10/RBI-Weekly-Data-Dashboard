@@ -46,6 +46,40 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
+// Real spreadsheets start with PK\x03\x04 (xlsx) or D0 CF 11 E0 (legacy xls).
+// Anything else (notably "<!DOCTYPE html>") is F5's challenge interstitial
+// from RBI's rbidocs doc CDN. See scripts/backfill-decomp.js for the same check.
+function isSpreadsheet(buf) {
+  if (!buf || buf.length < 8) return false;
+  const pk = buf[0] === 0x50 && buf[1] === 0x4b;
+  const xls = buf[0] === 0xd0 && buf[1] === 0xcf;
+  return pk || xls;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Download a single URL as a Buffer, validating it's a real spreadsheet.
+// Retries once after a cool-down when the F5 limiter serves a challenge page.
+// Returns null only on a genuine network/HTTP failure (not a challenge).
+async function downloadSpreadsheet(url, timeoutMs = 20000) {
+  let buf;
+  try {
+    const res = await get(url, timeoutMs);
+    buf = Buffer.from(await res.arrayBuffer());
+  } catch (_) {
+    return null;
+  }
+  if (isSpreadsheet(buf)) return buf;
+  // Challenged by the F5 limiter — cool down and retry once.
+  await sleep(8000);
+  try {
+    const res2 = await get(url, timeoutMs);
+    buf = Buffer.from(await res2.arrayBuffer());
+  } catch (_) {
+    return null;
+  }
+  return isSpreadsheet(buf) ? buf : null;
+}
+
 // ─── HTTP ────────────────────────────────────────────────────
 // Same shared client every other scraper uses, pinned to the RBI referer the
 // upstream expects — with accept:false: RBI's doc CDN (rbidocs, behind an F5
@@ -336,19 +370,21 @@ async function processOneFriday(pubFriday) {
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page - RBI may not have published this week; retry later" };
 
-  // 3. Yahoo targets use the as-on Friday (previous week) for all.
-  // Nifty and Sensex (and rupee) for the latest record will be the values at scrape time (up to latest available).
-  // Download both Excels + Yahoo in parallel
-  const [resBuf, spotBuf, nifty, sensex, usdInr, eurInr] = await Promise.all([
-    get(urls.reserves, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null),
-    urls.spot ? get(urls.spot, 8000).then(r => r.arrayBuffer()).then(b => Buffer.from(b)).catch(() => null) : null,
+  // 3. Download the reserves Excel with F5-limiter validation + one retry.
+  //    Yahoo targets use the as-on Friday (previous week) for all.
+  //    Nifty and Sensex (and rupee) for the latest record will be the values
+  //    at scrape time (up to latest available).
+  const resBuf = await downloadSpreadsheet(urls.reserves, 20000);
+  if (!resBuf) return { iso, error: "reserves Excel download failed - will retry on next request" };
+
+  // 4. Spot Excel + Yahoo quotes in parallel now that reserves is in hand.
+  const [spotBuf, nifty, sensex, usdInr, eurInr] = await Promise.all([
+    urls.spot ? downloadSpreadsheet(urls.spot, 8000) : null,
     getYahooClose("^NSEI",  asOn),
     getYahooClose("^BSESN", asOn),
     getYahooClose("USDINR=X", asOn),
     getYahooClose("EURINR=X", asOn),
   ]);
-
-  if (!resBuf) return { iso, error: "reserves Excel download failed - will retry on next request" };
 
   // 4. Parse
   const reserves = parseReservesExcel(resBuf);

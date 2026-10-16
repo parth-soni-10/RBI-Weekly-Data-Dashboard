@@ -1015,14 +1015,28 @@ function copyCsvText(csv, btn){
 
 function copyChartCSV(kind, btn){
   if(!records.length) return false;
+  const fx = macroData.fxintv || {};
+  const fwdByMonth = new Map();
+  (Array.isArray(fx.history) ? fx.history : []).forEach(p => {
+    if(p && p.date && /^\d{4}-\d{2}$/.test(p.date) && p.net_fwd != null) fwdByMonth.set(p.date, p.net_fwd);
+  });
+    const usableOf = r => {
+    const total = r.total_usd != null ? r.total_usd / 1000 : null;
+    const gold  = r.gold_usd  != null ? r.gold_usd  / 1000 : null;
+    const fwd   = total != null && gold != null ? (fwdByMonth.get(r.date.slice(0, 7)) || 0) : null;
+    return total != null && gold != null ? +(total + fwd - gold).toFixed(2) : null;
+  };
   const cols = {
     res:  ['date', 'total_usd', 'total_inr'],
     gold: ['date', 'gold_usd', 'gold_inr'],
     fx:   ['date', 'usd_inr', 'eur_inr'],
     idx:  ['date', 'nifty', 'sensex'],
+    usable: ['date', 'usable'],
   }[kind] || ['date', 'total_usd'];
-  const lines = [cols.join(',')].concat(records.map(r =>
-    cols.map(c => (r[c] == null ? '' : r[c])).join(',')));
+  const lines = [cols.join(',')].concat(records.map(r => {
+    if(kind === 'usable') return [r.date, usableOf(r)].join(',');
+    return cols.map(c => (r[c] == null ? '' : r[c])).join(',');
+  }));
   copyCsvText(lines.join('\n'), btn);
   return false;
 }
@@ -3405,6 +3419,79 @@ function renderReserveForwardKpis(){
       ufEl.textContent = '—';
       if (ufSub) ufSub.textContent = 'awaiting records + forward book + gold';
     }
+  }
+
+  // Usable forex chart: weekly usable = total − gold − forward book for that
+  // month (USD bn). Forward book is a sparse monthly series; each weekly point
+  // subtracts its month's figure (zero where none published yet).
+  renderUsableForexChart();
+}
+
+/* ─── Usable forex chart: reserves − gold − forward book over time ─────────
+   Weekly usable forex (USD bn) = total reserves − gold − RBI's net forward
+   book for that month. Forward book is a sparse monthly disclosure; each
+   weekly point subtracts its month's figure (zero where not yet published).
+   Recomputes on every load so the newest RBI week and forward figure land
+   immediately. */
+function renderUsableForexChart(){
+  const empty = document.getElementById('usable-forex-empty');
+  const el = document.getElementById('cUsableForex');
+  if(!el) return;
+  if(charts.cUsableForex){ charts.cUsableForex.destroy(); delete charts.cUsableForex; }
+  if(!records.length){ if(empty) empty.hidden = false; return; }
+  const fx = macroData.fxintv || {};
+  const fwdByMonth = new Map();
+  (Array.isArray(fx.history) ? fx.history : []).forEach(p => {
+    if(p && p.date && /^\d{4}-\d{2}$/.test(p.date) && p.net_fwd != null) fwdByMonth.set(p.date, p.net_fwd);
+  });
+  const rows = records.map(r => {
+    const total = r.total_usd != null ? r.total_usd / 1000 : null; // USD bn
+    const gold  = r.gold_usd  != null ? r.gold_usd  / 1000 : null;
+    const fwd   = total != null && gold != null ? (fwdByMonth.get(r.date.slice(0, 7)) || 0) : null;
+    const usable = total != null && gold != null ? total + fwd - gold : null;
+    return { date: r.date, usable };
+  }).filter(r => r.usable != null);
+  if(!rows.length){ if(empty) empty.hidden = false; return; }
+  if(empty) empty.hidden = true;
+  const show = rows.slice(-52);
+  const labels = show.map(r => r.date.slice(5));
+  const data = show.map(r => +r.usable.toFixed(2));
+  const latest = data[data.length - 1];
+  const prev   = data[data.length - 2];
+  const chg = prev != null ? latest - prev : null;
+  charts.cUsableForex = new Chart(el, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Usable forex (USD bn)',
+        data,
+        borderColor: G, backgroundColor: G + '18', fill: true, tension: .25,
+        pointRadius: 2, pointBackgroundColor: G, borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: CH.tbg, titleColor: CH.tt, bodyColor: CH.tb, borderColor: G, borderWidth: 1,
+          callbacks: {
+            label: ctx => 'Usable forex: $' + ctx.parsed.y.toFixed(1) + 'B',
+          },
+        },
+      },
+      interaction: { mode: 'index', intersect: false },
+      scales: axOpts(v => '$' + v.toFixed(0) + 'B'),
+    },
+  });
+  zoomable(charts.cUsableForex);
+  // Week-on-week delta pill under the chart title.
+  const wow = document.getElementById('kpi-usable-forex-wow');
+  if(wow){
+    wow.textContent = (chg != null ? (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(1) : '—') + 'B WoW';
+    wow.className = 'mex-detail wow ' + (chg != null ? (chg >= 0 ? 'up' : 'dn') : '');
+  }
   }
 }
 
