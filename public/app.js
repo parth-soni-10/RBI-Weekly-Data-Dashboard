@@ -1015,17 +1015,6 @@ function copyCsvText(csv, btn){
 
 function copyChartCSV(kind, btn){
   if(!records.length) return false;
-  const fx = macroData.fxintv || {};
-  const fwdByMonth = new Map();
-  (Array.isArray(fx.history) ? fx.history : []).forEach(p => {
-    if(p && p.date && /^\d{4}-\d{2}$/.test(p.date) && p.net_fwd != null) fwdByMonth.set(p.date, p.net_fwd);
-  });
-    const usableOf = r => {
-    const total = r.total_usd != null ? r.total_usd / 1000 : null;
-    const gold  = r.gold_usd  != null ? r.gold_usd  / 1000 : null;
-    const fwd   = total != null && gold != null ? (fwdByMonth.get(r.date.slice(0, 7)) || 0) : null;
-    return total != null && gold != null ? +(total + fwd - gold).toFixed(2) : null;
-  };
   const cols = {
     res:  ['date', 'total_usd', 'total_inr'],
     gold: ['date', 'gold_usd', 'gold_inr'],
@@ -1033,10 +1022,13 @@ function copyChartCSV(kind, btn){
     idx:  ['date', 'nifty', 'sensex'],
     usable: ['date', 'usable'],
   }[kind] || ['date', 'total_usd'];
-  const lines = [cols.join(',')].concat(records.map(r => {
-    if(kind === 'usable') return [r.date, usableOf(r)].join(',');
-    return cols.map(c => (r[c] == null ? '' : r[c])).join(',');
-  }));
+  let lines;
+  if(kind === 'usable'){
+    lines = ['date,usable'].concat(usableForexRows().map(r => `${r.date},${r.usable}`));
+  } else {
+    lines = [cols.join(',')].concat(records.map(r =>
+      cols.map(c => (r[c] == null ? '' : r[c])).join(',')));
+  }
   copyCsvText(lines.join('\n'), btn);
   return false;
 }
@@ -3427,6 +3419,29 @@ function renderReserveForwardKpis(){
   renderUsableForexChart();
 }
 
+/* Usable forex rows: for each weekly record, usable = reserves(USD bn) +
+   net_fwd − gold(USD bn). The RBI Bulletin forward book is a month-end
+   disclosure, so a week whose month has no figure yet steps the latest known
+   one forward (matching the forward-book chart and the KPI tile); weeks before
+   the first disclosure net zero. Recomputed on every load. */
+function usableForexRows(){
+  const fx = macroData.fxintv || {};
+  const pts = (Array.isArray(fx.history) ? fx.history : [])
+    .filter(p => p && p.date && /^\d{4}-\d{2}$/.test(p.date) && p.net_fwd != null)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const fwdFor = ym => {
+    let v = 0;
+    for (const p of pts){ if (p.date <= ym) v = p.net_fwd; else break; }
+    return v;
+  };
+  return records.map(r => {
+    const total = r.total_usd != null ? r.total_usd / 1000 : null;
+    const gold  = r.gold_usd  != null ? r.gold_usd  / 1000 : null;
+    if (total == null || gold == null) return { date: r.date, usable: null };
+    return { date: r.date, usable: +(total + fwdFor(r.date.slice(0, 7)) - gold).toFixed(2) };
+  }).filter(r => r.usable != null);
+}
+
 /* ─── Usable forex chart: reserves − gold − forward book over time ─────────
    Weekly usable forex (USD bn) = total reserves − gold − RBI's net forward
    book for that month. Forward book is a sparse monthly disclosure; each
@@ -3439,18 +3454,7 @@ function renderUsableForexChart(){
   if(!el) return;
   if(charts.cUsableForex){ charts.cUsableForex.destroy(); delete charts.cUsableForex; }
   if(!records.length){ if(empty) empty.hidden = false; return; }
-  const fx = macroData.fxintv || {};
-  const fwdByMonth = new Map();
-  (Array.isArray(fx.history) ? fx.history : []).forEach(p => {
-    if(p && p.date && /^\d{4}-\d{2}$/.test(p.date) && p.net_fwd != null) fwdByMonth.set(p.date, p.net_fwd);
-  });
-  const rows = records.map(r => {
-    const total = r.total_usd != null ? r.total_usd / 1000 : null; // USD bn
-    const gold  = r.gold_usd  != null ? r.gold_usd  / 1000 : null;
-    const fwd   = total != null && gold != null ? (fwdByMonth.get(r.date.slice(0, 7)) || 0) : null;
-    const usable = total != null && gold != null ? total + fwd - gold : null;
-    return { date: r.date, usable };
-  }).filter(r => r.usable != null);
+  const rows = usableForexRows();
   if(!rows.length){ if(empty) empty.hidden = false; return; }
   if(empty) empty.hidden = true;
   const show = rows.slice(-52);
