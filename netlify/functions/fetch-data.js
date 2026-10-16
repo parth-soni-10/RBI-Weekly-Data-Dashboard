@@ -58,26 +58,29 @@ function isSpreadsheet(buf) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Download a single URL as a Buffer, validating it's a real spreadsheet.
-// Retries once after a cool-down when the F5 limiter serves a challenge page.
-// Returns null only on a genuine network/HTTP failure (not a challenge).
+// Retries with backoff when the F5 limiter serves a challenge page. The
+// cooldowns mirror the pacing proven in scripts/backfill-decomp.js (20s
+// cooldown, abort only after repeated challenges) so a transient F5 rate
+// limit is waited out instead of failing the week outright. Returns null
+// only when every attempt fails (genuine failure / not yet published), so
+// the caller skips the week and retries on the next Reload.
 async function downloadSpreadsheet(url, timeoutMs = 20000) {
-  let buf;
-  try {
-    const res = await get(url, timeoutMs);
-    buf = Buffer.from(await res.arrayBuffer());
-  } catch (_) {
-    return null;
+  const MAX_ATTEMPTS = 4;
+  // F5 rate-limit windows are short; cool down longer each attempt so a later
+  // request lands after the limiter has relaxed.
+  const backoffMs = [8000, 15000, 25000];
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let buf;
+    try {
+      const res = await get(url, timeoutMs);
+      buf = Buffer.from(await res.arrayBuffer());
+    } catch (_) {
+      buf = null;
+    }
+    if (isSpreadsheet(buf)) return buf;
+    if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
   }
-  if (isSpreadsheet(buf)) return buf;
-  // Challenged by the F5 limiter — cool down and retry once.
-  await sleep(8000);
-  try {
-    const res2 = await get(url, timeoutMs);
-    buf = Buffer.from(await res2.arrayBuffer());
-  } catch (_) {
-    return null;
-  }
-  return isSpreadsheet(buf) ? buf : null;
+  return null;
 }
 
 // ─── HTTP ────────────────────────────────────────────────────
