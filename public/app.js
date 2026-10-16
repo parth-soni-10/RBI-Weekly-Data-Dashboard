@@ -1687,7 +1687,7 @@ function renderSpreadChart(gsec){
   const hist = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice() : [];
   const empty = document.getElementById('spread-empty');
   const destroy = () => { if(charts.cSpread){ charts.cSpread.destroy(); delete charts.cSpread; } };
-  if(ys.length < 2 || !hist.length){
+  if(!hist.length){
     destroy();
     if(empty) empty.hidden = false;
     return;
@@ -1695,14 +1695,25 @@ function renderSpreadChart(gsec){
   if(empty) empty.hidden = true;
   // Repo in force at each yield observation: the newest MPC decision with
   // date <= the observation (decisions are few; linear scan is fine).
-  // Observations older than the first known decision are skipped.
   const decisions = hist.map(p => ({ date:p.date, pct:p.pct })).sort((a,b) => a.date.localeCompare(b.date));
   const rows = [];
-  for(const p of ys){
-    if(!p || p.date == null || !isFinite(p.v)) continue;
-    let rv = null;
-    for(const d of decisions){ if(d.date <= p.date) rv = d.pct; else break; }
-    if(rv != null) rows.push({ date:p.date, y:p.v, r:rv, s:+(p.v - rv).toFixed(3) });
+  if(ys.length >= 2){
+    // Live path: daily 10Y yield vs repo in force at each observation.
+    for(const p of ys){
+      if(!p || p.date == null || !isFinite(p.v)) continue;
+      let rv = null;
+      for(const d of decisions){ if(d.date <= p.date) rv = d.pct; else break; }
+      if(rv != null) rows.push({ date:p.date, y:p.v, r:rv, s:+(p.v - rv).toFixed(3) });
+    }
+  } else if (gsec.gsec_10y_yield_pct != null){
+    // Fallback: no daily yield series (Yahoo tickers unavailable). Use the
+    // current 10Y yield as a constant across all repo decision dates, so the
+    // spread still reads "today's yield vs historical repo" — the market's
+    // implied expectations — instead of showing an empty chart.
+    const curYield = +gsec.gsec_10y_yield_pct.toFixed(2);
+    for(const d of decisions){
+      rows.push({ date:d.date, y:curYield, r:d.pct, s:+(curYield - d.pct).toFixed(3) });
+    }
   }
   if(rows.length < 2){ destroy(); if(empty) empty.hidden = false; return; }
   destroy();
@@ -1964,51 +1975,56 @@ function renderFngHistory(){
   if(empty) empty.hidden = true;
   if(charts.cFngHist){ charts.cFngHist.destroy(); delete charts.cFngHist; }
   const el = document.getElementById('cFngHist');
+  if(!el) return;
   const scores = pts.map(p => p.score);
-  charts.cFngHist = new Chart(el, {
-    type:'line',
-    data:{ labels: pts.map(p => p.date.slice(2)), datasets:[{
-      label:'Fear & Greed', data: scores,
-      borderColor:AMB, borderWidth:2, pointRadius:2,
-      pointBackgroundColor: scores.map(s => fngColor(s)), pointBorderWidth:0,
-      fill:false, tension:.25,
-    }] },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false },
-        tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
-          callbacks:{ label: ctx => ctx.parsed.y + ' — ' + (pts[ctx.dataIndex].label || labelForFng(ctx.parsed.y)) } } },
-      interaction:{ mode:'index', intersect:false },
-      scales:{
-        x: axOpts(v => v).x,
-        y: { min:0, max:100,
-             ticks: { color:tickC, font:{ size:10.5, family:'Inter', weight:'500' }, stepSize:25, callback: v => v },
-             grid: { color:gridC } },
+  try {
+    charts.cFngHist = new Chart(el, {
+      type:'line',
+      data:{ labels: pts.map(p => p.date.slice(2)), datasets:[{
+        label:'Fear & Greed', data: scores,
+        borderColor:AMB, borderWidth:2, pointRadius:2,
+        pointBackgroundColor: scores.map(s => fngColor(s)), pointBorderWidth:0,
+        fill:false, tension:.25,
+      }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
+            callbacks:{ label: ctx => ctx.parsed.y + ' — ' + (pts[ctx.dataIndex].label || labelForFng(ctx.parsed.y)) } },
+          fngZones: {
+            id:'fngZones',
+            beforeDatasetsDraw(chart){
+              const { ctx, chartArea: a, scales } = chart;
+              if(!a) return;
+              const y = scales.y;
+              const bands = [[0,25,'#ef44441f'],[25,45,'#f973161f'],[45,55,'#eab3081f'],[55,75,'#84cc161f'],[75,100,'#22c55e1f']];
+              ctx.save();
+              for(const [lo, hi, col] of bands){
+                ctx.fillStyle = col;
+                ctx.fillRect(a.left, y.getPixelForValue(hi), a.right - a.left, y.getPixelForValue(lo) - y.getPixelForValue(hi));
+              }
+              ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+              ctx.setLineDash([4,4]);
+              ctx.beginPath();
+              ctx.moveTo(a.left, y.getPixelForValue(50));
+              ctx.lineTo(a.right, y.getPixelForValue(50));
+              ctx.stroke();
+              ctx.restore();
+            },
+          },
+          interaction:{ mode:'index', intersect:false } },
+        scales:{
+          x: axOpts(v => v).x,
+          y: { min:0, max:100,
+               ticks: { color:tickC, font:{ size:10.5, family:'Inter', weight:'500' }, stepSize:25, callback: v => v },
+               grid: { color:gridC } },
+        },
       },
-    },
-    plugins: [{
-      id:'fngZones',
-      beforeDatasetsDraw(chart){
-        const { ctx, chartArea: a, scales } = chart;
-        if(!a) return;
-        const y = scales.y;
-        const bands = [[0,25,'#ef44441f'],[25,45,'#f973161f'],[45,55,'#eab3081f'],[55,75,'#84cc161f'],[75,100,'#22c55e1f']];
-        ctx.save();
-        for(const [lo, hi, col] of bands){
-          ctx.fillStyle = col;
-          ctx.fillRect(a.left, y.getPixelForValue(hi), a.right - a.left, y.getPixelForValue(lo) - y.getPixelForValue(hi));
-        }
-        // 50-midline slightly stronger
-        ctx.strokeStyle = 'rgba(148,163,184,0.4)';
-        ctx.setLineDash([4,4]);
-        ctx.beginPath();
-        ctx.moveTo(a.left, y.getPixelForValue(50));
-        ctx.lineTo(a.right, y.getPixelForValue(50));
-        ctx.stroke();
-        ctx.restore();
-      },
-    }],
-  });
-  zoomable(charts.cFngHist);
+    });
+    zoomable(charts.cFngHist);
+  } catch (_) {
+    if(charts.cFngHist){ charts.cFngHist.destroy(); delete charts.cFngHist; }
+    if(empty) empty.hidden = false;
+  }
 }
 
 function labelForFng(s){
