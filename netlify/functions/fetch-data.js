@@ -65,10 +65,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // only when every attempt fails (genuine failure / not yet published), so
 // the caller skips the week and retries on the next Reload.
 async function downloadSpreadsheet(url, timeoutMs = 20000) {
-  const MAX_ATTEMPTS = 4;
+  const MAX_ATTEMPTS = 3;
   // F5 rate-limit windows are short; cool down longer each attempt so a later
-  // request lands after the limiter has relaxed.
-  const backoffMs = [8000, 15000, 25000];
+  // request lands after the limiter has relaxed. Bounded so a single function
+  // invocation cannot hang for minutes on a persistently-limited upstream — a
+  // week that still fails is skipped and retried on the next Reload (matching
+  // the backfill-decomp.js "abort and let a later run resume" philosophy).
+  const backoffMs = [8000, 15000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf;
     try {
