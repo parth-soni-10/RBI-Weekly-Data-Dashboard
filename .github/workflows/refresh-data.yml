@@ -31,6 +31,8 @@ on:
     # 22:00 UTC every Friday.
     - cron: "0 22 * * 5"
   workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+  push:
+    branches: [main]
 
 permissions:
   contents: write
