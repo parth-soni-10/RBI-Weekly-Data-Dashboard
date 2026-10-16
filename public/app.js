@@ -2397,7 +2397,7 @@ async function renderCrudeHighlights() {
   }
   renderImportBill();
   renderImportCover();
-  renderCrudePrice();
+  await renderCrudePrice();
 }
 
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
@@ -3327,21 +3327,49 @@ function renderImportCover(){
 //   * "India import (govt buying) price" = PPAC import Value (USD) ÷ Quantity
 //     (MT) for crude, i.e. the average price Indian refiners pay per barrel.
 // Both refresh on page load and on explicit Reload (hourly-capped).
-function renderCrudePrice(){
+/* Independent Brent (online) price — fast Yahoo path, no PPAC/TankerMap.
+   Used so the crude price KPI shows the live Brent price even when the
+   heavyweight action=all crude pipeline fails. Session-cached so repeated
+   renders don't re-hit Yahoo. */
+let brentPriceCache = null; // { price, date, fetchedAt }
+const BRENT_CACHE_MS = 15 * 60 * 1000; // 15 min
+async function fetchBrentPrice(){
+  const now = Date.now();
+  if(brentPriceCache && now - brentPriceCache.fetchedAt < BRENT_CACHE_MS){
+    return brentPriceCache;
+  }
+  try {
+    const res = await fetch('/.netlify/functions/fetch-crude?action=prices', { cache: 'no-cache' });
+    const j = await res.json();
+    brentPriceCache = {
+      price: j.brent ?? null,
+      date:  j.brent_date ?? null,
+      fetchedAt: now,
+    };
+    return brentPriceCache;
+  } catch(_){
+    return { price: null, date: null, fetchedAt: now };
+  }
+}
+
+/* ─── Crude price KPI (standalone, independent) ─────────────────────────
+   Shows India's crude buying benchmark — Brent crude spot online — as a
+   headline number: "$<brent> Brent (online) · <date> USD/bbl". Fetches Brent
+   independently of the full crude pipeline so the number is never blank just
+   because PPAC/TankerMap failed. Recomputed on every page load. */
+async function renderCrudePrice(){
   const el = document.getElementById('kpi-crude-price');
   const sub = document.getElementById('kpi-crude-price-sub');
   if(!el) return;
-  const brent = crudeData && crudeData.prices ? crudeData.prices.brent : null;
-  const brentDate = crudeData && crudeData.prices ? crudeData.prices.brent_date : null;
-  const india = crudeData ? crudeData.ppac_import_price_usd_bbl : null;
-  const gap = brent != null && india != null ? +(india - brent).toFixed(1) : null;
-  if(brent != null || india != null){
-    el.textContent = '$' + (brent != null ? brent.toFixed(1) : '—');
-    const parts = [];
-    if(brentDate) parts.push('Brent (online) · ' + fmtDate(brentDate));
-    if(india != null) parts.push('India import (govt buying) $' + india.toFixed(1));
-    if(gap != null) parts.push('gap $' + (gap >= 0 ? '+' : '') + gap);
-    if(sub) sub.textContent = parts.join(' · ') + ' USD/bbl';
+  let brent = crudeData && crudeData.prices ? crudeData.prices.brent : null;
+  let brentDate = crudeData && crudeData.prices ? crudeData.prices.brent_date : null;
+  if(brent == null){
+    const live = await fetchBrentPrice();
+    brent = live.price; brentDate = live.date;
+  }
+  if(brent != null){
+    el.textContent = '$' + brent.toFixed(1);
+    if(sub) sub.textContent = 'Brent (online) · ' + fmtDate(brentDate) + ' USD/bbl';
   } else {
     el.textContent = '—';
     if(sub) sub.textContent = 'awaiting crude pipeline';
