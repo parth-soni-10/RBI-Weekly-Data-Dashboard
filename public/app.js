@@ -3492,7 +3492,6 @@ function renderUsableForexChart(){
     wow.textContent = (chg != null ? (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(1) : '—') + 'B WoW';
     wow.className = 'mex-detail wow ' + (chg != null ? (chg >= 0 ? 'up' : 'dn') : '');
   }
-  }
 }
 
 /* ─── World's biggest borrowers (World Bank QEDS) ──────────────────────
