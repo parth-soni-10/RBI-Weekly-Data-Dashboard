@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-09-30T09:58:46.311Z",
+  "fetched_at": "2026-10-16T19:15:58.738Z",
   "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS (gross external debt position, all sectors, USD) + WDI reserves (FI.RES.TOTL.CD)",
   "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
   "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US + FI.RES.TOTL.CD",
@@ -10,7 +10,7 @@
   "ranked_count": 135,
   "sdds_count": 129,
   "gdds_count": 60,
-  "reserves_lastupdated": "2026-07-13",
+  "reserves_lastupdated": "2026-10-08",
   "reserves_year": "2025",
   "reserves_note": "Total reserves incl. gold (WDI, annual); India's tile uses the fresher RBI weekly figure when loaded.",
   "top_borrowers": [
@@ -179,14 +179,6 @@
       }
     ],
     "history": [
-      {
-        "date": "2018Q4",
-        "value_bn": 521.3,
-        "total_bn": 521.3,
-        "st_bn": 103.9,
-        "lt_bn": 417.4,
-        "st_share_pct": 19.9
-      },
       {
         "date": "2019Q1",
         "value_bn": 543.1,
@@ -397,18 +389,18 @@
       },
       {
         "date": "2025Q3",
-        "value_bn": 747.2,
-        "total_bn": 747.2,
+        "value_bn": 747.1,
+        "total_bn": 747.1,
         "st_bn": 138,
-        "lt_bn": 609.2,
+        "lt_bn": 609.1,
         "st_share_pct": 18.5
       },
       {
         "date": "2025Q4",
-        "value_bn": 767.4,
-        "total_bn": 767.4,
+        "value_bn": 767.3,
+        "total_bn": 767.3,
         "st_bn": 152.6,
-        "lt_bn": 614.8,
+        "lt_bn": 614.7,
         "st_share_pct": 19.9
       },
       {
@@ -418,6 +410,14 @@
         "st_bn": 149.2,
         "lt_bn": 613.6,
         "st_share_pct": 19.6
+      },
+      {
+        "date": "2026Q2",
+        "value_bn": 778.2,
+        "total_bn": 778.2,
+        "st_bn": 153.5,
+        "lt_bn": 624.7,
+        "st_share_pct": 19.7
       }
     ],
     "rank_history": [
@@ -600,7 +600,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 633.3
+            "value_bn": 633.8
           },
           {
             "rank": 24,
@@ -633,7 +633,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 617.6
+            "value_bn": 615.3
           },
           {
             "rank": 24,
@@ -643,7 +643,7 @@
           {
             "rank": 25,
             "iso3": "MEX",
-            "value_bn": 571.7
+            "value_bn": 571.6
           },
           {
             "rank": 26,
@@ -666,7 +666,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 616.6
+            "value_bn": 612.4
           },
           {
             "rank": 24,
@@ -699,7 +699,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 670.6
+            "value_bn": 667.9
           },
           {
             "rank": 24,
@@ -714,7 +714,7 @@
           {
             "rank": 26,
             "iso3": "MEX",
-            "value_bn": 594.2
+            "value_bn": 594.1
           }
         ]
       },
@@ -726,8 +726,8 @@
         "neighbours": [
           {
             "rank": 22,
-            "iso3": "FIN",
-            "value_bn": 683.9
+            "iso3": "NOR",
+            "value_bn": 673.9
           },
           {
             "rank": 23,
@@ -747,7 +747,7 @@
           {
             "rank": 26,
             "iso3": "MEX",
-            "value_bn": 596.5
+            "value_bn": 596.4
           }
         ]
       },
@@ -765,7 +765,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 637.7
+            "value_bn": 640.9
           },
           {
             "rank": 24,
@@ -780,7 +780,7 @@
           {
             "rank": 26,
             "iso3": "MEX",
-            "value_bn": 583
+            "value_bn": 582.9
           }
         ]
       },
@@ -798,7 +798,7 @@
           {
             "rank": 23,
             "iso3": "FIN",
-            "value_bn": 651.8
+            "value_bn": 653.6
           },
           {
             "rank": 24,
@@ -826,7 +826,7 @@
           {
             "rank": 22,
             "iso3": "FIN",
-            "value_bn": 672
+            "value_bn": 672.7
           },
           {
             "rank": 23,
@@ -841,7 +841,7 @@
           {
             "rank": 25,
             "iso3": "MEX",
-            "value_bn": 609.5
+            "value_bn": 609.4
           },
           {
             "rank": 26,
@@ -879,7 +879,7 @@
           {
             "rank": 24,
             "iso3": "FIN",
-            "value_bn": 642.1
+            "value_bn": 643.9
           }
         ]
       },
@@ -912,7 +912,7 @@
           {
             "rank": 24,
             "iso3": "FIN",
-            "value_bn": 690.1
+            "value_bn": 691.9
           }
         ]
       },
@@ -925,7 +925,7 @@
           {
             "rank": 19,
             "iso3": "AUT",
-            "value_bn": 793.1
+            "value_bn": 792.7
           },
           {
             "rank": 20,
@@ -958,7 +958,7 @@
           {
             "rank": 20,
             "iso3": "NOR",
-            "value_bn": 761
+            "value_bn": 761.6
           },
           {
             "rank": 21,
@@ -978,7 +978,7 @@
           {
             "rank": 24,
             "iso3": "FIN",
-            "value_bn": 644.7
+            "value_bn": 645
           }
         ]
       },
@@ -991,7 +991,7 @@
           {
             "rank": 20,
             "iso3": "NOR",
-            "value_bn": 795.7
+            "value_bn": 796.4
           },
           {
             "rank": 21,
@@ -1011,7 +1011,7 @@
           {
             "rank": 24,
             "iso3": "FIN",
-            "value_bn": 722.3
+            "value_bn": 723.8
           }
         ]
       },
@@ -1019,12 +1019,12 @@
         "period": "2025Q3",
         "rank": 22,
         "reporters": 117,
-        "value_bn": 747.2,
+        "value_bn": 747.1,
         "neighbours": [
           {
             "rank": 20,
             "iso3": "NOR",
-            "value_bn": 810.5
+            "value_bn": 810.6
           },
           {
             "rank": 21,
@@ -1034,7 +1034,7 @@
           {
             "rank": 22,
             "iso3": "IND",
-            "value_bn": 747.2
+            "value_bn": 747.1
           },
           {
             "rank": 23,
@@ -1044,7 +1044,7 @@
           {
             "rank": 24,
             "iso3": "GRC",
-            "value_bn": 685.9
+            "value_bn": 689.5
           }
         ]
       },
@@ -1052,7 +1052,7 @@
         "period": "2025Q4",
         "rank": 23,
         "reporters": 113,
-        "value_bn": 767.4,
+        "value_bn": 767.3,
         "neighbours": [
           {
             "rank": 21,
@@ -1067,24 +1067,24 @@
           {
             "rank": 23,
             "iso3": "IND",
-            "value_bn": 767.4
+            "value_bn": 767.3
           },
           {
             "rank": 24,
             "iso3": "GRC",
-            "value_bn": 694
+            "value_bn": 698.5
           },
           {
             "rank": 25,
             "iso3": "DNK",
-            "value_bn": 690.6
+            "value_bn": 696.7
           }
         ]
       },
       {
         "period": "2026Q1",
         "rank": 22,
-        "reporters": 104,
+        "reporters": 105,
         "value_bn": 762.8,
         "neighbours": [
           {
@@ -1104,13 +1104,46 @@
           },
           {
             "rank": 23,
+            "iso3": "DNK",
+            "value_bn": 693.7
+          },
+          {
+            "rank": 24,
             "iso3": "GRC",
-            "value_bn": 687.2
+            "value_bn": 691.6
+          }
+        ]
+      },
+      {
+        "period": "2026Q2",
+        "rank": 22,
+        "reporters": 82,
+        "value_bn": 778.2,
+        "neighbours": [
+          {
+            "rank": 20,
+            "iso3": "BRA",
+            "value_bn": 869.5
+          },
+          {
+            "rank": 21,
+            "iso3": "KOR",
+            "value_bn": 812.8
+          },
+          {
+            "rank": 22,
+            "iso3": "IND",
+            "value_bn": 778.2
+          },
+          {
+            "rank": 23,
+            "iso3": "FIN",
+            "value_bn": 732.5
           },
           {
             "rank": 24,
             "iso3": "DNK",
-            "value_bn": 686.9
+            "value_bn": 701.3
           }
         ]
       }
