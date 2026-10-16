@@ -1,7 +1,7 @@
 const XLSX  = require("node-xlsx");
 // Shared HTTP client (UA + timeout) and numeric parser from _utils/http — one
 // place for every scraper instead of a private copy here.
-const { get: httpGet, parseNum: toNum } = require("./_utils/http");
+const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
 
 // NOTE: Crude-oil import data is fetched LIVE by the dashboard from
 // /.netlify/functions/fetch-crude (PPAC + TankerMap AIS + Yahoo). No static
@@ -57,25 +57,51 @@ function isSpreadsheet(buf) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Session cookie captured from the RBI WSS page — the F5 limiter on rbidocs
+// requires a valid session before it serves the .xlsx instead of a challenge
+// interstitial. Populated on every WSS page fetch in processOneFriday.
+let rbiSessionCookie = '';
+
 // Download a single URL as a Buffer, validating it's a real spreadsheet.
-// Retries with backoff when the F5 limiter serves a challenge page. The
-// cooldowns mirror the pacing proven in scripts/backfill-decomp.js (20s
-// cooldown, abort only after repeated challenges) so a transient F5 rate
-// limit is waited out instead of failing the week outright. Returns null
-// only when every attempt fails (genuine failure / not yet published), so
-// the caller skips the week and retries on the next Reload.
+// Retries with backoff when the F5 limiter serves a challenge page. Uses the
+// RBI session cookie (captured from the WSS page) and a real spreadsheet
+// Accept header so the F5 doesn't trip on a text/html Accept on an .xlsx URL.
+// Captures Set-Cookie from each response so later retries in the same
+// invocation can use a refreshed session. Returns null only when every
+// attempt fails, so the caller skips the week and retries on the next Reload.
 async function downloadSpreadsheet(url, timeoutMs = 20000) {
-  const MAX_ATTEMPTS = 3;
-  // F5 rate-limit windows are short; cool down longer each attempt so a later
-  // request lands after the limiter has relaxed. Bounded so a single function
-  // invocation cannot hang for minutes on a persistently-limited upstream — a
-  // week that still fails is skipped and retried on the next Reload (matching
-  // the backfill-decomp.js "abort and let a later run resume" philosophy).
-  const backoffMs = [8000, 15000];
+  const MAX_ATTEMPTS = 5;
+  // Shorter, tighter backoff so a single invocation stays within the Pages
+  // function budget while still waiting out transient F5 rate limits.
+  const backoffMs = [5000, 10000, 15000, 20000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf;
     try {
-      const res = await get(url, timeoutMs);
+      const headers = {
+        "User-Agent": UA,
+        "Referer": "https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=10/9/2026",
+        "Origin": "https://www.rbi.org.in",
+        "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site",
+      };
+      if (rbiSessionCookie) headers["Cookie"] = rbiSessionCookie;
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers,
+        redirect: "follow",
+      });
+      clearTimeout(tid);
+      const sc = res.headers.get("Set-Cookie");
+      if (sc) {
+        const c = sc.split(";")[0];
+        if (c && c.includes("=")) rbiSessionCookie = c;
+      }
       buf = Buffer.from(await res.arrayBuffer());
     } catch (_) {
       buf = null;
@@ -368,6 +394,13 @@ async function processOneFriday(pubFriday) {
   try {
     const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(pubFriday)}`, 10000);
     html = await res.text();
+    // Capture session cookie from the WSS page — the F5 limiter on rbidocs
+    // requires it before it serves the .xlsx instead of a challenge page.
+    const sc = res.headers.get("Set-Cookie");
+    if (sc) {
+      const c = sc.split(";")[0];
+      if (c && c.includes("=")) rbiSessionCookie = c;
+    }
   } catch(e) {
     return { iso, error: `RBI page: ${e.message} - retry on next request` };
   }
