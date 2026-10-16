@@ -3353,23 +3353,48 @@ async function fetchBrentPrice(){
 }
 
 /* ─── Crude price KPI (standalone, independent) ─────────────────────────
-   Shows India's crude buying benchmark — Brent crude spot online — as a
-   headline number: "$<brent> Brent (online) · <date> USD/bbl". Fetches Brent
-   independently of the full crude pipeline so the number is never blank just
-   because PPAC/TankerMap failed. Recomputed on every page load. */
+   Headline: price paid by the Indian government for imported crude — the
+   PPAC import basket price (import value ÷ import quantity, USD/bbl), which
+   is the genuine "govt buying" benchmark behind posts contrasting India's
+   import price with the online (Brent) market price. Fetched live from PPAC
+   on every refresh; PPAC is a monthly series so the pill is labeled with its
+   month rather than presented as live-daily.
+   Comparison: Brent crude spot (online) fetched independently of PPAC so the
+   number is never blank just because PPAC/TankerMap failed. Recomputed on
+   every page load. */
+function ppacMonthLabel(mk){
+  if(!mk) return '';
+  const [y, m] = String(mk).split('-');
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m,10)-1];
+  return mon ? mon + ' ' + y : mk;
+}
 async function renderCrudePrice(){
   const el = document.getElementById('kpi-crude-price');
   const sub = document.getElementById('kpi-crude-price-sub');
   if(!el) return;
+  const india = crudeData ? crudeData.ppac_import_price_usd_bbl : null;
+  const indiaMonth = crudeData ? crudeData.ppac_price_month : null;
   let brent = crudeData && crudeData.prices ? crudeData.prices.brent : null;
   let brentDate = crudeData && crudeData.prices ? crudeData.prices.brent_date : null;
   if(brent == null){
     const live = await fetchBrentPrice();
     brent = live.price; brentDate = live.date;
   }
-  if(brent != null){
-    el.textContent = '$' + brent.toFixed(1);
-    if(sub) sub.textContent = 'Brent (online) · ' + fmtDate(brentDate) + ' USD/bbl';
+  const gap = brent != null && india != null ? +(brent - india).toFixed(1) : null;
+  const showIndia = india != null;
+  const showBrent = brent != null;
+  if(showIndia || showBrent){
+    el.textContent = '$' + (showIndia ? india : brent).toFixed(1);
+    const parts = [];
+    if(showIndia){
+      const m = ppacMonthLabel(indiaMonth);
+      parts.push('India import (govt buying) $' + india.toFixed(1) + (m ? ' · PPAC ' + m : ''));
+    }
+    if(showBrent){
+      parts.push('Brent (online) $' + brent.toFixed(1) + ' · ' + fmtDate(brentDate));
+    }
+    if(gap != null) parts.push('gap $' + (gap >= 0 ? '+' : '') + gap);
+    if(sub) sub.textContent = parts.join(' · ') + ' USD/bbl';
   } else {
     el.textContent = '—';
     if(sub) sub.textContent = 'awaiting crude pipeline';

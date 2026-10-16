@@ -614,8 +614,11 @@ exports.handler = async (event) => {
       const monthlyBarrels = ppacToMonthlyBarrels(ppacData);
       const monthlyImportPrice = ppacToMonthlyImportPriceUsdBbl(ppacData);
       const importPriceMonths = Object.keys(monthlyImportPrice).sort();
-      const ppacImportPriceUsdBbl = importPriceMonths.length
-        ? monthlyImportPrice[importPriceMonths[importPriceMonths.length - 1]]
+      const ppacPriceMonth = importPriceMonths.length
+        ? importPriceMonths[importPriceMonths.length - 1]
+        : null;
+      const ppacImportPriceUsdBbl = ppacPriceMonth
+        ? monthlyImportPrice[ppacPriceMonth]
         : null;
       const indiaBound     = filterIndiaBound(liveVessels);
       const dailyEstimates = buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels);
@@ -645,6 +648,7 @@ exports.handler = async (event) => {
         india_bound_tankers: indiaBound,
         ppac_monthly_barrels: monthlyBarrels,
         ppac_import_price_usd_bbl: ppacImportPriceUsdBbl,
+        ppac_price_month: ppacPriceMonth,
         ppac_raw:         ppacData,
         quality_metrics:  quality,
       };
