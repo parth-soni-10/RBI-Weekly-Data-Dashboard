@@ -207,6 +207,11 @@ async function startFetch() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data.records)) throw new Error('malformed data file (no records array)');
+    window.__rbiSnapshotMeta = {
+      fetched_at: data.data_updated_at || data.fetched_at || null,
+      date_modified: data.date_modified || null,
+      temporal_coverage: data.temporal_coverage || null,
+    };
     records = data.records
       .filter(r => r && r.date)
       .sort((a,b) => a.date.localeCompare(b.date));
@@ -224,6 +229,7 @@ async function startFetch() {
     // Phase 3: live-check the forward book and EM-peers series too.
     await refreshLiveSeries();
   } catch (err) {
+    document.getElementById('empty').hidden = false;
     appendLog(navigator.onLine ? `✗ Could not load data: ${err.message}` : '✗ Offline — showing the last data this device cached (the service worker serves the newest saved week).', 'err');
     setStatus('error');
   }
@@ -736,8 +742,86 @@ function updateFooterLink(){
 
 function updateUI(){
   if(!records.length) return;
-  document.getElementById('empty').style.display='none';
+  document.getElementById('empty').hidden = true;
   document.getElementById('metrics').classList.add('show');
+  let snapshot = window.__rbiSnapshotMeta || {};
+  if (!snapshot.fetched_at) {
+    try {
+      const staticSnapshot = JSON.parse(document.getElementById('seo-data-snapshot')?.textContent || '{}');
+      snapshot = {
+        fetched_at: staticSnapshot.fetched_at || null,
+        date_modified: staticSnapshot.date_modified || null,
+        temporal_coverage: staticSnapshot.temporal_coverage || null,
+      };
+    } catch (error) {
+      console.warn('The embedded static snapshot metadata could not be parsed:', error);
+    }
+  }
+  const latest = records[records.length - 1];
+  const generated = snapshot.fetched_at ? new Date(snapshot.fetched_at) : null;
+  const generatedText = generated && !Number.isNaN(generated.getTime())
+    ? generated.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC'
+    : 'generation time unavailable';
+  const vintage = document.getElementById('snapshot-vintage');
+  if (vintage) vintage.textContent = `Latest static RBI WSS observation: week ended ${fmtDate(latest.date)}. Snapshot generated ${generatedText}. Other series may use different source dates.`;
+  const summary = document.getElementById('weekly-summary');
+  if (summary) summary.classList.add('show');
+  renderWeeklySummary();
+  const snapshotText = {
+    'snapshot-observation': fmtDate(latest.date),
+    'snapshot-generated': generatedText,
+    'snapshot-reserves': fmt(latest.total_usd),
+    'snapshot-gold': fmt(latest.gold_usd),
+    'snapshot-usdinr': fmt(latest.usd_inr, 2),
+    'snapshot-nifty': fmt(latest.nifty, 1),
+    'snapshot-sensex': fmt(latest.sensex, 1),
+    'snapshot-date-res': fmtDate(latest.date),
+    'snapshot-date-gold': fmtDate(latest.date),
+    'snapshot-date-fx': fmtDate(latest.date),
+    'snapshot-date-nifty': fmtDate(latest.date),
+    'snapshot-date-sensex': fmtDate(latest.date),
+  };
+  const snapshotValues = {
+    'snapshot-reserves': latest.total_usd,
+    'snapshot-gold': latest.gold_usd,
+    'snapshot-usdinr': latest.usd_inr,
+    'snapshot-nifty': latest.nifty,
+    'snapshot-sensex': latest.sensex,
+  };
+  const dataSnapshot = document.getElementById('seo-data-snapshot');
+  if (dataSnapshot) {
+    try {
+      const current = JSON.parse(dataSnapshot.textContent || '{}');
+      current.fetched_at = snapshot.fetched_at || current.fetched_at || null;
+      current.date_modified = snapshot.date_modified || current.date_modified || null;
+      current.temporal_coverage = snapshot.temporal_coverage || current.temporal_coverage || null;
+      current.latest = { date: latest.date, ...snapshotValues };
+      dataSnapshot.textContent = JSON.stringify(current);
+    } catch (error) {
+      console.warn('Could not update the embedded data snapshot:', error);
+    }
+  }
+  for (const [id, text] of Object.entries(snapshotText)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.textContent = text;
+    if (id.startsWith('snapshot-date-') || id === 'snapshot-observation') el.dateTime = latest.date;
+    else if (id === 'snapshot-generated' && generated && !Number.isNaN(generated.getTime())) el.dateTime = generated.toISOString();
+  }
+  const jsonLd = document.getElementById('seo-dataset-schema');
+  if (jsonLd && snapshot.date_modified && snapshot.temporal_coverage) {
+    try {
+      const schema = JSON.parse(jsonLd.textContent);
+      const dataset = schema['@graph'].find(item => item['@type'] === 'Dataset');
+      if (dataset) {
+        dataset.dateModified = snapshot.date_modified;
+        dataset.temporalCoverage = snapshot.temporal_coverage;
+        jsonLd.textContent = JSON.stringify(schema);
+      }
+    } catch (error) {
+      console.warn('Could not update dataset metadata from the static snapshot:', error);
+    }
+  }
   document.getElementById('charts').classList.add('show');
   records.sort((a,b)=>a.date.localeCompare(b.date));
   const L=records[records.length-1], P=records.length>1?records[records.length-2]:null;
@@ -2307,6 +2391,7 @@ async function renderCrudeHighlights() {
   }
   renderImportBill();
   renderImportCover();
+  renderCrudePrice();
 }
 
 // ─── FULL CRUDE SECTION ──────────────────────────────────────
@@ -3231,6 +3316,24 @@ function renderImportCover(){
     `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e3).toFixed(2)}B/mo (crude proxy)`;
 }
 
+// CRUDE PRICE KPI: Brent crude spot (USD/bbl) from the live crude pipeline.
+// Loads on page load and on explicit Reload (hourly cap), so the figure stays
+// current without blocking the RBI weekly refresh.
+function renderCrudePrice(){
+  const el = document.getElementById('kpi-crude-price');
+  const sub = document.getElementById('kpi-crude-price-sub');
+  if(!el) return;
+  const brent = crudeData && crudeData.prices ? crudeData.prices.brent : null;
+  const brentDate = crudeData && crudeData.prices ? crudeData.prices.brent_date : null;
+  if(brent != null){
+    el.textContent = '$' + brent.toFixed(1);
+    if(sub) sub.textContent = 'Brent crude · ' + (brentDate ? fmtDate(brentDate) : 'live') + ' · USD/bbl';
+  } else {
+    el.textContent = '—';
+    if(sub) sub.textContent = 'awaiting crude pipeline';
+  }
+}
+
 // FORWARD-BOOK KPIs: gross reserves (records, USD bn) netted against RBI's
 // forward position (macroData.fxintv, USD bn, signed). Runs whenever either
 // input lands — records load (updateUI) or the macro fetch settles
@@ -3269,6 +3372,31 @@ function renderReserveForwardKpis(){
     netEl.textContent = '—';
     netSub.textContent = !hasRes ? (!hasFwd ? 'awaiting records + forward book' : 'awaiting records')
                                  : 'awaiting forward book';
+  }
+
+  // USABLE FOREX: gross reserves − gold − forward book (USD bn). The forward
+  // book is signed (negative = net forward liabilities, a claim on reserves),
+  // so usable = gross + net_fwd − gold. Recomputes every time records load
+  // (weekly) and whenever the forward book settles (monthly).
+  const ufEl = document.getElementById('kpi-usable-forex');
+  const ufSub = document.getElementById('kpi-usable-forex-sub');
+  if (ufEl) {
+    const hasGold = !!(L && L.gold_usd != null);
+    if (hasRes && hasFwd && hasGold) {
+      const grossBn = L.total_usd / 1000;
+      const goldBn  = L.gold_usd / 1000;
+      const usableBn = grossBn + fx.net_fwd - goldBn;
+      ufEl.textContent = '$' + usableBn.toFixed(1) + 'B';
+      if (ufSub) {
+        const fwdText = fx.net_fwd >= 0
+          ? `+$${fx.net_fwd.toFixed(2)}B fwd assets`
+          : `−$${Math.abs(fx.net_fwd).toFixed(2)}B fwd book`;
+        ufSub.textContent = `reserves $${grossBn.toFixed(1)}B − gold $${goldBn.toFixed(1)}B ${fwdText} · ${fmtDate(L.date)}`;
+      }
+    } else {
+      ufEl.textContent = '—';
+      if (ufSub) ufSub.textContent = 'awaiting records + forward book + gold';
+    }
   }
 }
 
