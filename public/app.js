@@ -3316,18 +3316,26 @@ function renderImportCover(){
     `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e3).toFixed(2)}B/mo (crude proxy)`;
 }
 
-// CRUDE PRICE KPI: Brent crude spot (USD/bbl) from the live crude pipeline.
-// Loads on page load and on explicit Reload (hourly cap), so the figure stays
-// current without blocking the RBI weekly refresh.
+// CRUDE PRICE KPI: two live benchmarks from real sources — no hardcoded numbers.
+//   * "Online market price" = Brent crude spot, Yahoo Finance (BZ=F).
+//   * "India import (govt buying) price" = PPAC import Value (USD) ÷ Quantity
+//     (MT) for crude, i.e. the average price Indian refiners pay per barrel.
+// Both refresh on page load and on explicit Reload (hourly-capped).
 function renderCrudePrice(){
   const el = document.getElementById('kpi-crude-price');
   const sub = document.getElementById('kpi-crude-price-sub');
   if(!el) return;
   const brent = crudeData && crudeData.prices ? crudeData.prices.brent : null;
   const brentDate = crudeData && crudeData.prices ? crudeData.prices.brent_date : null;
-  if(brent != null){
-    el.textContent = '$' + brent.toFixed(1);
-    if(sub) sub.textContent = 'Brent crude · ' + (brentDate ? fmtDate(brentDate) : 'live') + ' · USD/bbl';
+  const india = crudeData ? crudeData.ppac_import_price_usd_bbl : null;
+  const gap = brent != null && india != null ? +(india - brent).toFixed(1) : null;
+  if(brent != null || india != null){
+    el.textContent = '$' + (brent != null ? brent.toFixed(1) : '—');
+    const parts = [];
+    if(brentDate) parts.push('Brent (online) · ' + fmtDate(brentDate));
+    if(india != null) parts.push('India import (govt buying) $' + india.toFixed(1));
+    if(gap != null) parts.push('gap $' + (gap >= 0 ? '+' : '') + gap);
+    if(sub) sub.textContent = parts.join(' · ') + ' USD/bbl';
   } else {
     el.textContent = '—';
     if(sub) sub.textContent = 'awaiting crude pipeline';

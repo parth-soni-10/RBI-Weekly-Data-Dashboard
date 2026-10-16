@@ -53,7 +53,7 @@ const MONTH_DISPLAY = {
   november:"NOVEMBER",december:"DECEMBER",january:"JANUARY",
   february:"FEBRUARY",march:"MARCH",
 };
-const FISCAL_YEARS = ["2025-2026","2024-2025","2023-2024"];
+const FISCAL_YEARS = ["2026-2027","2025-2026","2024-2025","2023-2024"];
 
 // ─── HTTP ─────────────────────────────────────────────────────
 // Shared UA/client from _utils/http; `get` keeps this file's positional-timeout
@@ -195,6 +195,42 @@ function ppacToMonthlyBarrels(ppacData) {
     }
   }
   return monthly;
+}
+
+// PPAC import Value (USD Mn) / Quantity (000 MT) for crude, by month.
+// India's average crude import price per barrel = import value ÷ import barrels.
+// This is the genuine price Indian refiners pay for imported crude — the "govt
+// buying" benchmark behind posts comparing India's import basket to the online
+// (Brent) market price. Computed from real PPAC import data already fetched
+// above (no separate scraper, no CSRF-gated page), fail-open to null.
+function ppacToMonthlyImportPriceUsdBbl(ppacData){
+  const BBL_PER_TONNE = 7.33;
+  const crudeQty = ppacData.filter(r =>
+    r.unit === "Quantity (000 MT)" && /CRUDE/.test(r.category || "")
+  );
+  const crudeVal = ppacData.filter(r =>
+    r.unit === "Value USD Mn" && /CRUDE/.test(r.category || "")
+  );
+  const out = {};
+  for(const q of crudeQty){
+    const v = crudeVal.find(c => c.fiscal_year === q.fiscal_year);
+    if(!v) continue;
+    const fyStart = parseInt(String(q.fiscal_year).split("-")[0], 10);
+    for(let mi = 0; mi < MONTH_KEYS.length; mi++){
+      const mn = MONTH_KEYS[mi];
+      const qv = q[MONTH_DISPLAY[mn]];
+      const vv = v[MONTH_DISPLAY[mn]];
+      if(!qv || qv <= 0 || !vv || vv <= 0) continue;
+      let calMonth = mi + 4, calYear = fyStart;
+      if(calMonth > 12){ calMonth -= 12; calYear++; }
+      const mk = `${calYear}-${String(calMonth).padStart(2,"0")}`;
+      const tonnes = qv * 1000;
+      const barrels = tonnes * BBL_PER_TONNE;
+      const usd = vv * 1e6;
+      out[mk] = usd / barrels; // USD per barrel
+    }
+  }
+  return out;
 }
 
 function daysInMonth(y, m) {
@@ -576,6 +612,11 @@ exports.handler = async (event) => {
       const wtiDate   = wtiRes.date;
 
       const monthlyBarrels = ppacToMonthlyBarrels(ppacData);
+      const monthlyImportPrice = ppacToMonthlyImportPriceUsdBbl(ppacData);
+      const importPriceMonths = Object.keys(monthlyImportPrice).sort();
+      const ppacImportPriceUsdBbl = importPriceMonths.length
+        ? monthlyImportPrice[importPriceMonths[importPriceMonths.length - 1]]
+        : null;
       const indiaBound     = filterIndiaBound(liveVessels);
       const dailyEstimates = buildDailyEstimates(arrivalsByDate, marketData, monthlyBarrels);
 
@@ -603,6 +644,7 @@ exports.handler = async (event) => {
         port_summaries:   portSummaries,
         india_bound_tankers: indiaBound,
         ppac_monthly_barrels: monthlyBarrels,
+        ppac_import_price_usd_bbl: ppacImportPriceUsdBbl,
         ppac_raw:         ppacData,
         quality_metrics:  quality,
       };
