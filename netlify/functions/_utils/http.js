@@ -5,25 +5,37 @@ const DEFAULT_TIMEOUT_MS = 12000;
 
 async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer, accept = true } = {}) {
   const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  let tid;
+  // Race the fetch against a hard timer, not just the AbortController: a runtime
+  // can leave a fetch to a black-holed host (RBI's WSS page from Cloudflare's
+  // egress) pending well past the signal — node:https is a shim under
+  // nodejs_compat — so the race is what guarantees the caller stops waiting and
+  // fails fast instead of hanging the whole function.
+  const timeout = new Promise((_, reject) => {
+    tid = setTimeout(() => { ctrl.abort(); reject(new Error(`timeout after ${timeoutMs}ms on ${url}`)); }, timeoutMs);
+  });
   try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: {
-        "User-Agent": UA,
-        // Document downloads (RBI's rbidocs CDN, behind an F5 bot check) must
-        // send NO Accept header — an Accept that names text/html on an .xlsx
-        // URL trips the challenge page every time. Callers pass accept:false.
-        ...(accept ? { "Accept": "text/html,application/xhtml+xml,application/json,text/plain,*/*" } : {}),
-        ...(referer ? { "Referer": referer } : {}),
-        ...headers,
-      },
-    });
+    const res = await Promise.race([
+      fetch(url, {
+        signal: ctrl.signal,
+        headers: {
+          "User-Agent": UA,
+          // Document downloads (RBI's rbidocs CDN, behind an F5 bot check) must
+          // send NO Accept header — an Accept that names text/html on an .xlsx
+          // URL trips the challenge page every time. Callers pass accept:false.
+          ...(accept ? { "Accept": "text/html,application/xhtml+xml,application/json,text/plain,*/*" } : {}),
+          ...(referer ? { "Referer": referer } : {}),
+          ...headers,
+        },
+      }),
+      timeout,
+    ]);
     clearTimeout(tid);
     if (!res.ok) throw new Error(`HTTP ${res.status} on ${url}`);
     return res;
   } catch (e) {
     clearTimeout(tid);
+    ctrl.abort();
     throw e;
   }
 }

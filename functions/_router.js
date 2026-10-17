@@ -35,7 +35,10 @@
  *               A Worker's response is not edge-cached unless the Worker puts it
  *               there, and these handlers scrape live on request — data-latest
  *               walks back up to six Fridays — so the missing layer showed up as
- *               36–54 seconds per request instead of a cache hit. `fetch` now
+ *               36–54 seconds per request instead of a cache hit. The two
+ *               weekly endpoints no longer scrape on request: they read the
+ *               committed snapshot (see _utils/committed.js), so only the live
+ *               fetch-* endpoints still scrape. `fetch` now
  *               stores a response in the colo cache under exactly the policy the
  *               handler asked for; see EDGE CACHE below.
  *
@@ -166,6 +169,13 @@ function wireBindings(env) {
     }
   }
   if (env.SYNC_KV) dataSync.setStore(storeFromKv(env.SYNC_KV));
+  // The public /data/*.json endpoints read the committed snapshot through the
+  // asset store instead of scraping RBI on request (see netlify/functions/_
+  // utils/committed.js).
+  if (env.ASSETS) {
+    dataLatest.setAssets(env.ASSETS);
+    dataForexWeekly.setAssets(env.ASSETS);
+  }
 }
 
 /** Build the event the functions are written against out of this request. */
