@@ -1,4 +1,5 @@
 const XLSX  = require("node-xlsx");
+const https = require("https");
 // Shared HTTP client (UA + timeout) and numeric parser from _utils/http — one
 // place for every scraper instead of a private copy here.
 const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
@@ -57,52 +58,39 @@ function isSpreadsheet(buf) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Session cookie captured from the RBI WSS page — the F5 limiter on rbidocs
-// requires a valid session before it serves the .xlsx instead of a challenge
-// interstitial. Populated on every WSS page fetch in processOneFriday.
-let rbiSessionCookie = '';
-
 // Download a single URL as a Buffer, validating it's a real spreadsheet.
-// Retries with backoff when the F5 limiter serves a challenge page. Uses the
-// RBI session cookie (captured from the WSS page) and a real spreadsheet
-// Accept header so the F5 doesn't trip on a text/html Accept on an .xlsx URL.
-// Captures Set-Cookie from each response so later retries in the same
-// invocation can use a refreshed session. Returns null only when every
-// attempt fails, so the caller skips the week and retries on the next Reload.
-async function downloadSpreadsheet(url, timeoutMs = 10000) {
-  const MAX_ATTEMPTS = 4;
-  // Tight backoff so a single invocation stays well within the Pages function
-  // budget while still waiting out transient F5 rate limits.
-  const backoffMs = [3000, 6000, 9000];
+// Retries with backoff when the F5 limiter serves a challenge page. Uses a
+// real spreadsheet Accept header so the F5 doesn't trip on a text/html Accept
+// on an .xlsx URL. Does NOT send cookies — direct downloads without cookies
+// succeed, while sending the WSS page's session cookie appears to trigger the
+// F5 limiter. Returns null only when every attempt fails, so the caller skips
+// the week and retries on the next Reload.
+async function downloadSpreadsheet(url, timeoutMs = 15000) {
+  const MAX_ATTEMPTS = 6;
+  // The F5 rate limit on rbidocs can persist for a minute or more after a
+  // WSS-page hit. Space retries far enough apart that the limit has time to
+  // relax between attempts. Runs locally (no function timeout), so we can
+  // afford a longer budget here.
+  const backoffMs = [10000, 20000, 30000, 45000, 60000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf;
     try {
-      const headers = {
-        "User-Agent": UA,
-        "Referer": "https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=10/9/2026",
-        "Origin": "https://www.rbi.org.in",
-        "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-site",
-      };
-      if (rbiSessionCookie) headers["Cookie"] = rbiSessionCookie;
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
-      const res = await fetch(url, {
-        signal: ctrl.signal,
-        headers,
-        redirect: "follow",
+      buf = await new Promise((resolve, reject) => {
+        const req = https.get(url, {
+          headers: {
+            "User-Agent": UA,
+            "Referer": "https://www.rbi.org.in/",
+            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*",
+          },
+          timeout: timeoutMs,
+        }, (res) => {
+          const chunks = [];
+          res.on("data", c => chunks.push(c));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
+        });
+        req.on("error", e => reject(e.message));
+        req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
       });
-      clearTimeout(tid);
-      const sc = res.headers.get("Set-Cookie");
-      if (sc) {
-        const c = sc.split(";")[0];
-        if (c && c.includes("=")) rbiSessionCookie = c;
-      }
-      buf = Buffer.from(await res.arrayBuffer());
     } catch (_) {
       buf = null;
     }
@@ -382,6 +370,50 @@ async function getYahooClose(symbol, targetDate) {
   } catch { return null; }
 }
 
+// Download a single URL as a Buffer, validating it's a real spreadsheet.
+// Retries with backoff when the F5 limiter serves a challenge page. Uses a
+// real spreadsheet Accept header so the F5 doesn't trip on a text/html Accept
+// on an .xlsx URL. Does NOT send cookies — direct downloads without cookies
+// succeed, while sending the WSS page's session cookie appears to trigger the
+// F5 limiter. Returns null only when every attempt fails, so the caller skips
+// the week and retries on the next Reload.
+// Uses https.get() (not fetch()) because fetch() was observed to hang on
+// rbidocs.rbi.org.in while https.get() succeeds.
+async function downloadSpreadsheet(url, timeoutMs = 15000) {
+  const MAX_ATTEMPTS = 6;
+  // The F5 rate limit on rbidocs can persist for a minute or more after a
+  // WSS-page hit. Space retries far enough apart that the limit has time to
+  // relax between attempts. Runs locally (no function timeout), so we can
+  // afford a longer budget here.
+  const backoffMs = [10000, 20000, 30000, 45000, 60000];
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let buf;
+    try {
+      buf = await new Promise((resolve, reject) => {
+        const req = https.get(url, {
+          headers: {
+            "User-Agent": UA,
+            "Referer": "https://www.rbi.org.in/",
+            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*",
+          },
+          timeout: timeoutMs,
+        }, (res) => {
+          const chunks = [];
+          res.on("data", c => chunks.push(c));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
+        });
+        req.on("error", e => reject(e.message));
+        req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+      });
+    } catch (_) {
+      buf = null;
+    }
+    if (isSpreadsheet(buf)) return buf;
+    if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
+  }
+  return null;
+}
+
 // ─── PROCESS ONE FRIDAY ───────────────────────────────────────
 async function processOneFriday(pubFriday) {
   // The publication Friday's WSS shows reserves/gold data "as on" the *previous* Friday
@@ -394,13 +426,6 @@ async function processOneFriday(pubFriday) {
   try {
     const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(pubFriday)}`, 10000);
     html = await res.text();
-    // Capture session cookie from the WSS page — the F5 limiter on rbidocs
-    // requires it before it serves the .xlsx instead of a challenge page.
-    const sc = res.headers.get("Set-Cookie");
-    if (sc) {
-      const c = sc.split(";")[0];
-      if (c && c.includes("=")) rbiSessionCookie = c;
-    }
   } catch(e) {
     return { iso, error: `RBI page: ${e.message} - retry on next request` };
   }
@@ -409,7 +434,12 @@ async function processOneFriday(pubFriday) {
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page - RBI may not have published this week; retry later" };
 
-  // 3. Download the reserves Excel with F5-limiter validation + one retry.
+  // Brief pause so the F5 limiter on rbidocs doesn't see back-to-back requests
+  // from the same IP (WSS page HTML + Excel download) and rate-limit the download.
+  // Runs locally (no function timeout), so we can afford a longer pause here.
+  await sleep(30000);
+
+  // 3. Download the reserves Excel with F5-limiter validation + retries.
   //    Yahoo targets use the as-on Friday (previous week) for all.
   //    Nifty and Sensex (and rupee) for the latest record will be the values
   //    at scrape time (up to latest available).
@@ -425,7 +455,7 @@ async function processOneFriday(pubFriday) {
     getYahooClose("EURINR=X", asOn),
   ]);
 
-  // 4. Parse
+  // 5. Parse
   const reserves = parseReservesExcel(resBuf);
   if (reserves.total_usd == null) return { iso, error: "could not parse total_usd from Excel - retry on next request" };
 
@@ -434,7 +464,7 @@ async function processOneFriday(pubFriday) {
   return {
     iso,
     record: {
-      date:      iso,  // as-on date (previous Friday)
+      date:      iso,
       total_usd: reserves.total_usd,
       total_inr: reserves.total_inr,
       gold_usd:  reserves.gold_usd,
