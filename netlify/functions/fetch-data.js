@@ -169,7 +169,9 @@ function parseReservesExcel(buf) {
   let sheets;
   try { sheets = XLSX.parse(buf); } catch(e) { return result; }
 
-  for (const sheet of sheets) {
+  let reservesSheetIdx = null;
+  for (let si0 = 0; si0 < sheets.length; si0++) {
+    const sheet = sheets[si0];
     const rows = sheet.data || [];
     // ── Total reserves ──────────────────────────────────────
     let total_row_idx = null;
@@ -198,6 +200,7 @@ function parseReservesExcel(buf) {
       }
       result.total_inr = inr_val;
       result.total_usd = usd_val;
+      reservesSheetIdx = si0;
     }
 
     // ── Gold ────────────────────────────────────────────────
@@ -248,7 +251,7 @@ function parseReservesExcel(buf) {
 
   for (const f of decompFinders) {
     const candidates = []; // { rowIdx, sheetIdx, usd, inr }
-    outer: for (let si = 0; si < sheets.length; si++) {
+    for (let si = 0; si < sheets.length; si++) {
       const rows = sheets[si].data || [];
       for (let j = 0; j < rows.length; j++) {
         const text = rows[j].map(c => String(c || "")).join(" ").toLowerCase();
@@ -270,15 +273,23 @@ function parseReservesExcel(buf) {
             // Single-column report — assume USD mn.
             candidates.push({ sheetIdx: si, rowIdx: j, usd: nums[0], inr: null });
           }
-          break outer;
+          // NOTE: deliberately no `break` — scan every sheet. RBI's WSS can
+          // carry a decoy row of the same label in another table (e.g. the
+          // balance-sheet "Foreign Currency Assets" in T_1, in a different
+          // unit); collecting all candidates lets the sanity filter below
+          // discard it instead of latching onto the first hit.
         }
       }
     }
-    // Prefer the FIRST match in physical order. If multiple sheets carry the
-    // row, prefer one whose ₹cr/$mn ratio looks like a real reserves split
-    // (₹cr = $mn × rate ÷ 10 ≈ 9–11 at recent rates).
+    // Pick the row that actually belongs to the reserves table. Preference:
+    //   1. a candidate in the same sheet as the total-reserves row, with a
+    //      plausible ₹cr/$mn ratio (₹cr = $mn × rate ÷ 10 ≈ 9–11 recently);
+    //   2. any candidate with a plausible ratio (handles single-sheet files);
+    //   3. the first candidate as a last resort.
     if (candidates.length) {
-      const best = candidates.find(c => c.inr && (c.inr / c.usd > 4 && c.inr / c.usd < 25))
+      const sane = c => c.inr && c.usd && (c.inr / c.usd > 4 && c.inr / c.usd < 25);
+      const best = (reservesSheetIdx != null && candidates.find(c => c.sheetIdx === reservesSheetIdx && sane(c)))
+                || candidates.find(sane)
                 || candidates[0];
       result[f.keys[0]] = best.usd;
       result[f.keys[1]] = best.inr;
