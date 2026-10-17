@@ -408,7 +408,7 @@ async function processOneFriday(pubFriday) {
   //    Yahoo targets use the as-on Friday (previous week) for all.
   //    Nifty and Sensex (and rupee) for the latest record will be the values
   //    at scrape time (up to latest available).
-  const resBuf = await downloadSpreadsheet(urls.reserves, 20000);
+  const resBuf = await downloadSpreadsheet(urls.reserves, 8000);
   if (!resBuf) return { iso, error: "reserves Excel download failed - will retry on next request" };
 
   // 4. Spot Excel + Yahoo quotes in parallel now that reserves is in hand.
