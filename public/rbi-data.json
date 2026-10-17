@@ -1,8 +1,5 @@
 {
-  "fetched_at": "2026-10-17T10:19:11.762Z",
-  "data_updated_at": "2026-10-17T10:19:11.762Z",
-  "date_modified": "2026-10-17",
-  "temporal_coverage": "2025-12-26/2026-10-09",
+  "fetched_at": "2026-10-17T10:23:26.841Z",
   "source": "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
   "generated_by": "scripts/fetch-all.js",
   "count": 42,
@@ -237,7 +234,13 @@
       "usd_inr": 94.30950164794922,
       "eur_inr": 108.70500183105469,
       "nifty": 22819.599609375,
-      "sensex": 73583.21875
+      "sensex": 73583.21875,
+      "fca_usd": 551072,
+      "fca_inr": 5222593,
+      "sdr_usd": 18649,
+      "sdr_inr": 176739,
+      "imf_reserve_usd": 4816,
+      "imf_reserve_inr": 45561
     },
     {
       "date": "2026-04-03",
