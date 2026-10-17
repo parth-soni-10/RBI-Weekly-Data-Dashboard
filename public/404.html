@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Page not found | RBI Weekly Dashboard</title>
+<meta name="robots" content="noindex" />
+<!--
+  Why this file exists rather than being left to the platform: with no 404.html in
+  the upload, Pages answers `200` with index.html for every unmatched path, so a
+  path that serves nothing looks like a page that does. Until this file, an
+  unknown path got Cloudflare's generic 509-byte error instead of the dashboard's own.
+
+  It lives beside index.html because this repository publishes `public/` — the
+  same directory the app and the /data/*.json API are served from. No inline style
+  and no script: `style-src 'self'` carries no 'unsafe-inline' here, so a <style>
+  block would be dropped, and the sheet below is the same origin.
+-->
+<link rel="stylesheet" href="/404.css" />
+</head>
+<body>
+<main>
+  <div class="code">404</div>
+  <h1>Nothing at this address</h1>
+  <p>That page is not part of the dashboard. <a href="/">Back to the dashboard</a>.</p>
+</main>
+</body>
+</html>

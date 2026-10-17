@@ -54,9 +54,10 @@ function sleep(ms) {
 async function buildRbiDataFile({ priorText = null, startYear = null, limit = null, log = () => {} } = {}) {
   // 1. Prior records (kept on transient failures so the file never goes empty).
   let prior = [];
+  let priorDoc = null;
   try {
     const parsed = JSON.parse(priorText);
-    if (parsed && Array.isArray(parsed.records)) prior = parsed.records;
+    if (parsed && Array.isArray(parsed.records)) { prior = parsed.records; priorDoc = parsed; }
   } catch (_) { /* no prior file — first run */ }
 
   const curYear = new Date().getFullYear();
@@ -109,9 +110,20 @@ async function buildRbiDataFile({ priorText = null, startYear = null, limit = nu
     .filter(r => { if (seen.has(r.date)) return false; seen.add(r.date); return true; })
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // 4. Build the file.
+  // 4. Build the file. The SEO metadata is carried across an unchanged run: only
+  //    a run that actually added a record re-stamps data_updated_at /
+  //    date_modified. Otherwise a quiet Friday would rewrite the file (and every
+  //    crawlable snapshot built from it) for no reason — the same rule the
+  //    refresh driver applies to fetched_at.
+  const changed = fresh.length > 0 || merged.length !== prior.length;
+  const nowIso = new Date().toISOString();
   const doc = {
-    fetched_at: new Date().toISOString(),
+    fetched_at: nowIso,
+    data_updated_at: changed ? nowIso : ((priorDoc && (priorDoc.data_updated_at || priorDoc.fetched_at)) || nowIso),
+    date_modified: changed ? nowIso.slice(0, 10) : ((priorDoc && priorDoc.date_modified) || nowIso.slice(0, 10)),
+    temporal_coverage: merged.length
+      ? `${merged[0].date}/${merged[merged.length - 1].date}`
+      : ((priorDoc && priorDoc.temporal_coverage) || null),
     source: "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
     generated_by: "scripts/fetch-all.js",
     count: merged.length,

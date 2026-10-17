@@ -26,7 +26,8 @@
 //   id            file                                built by
 //   rbi-data      public/rbi-data.json                scripts/fetch-all.js
 //   feed          public/feed.xml                     scripts/make-rss.js
-//   fwd-series    netlify/functions/fetch-fx-….js     scripts/update-fwd-series.js
+//   seo           public/index.html                   scripts/inject-snapshot.js
+//   fwd-series    netlify/functions/fetch-fx-..js     scripts/update-fwd-series.js
 //   fwd-monthly   (the same file, second edit)        scripts/update-fwd-monthly.js
 //   debt          public/external-debt.json           scripts/fetch-debt-rankings.js
 //   sentiment     public/sentiment-history.json       scripts/snapshot-sentiment.js
@@ -80,9 +81,11 @@ const { buildFwdMonthlyFile } = require("../../scripts/update-fwd-monthly.js");
 const { buildExternalDebtFile } = require("../../scripts/fetch-debt-rankings.js");
 const { buildSentimentFile } = require("../../scripts/snapshot-sentiment.js");
 const { buildFiiHistoryFile } = require("../../scripts/snapshot-fii-dii.js");
+const { injectSnapshot } = require("../../scripts/inject-snapshot.js");
 
 const RBI = "public/rbi-data.json";
 const FEED = "public/feed.xml";
+const INDEX = "public/index.html";
 const FX_INTERVENTION = "netlify/functions/fetch-fx-intervention.js";
 const DEBT = "public/external-debt.json";
 const SENTIMENT = "public/sentiment-history.json";
@@ -121,6 +124,22 @@ const STEPS = [
       const source = texts.get(RBI);
       if (source == null) return { text: null, detail: `skipped — ${RBI} unavailable this run` };
       return buildFeedFile({ priorText: source, siteUrl: options.siteUrl });
+    },
+  },
+  {
+    id: "seo",
+    path: INDEX,
+    label: "Static SEO snapshot",
+    run: ({ priorText, texts }) => {
+      // The crawlable snapshot baked into index.html (head meta + the hidden
+      // #snapshot-metrics block + the Dataset JSON-LD) is a function of
+      // rbi-data.json. Rebuild it from the text this run produced so a crawler
+      // that runs no JS sees the same newest week the dashboard renders.
+      if (priorText == null) return { text: null, detail: `skipped — ${INDEX} unavailable this run` };
+      const source = texts.get(RBI);
+      if (source == null) return { text: null, detail: `skipped — ${RBI} unavailable this run` };
+      const text = injectSnapshot(priorText, source);
+      return { text, detail: "latest WSS figures + Dataset JSON-LD synchronized" };
     },
   },
   {
@@ -289,5 +308,5 @@ module.exports = {
   comparable,
   STEPS,
   DEFAULT_WEEK_LIMIT,
-  PATHS: { RBI, FEED, FX_INTERVENTION, DEBT, SENTIMENT, FII_DII },
+  PATHS: { RBI, FEED, INDEX, FX_INTERVENTION, DEBT, SENTIMENT, FII_DII },
 };

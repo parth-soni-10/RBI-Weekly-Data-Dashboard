@@ -19,11 +19,14 @@
 // exercise the real driver and the real merge functions against a fake io.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-const { runRefresh, commitMessage, comparable } = require("../netlify/functions/refresh-data.js");
+const { runRefresh, commitMessage, comparable, STEPS } = require("../netlify/functions/refresh-data.js");
 const { mergeFiiHistory } = require("../scripts/snapshot-fii-dii.js");
 const { mergeSentimentHistory } = require("../scripts/snapshot-sentiment.js");
 const { buildFeed } = require("../scripts/make-rss.js");
+const { buildRbiDataFile } = require("../scripts/fetch-all.js");
 
 const RBI = "public/rbi-data.json";
 
@@ -147,6 +150,50 @@ test("commitMessage names the files and lists what each step did", () => {
   assert.match(msg, /^chore\(data\): weekly refresh — rbi-data\.json, fetch-fx-intervention\.js$/m);
   assert.match(msg, /^- public\/rbi-data\.json: 41 weeks · 1 new$/m);
   assert.ok(!msg.includes("public/feed.xml"), "unchanged files stay out of the body");
+});
+
+// ── The crawlable snapshot ──────────────────────────────────────────────────
+// The static HTML a crawler sees (head meta, the hidden #snapshot-metrics block,
+// the Dataset JSON-LD) is baked from rbi-data.json. These pin the two ways that
+// used to fall out of sync: the builder stripping the metadata the snapshot reads,
+// and the snapshot itself not being rebuilt by the plan.
+test("an unchanged RBI run keeps the SEO metadata instead of stripping it", async () => {
+  const prior = JSON.stringify({
+    fetched_at: "2026-10-17T00:00:00.000Z",
+    data_updated_at: "2026-10-17T00:00:00.000Z",
+    date_modified: "2026-10-17",
+    temporal_coverage: "2099-12-31/2099-12-31",
+    source: "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
+    generated_by: "scripts/fetch-all.js",
+    count: 1,
+    records: [{ date: "2099-12-31", total_usd: 1 }],
+  }, null, 2);
+  const built = await buildRbiDataFile({ priorText: prior, limit: 8, log: () => {} });
+  const doc = JSON.parse(built.text);
+  assert.equal(built.fresh, 0, "a future-dated record leaves nothing to fetch");
+  assert.equal(doc.data_updated_at, "2026-10-17T00:00:00.000Z", "the update stamp survives a quiet run");
+  assert.equal(doc.date_modified, "2026-10-17");
+  assert.equal(doc.temporal_coverage, "2099-12-31/2099-12-31");
+  assert.equal(comparable(built.text), comparable(prior), "only fetched_at moves, so nothing would commit");
+});
+
+test("the refresh rebuilds the crawlable snapshot from the run's own records", () => {
+  const template = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const data = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "public", "rbi-data.json"), "utf8"));
+  data.date_modified = "2027-01-01";
+  data.temporal_coverage = "2025-12-26/2027-01-01";
+  data.records.push({ date: "2027-01-01", total_usd: 900000, gold_usd: 120000, usd_inr: 99.5, nifty: 25000, sensex: 80000 });
+
+  const seo = STEPS.find(s => s.id === "seo");
+  assert.ok(seo, "public/index.html is part of the plan");
+  const out = seo.run({ priorText: template, texts: new Map([[RBI, JSON.stringify(data)]]), options: {}, log: () => {} });
+
+  assert.match(out.text, /<time id="snapshot-observation">1 January 2027<\/time>/);
+  assert.match(out.text, /<div class="mc-val" id="m-res-usd">9,00,000<\/div>/);
+  const schema = JSON.parse(out.text.match(/<script type="application\/ld\+json" id="seo-dataset-schema">([\s\S]*?)<\/script>/)[1]);
+  const dataset = schema["@graph"].find(n => n["@type"] === "Dataset");
+  assert.equal(dataset.dateModified, "2027-01-01");
+  assert.equal(dataset.temporalCoverage, "2025-12-26/2027-01-01");
 });
 
 // ── The merges the refactor moved ───────────────────────────────────────────

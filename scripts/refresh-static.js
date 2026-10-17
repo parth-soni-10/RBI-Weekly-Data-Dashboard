@@ -3,8 +3,9 @@
  * refresh-static.js — the weekly refresh, run locally, over the filesystem.
  *
  * The same plan the weekly refresh runs (netlify/functions/refresh-data.js):
- * rbi-data.json + feed.xml, the forward-book series, external-debt.json, and the
- * sentiment + FII/DII histories. This is the replacement for the chain Netlify
+ * rbi-data.json + feed.xml, the crawlable snapshot baked into index.html, the
+ * forward-book series, external-debt.json, and the sentiment + FII/DII histories.
+ * This is the replacement for the chain Netlify
  * used to run as its build command — one command, one implementation, so a local
  * run and a cron run cannot produce different data.
  *
