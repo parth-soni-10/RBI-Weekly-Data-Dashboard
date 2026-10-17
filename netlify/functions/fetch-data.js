@@ -349,23 +349,34 @@ async function getYahooClose(symbol, targetDate) {
 // Retries with backoff when the limiter does serve a challenge; returns null
 // when every attempt fails, so the caller skips the week and retries on the
 // next Reload.
-async function downloadSpreadsheet(url, timeoutMs = 10000) {
+async function downloadSpreadsheet(url, timeoutMs = 8000) {
   const MAX_ATTEMPTS = 2;
-  const backoffMs = [3000];
+  const backoffMs = [2000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf = null;
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+    // Race the whole request (connect + body) against a hard timer: a runtime
+    // can leave a fetch to a black-holed host pending well past the
+    // AbortController, so the race — not the signal — is what guarantees we
+    // stop waiting and either retry or give up.
+    let timer;
     try {
-      const res = await fetch(url, {
-        signal: ctrl.signal,
-        headers: { "User-Agent": UA, "Referer": "https://www.rbi.org.in/" },
-      });
-      if (res.ok) buf = Buffer.from(await res.arrayBuffer());
+      buf = await Promise.race([
+        (async () => {
+          const res = await fetch(url, {
+            signal: ctrl.signal,
+            headers: { "User-Agent": UA, "Referer": "https://www.rbi.org.in/" },
+          });
+          return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => { ctrl.abort(); reject(new Error("timeout")); }, timeoutMs);
+        }),
+      ]);
     } catch (_) {
       buf = null;
     } finally {
-      clearTimeout(tid);
+      clearTimeout(timer);
     }
     if (isSpreadsheet(buf)) return buf;
     if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
