@@ -1,5 +1,4 @@
 const XLSX  = require("node-xlsx");
-const https = require("https");
 // Shared HTTP client (UA + timeout) and numeric parser from _utils/http — one
 // place for every scraper instead of a private copy here.
 const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
@@ -57,48 +56,6 @@ function isSpreadsheet(buf) {
   return pk || xls;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// Download a single URL as a Buffer, validating it's a real spreadsheet.
-// Retries with backoff when the F5 limiter serves a challenge page. Uses a
-// real spreadsheet Accept header so the F5 doesn't trip on a text/html Accept
-// on an .xlsx URL. Does NOT send cookies — direct downloads without cookies
-// succeed, while sending the WSS page's session cookie appears to trigger the
-// F5 limiter. Returns null only when every attempt fails, so the caller skips
-// the week and retries on the next Reload.
-async function downloadSpreadsheet(url, timeoutMs = 15000) {
-  const MAX_ATTEMPTS = 6;
-  // The F5 rate limit on rbidocs can persist for a minute or more after a
-  // WSS-page hit. Space retries far enough apart that the limit has time to
-  // relax between attempts. Runs locally (no function timeout), so we can
-  // afford a longer budget here.
-  const backoffMs = [10000, 20000, 30000, 45000, 60000];
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let buf;
-    try {
-      buf = await new Promise((resolve, reject) => {
-        const req = https.get(url, {
-          headers: {
-            "User-Agent": UA,
-            "Referer": "https://www.rbi.org.in/",
-            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*",
-          },
-          timeout: timeoutMs,
-        }, (res) => {
-          const chunks = [];
-          res.on("data", c => chunks.push(c));
-          res.on("end", () => resolve(Buffer.concat(chunks)));
-        });
-        req.on("error", e => reject(e.message));
-        req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
-      });
-    } catch (_) {
-      buf = null;
-    }
-    if (isSpreadsheet(buf)) return buf;
-    if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
-  }
-  return null;
-}
 
 // ─── HTTP ────────────────────────────────────────────────────
 // Same shared client every other scraper uses, pinned to the RBI referer the
@@ -382,42 +339,33 @@ async function getYahooClose(symbol, targetDate) {
 }
 
 // Download a single URL as a Buffer, validating it's a real spreadsheet.
-// Retries with backoff when the F5 limiter serves a challenge page. Uses a
-// real spreadsheet Accept header so the F5 doesn't trip on a text/html Accept
-// on an .xlsx URL. Does NOT send cookies — direct downloads without cookies
-// succeed, while sending the WSS page's session cookie appears to trigger the
-// F5 limiter. Returns null only when every attempt fails, so the caller skips
-// the week and retries on the next Reload.
-// Uses https.get() (not fetch()) because fetch() was observed to hang on
-// rbidocs.rbi.org.in while https.get() succeeds.
+// Sends NO Accept header: RBI's rbidocs CDN (behind an F5 bot check) serves a
+// challenge page whenever Accept names text/html, and a spreadsheet Accept
+// trips a transport-level failure — but a request with no Accept at all gets
+// the real .xlsx (verified against the live CDN). Uses fetch() with a
+// per-attempt AbortController so the timeout is honoured on every runtime:
+// node:https is a shim under Cloudflare's nodejs_compat and can ignore the
+// socket timeout, which made the deployed function hang instead of failing.
+// Retries with backoff when the limiter does serve a challenge; returns null
+// when every attempt fails, so the caller skips the week and retries on the
+// next Reload.
 async function downloadSpreadsheet(url, timeoutMs = 15000) {
-  const MAX_ATTEMPTS = 6;
-  // The F5 rate limit on rbidocs can persist for a minute or more after a
-  // WSS-page hit. Space retries far enough apart that the limit has time to
-  // relax between attempts. Runs locally (no function timeout), so we can
-  // afford a longer budget here.
-  const backoffMs = [10000, 20000, 30000, 45000, 60000];
+  const MAX_ATTEMPTS = 3;
+  const backoffMs = [5000, 15000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let buf;
+    let buf = null;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      buf = await new Promise((resolve, reject) => {
-        const req = https.get(url, {
-          headers: {
-            "User-Agent": UA,
-            "Referer": "https://www.rbi.org.in/",
-            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*",
-          },
-          timeout: timeoutMs,
-        }, (res) => {
-          const chunks = [];
-          res.on("data", c => chunks.push(c));
-          res.on("end", () => resolve(Buffer.concat(chunks)));
-        });
-        req.on("error", e => reject(e.message));
-        req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: { "User-Agent": UA, "Referer": "https://www.rbi.org.in/" },
       });
+      if (res.ok) buf = Buffer.from(await res.arrayBuffer());
     } catch (_) {
       buf = null;
+    } finally {
+      clearTimeout(tid);
     }
     if (isSpreadsheet(buf)) return buf;
     if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
@@ -444,11 +392,6 @@ async function processOneFriday(pubFriday) {
   // 2. Find Excel links (now matches Python "Foreign Exchange Reserves" row logic primarily)
   const urls = findExcelUrls(html);
   if (!urls.reserves) return { iso, error: "no reserves Excel link on page - RBI may not have published this week; retry later" };
-
-  // Brief pause so the F5 limiter on rbidocs doesn't see back-to-back requests
-  // from the same IP (WSS page HTML + Excel download) and rate-limit the download.
-  // Runs locally (no function timeout), so we can afford a longer pause here.
-  await sleep(30000);
 
   // 3. Download the reserves Excel with F5-limiter validation + retries.
   //    Yahoo targets use the as-on Friday (previous week) for all.
