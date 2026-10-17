@@ -1,5 +1,8 @@
 {
-  "fetched_at": "2026-10-17T10:23:26.841Z",
+  "fetched_at": "2026-10-17T10:51:51.211Z",
+  "data_updated_at": "2026-10-17T10:23:26.841Z",
+  "date_modified": "2026-10-17",
+  "temporal_coverage": "2025-12-26/2026-10-09",
   "source": "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
   "generated_by": "scripts/fetch-all.js",
   "count": 42,
