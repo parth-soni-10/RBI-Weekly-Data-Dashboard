@@ -349,9 +349,9 @@ async function getYahooClose(symbol, targetDate) {
 // Retries with backoff when the limiter does serve a challenge; returns null
 // when every attempt fails, so the caller skips the week and retries on the
 // next Reload.
-async function downloadSpreadsheet(url, timeoutMs = 15000) {
-  const MAX_ATTEMPTS = 3;
-  const backoffMs = [5000, 15000];
+async function downloadSpreadsheet(url, timeoutMs = 10000) {
+  const MAX_ATTEMPTS = 2;
+  const backoffMs = [3000];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf = null;
     const ctrl = new AbortController();
