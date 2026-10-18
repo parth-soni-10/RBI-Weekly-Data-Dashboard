@@ -98,6 +98,10 @@
      cacheable on its own, and it is what lets the CSP say style-src 'self'
      instead of 'unsafe-inline'. -->
 <link rel="stylesheet" href="styles.css">
+<!-- The component layer. Class-only styles, loaded second so it can refine the
+     design system without restating it; the script below only adopts markup
+     that is already in the page. -->
+<link rel="stylesheet" href="components.css">
 </head>
 <body>
 
@@ -709,7 +713,7 @@
     <label class="feedback-label" for="feedback-message">What looks wrong?</label>
     <textarea id="feedback-message" name="message" maxlength="2000" required rows="3" placeholder="Which figure, and what should it be?"></textarea>
     <label class="feedback-hp" aria-hidden="true" for="feedback-website">Leave this empty</label>
-    <input id="feedback-website" name="website" type="text" tabindex="-1" autocomplete="off">
+    <input id="feedback-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button type="submit" class="feedback-submit" data-component="dynamic-button">Send report</button>
     <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
   </form>
@@ -734,6 +738,9 @@
      already loaded. Document order puts it after the vendored chart/gsap
      tags, so window.Chart and window.gsap are defined too. -->
 <script src="app.js" defer></script>
+<!-- Deferred like app.js, so it runs after the first paint and after the data
+     render; it adopts the rendered markup rather than creating a parallel UI. -->
+<script src="components.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
 
