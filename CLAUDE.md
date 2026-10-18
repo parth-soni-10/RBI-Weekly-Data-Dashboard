@@ -44,6 +44,7 @@ public/                 → Static site (publish dir)
   _redirects              → The /data/*.json public API contract (the function answers these; Cloudflare parses this file too)
   embed/                  → Standalone chart embeds
 netlify/functions/      → Serverless scrapers + APIs
+functions/api/feedback.js → POST /api/feedback: the site's feedback box (shared SITE_FEEDBACK KV, honeypot, 10-minute throttle per address). Answers 503 until that binding exists; tests/feedback.test.mjs covers it. Unlike every other route here it is new, not a port of a Netlify path.
   fetch-data.js           → RBI WSS scraper core (_getFridays, _processOne) - reused by others
   fetch-crude.js          → Heavy pipeline: PPAC + TankerMap AIS + Yahoo prices
   fetch-fii*.js, fetch-gsec.js, fetch-tax.js, fetch-reer.js, fetch-fx-intervention.js,
@@ -115,3 +116,15 @@ scripts/check-syntax.js  → `npm run check`, the whole static check the repo ha
 - Icon lookup keys are PascalCase at runtime (`data-lucide="ship"` → `Ship`). Not every Lucide name exists in this pinned build — verify an icon name against `lucide.icons` before using it (e.g. `barrel` and `droplets` do NOT exist here; `ship`, `fuel`, `factory`, `hand-heart`, `table-2` do).
 - The Reload button re-injects its icon after load: `btn.innerHTML = '<i data-lucide="rotate-cw"></i> Reload data'` then re-runs `lucide.createIcons()`.
 - Size icons via the `.lucide` rules at the bottom of the inline `<style>` (in nav/status/btn/dl/tab). SVGs inherit `currentColor`.
+
+## Redesign pass (2026-10-18) — what changed, and what has not
+
+The design-system rebuild of this site is **not done**: the 25 manifest components are still unimplemented, and `public/app.js` has no `data-component` markers yet. What was added in this pass is the site-level contract around them, so the component layer can land on top without re-doing this work:
+
+- **Feedback box** (`public/index.html` `#feedback`, `public/styles.css` `.feedback`, `public/app.js` `initFeedback`): the site's only write, posting `{message, website}` to the existing `POST /api/feedback` (`functions/api/feedback.js`, bound to the shared `site-feedback` KV). It reports 201/202 as success, and 400/413/503 as named failures — it never says a report was stored when the function refused it. The honeypot field is off-screen rather than `display:none`, so a bot that skips hidden inputs is still caught.
+- **Service-worker update bar** (`#sw-update`, `initUpdatePrompt`): `sw.js` installs with `skipWaiting()` + `clients.claim()`, so there is no waiting worker to prompt from — the signal is `controllerchange` on a page that already had a controller. A first install stays quiet, and Reload is the user's choice rather than a forced swap.
+- **Focus to the page heading** after a tab change: `focusHeading()` at the end of `showSection()`. This is the brief's accessibility contract; before it, a keyboard user switching tabs was left on a link in a pane that had just been deactivated.
+- **44px touch targets** under `@media (pointer: coarse)` in `public/styles.css`, plus the shared `.touch-target` class. Inline links inside sentences opt out so their line rhythm is unchanged.
+- **Reduced motion / tokens / `null → —`**: untouched. The existing rules stand; nothing in this pass added an animation.
+- **Verification is deferred**, not skipped: guards (`npm run check`, `npm test`), Playwright at 375/768/1280, axe, CSP console, the feedback route and the update bar are all listed in the working root's `docs/DEFERRED_TESTS.md` for the testing pass. No test was run in this pass, and no push or deploy was made.
+- The remaining component work keeps the sites' hard contracts: `#tab=…&modes=…` + `showSection()`, the shared `null → —` formatter, and the vendored Chart.js/GSAP/three charts (borrowers, maturity, crude, ridge) stay as they are.

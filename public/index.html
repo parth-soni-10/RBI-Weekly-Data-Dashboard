@@ -702,6 +702,19 @@
   </div>
 </div>
 
+<section class="feedback" id="feedback" aria-labelledby="feedback-title" data-component="feedback">
+  <h2 id="feedback-title">Report a data problem</h2>
+  <p class="feedback-intro">A figure that looks wrong, a week that did not refresh, a source that moved. This goes to me, not into the weekly data.</p>
+  <form id="feedback-form" novalidate>
+    <label class="feedback-label" for="feedback-message">What looks wrong?</label>
+    <textarea id="feedback-message" name="message" maxlength="2000" required rows="3" placeholder="Which figure, and what should it be?"></textarea>
+    <label class="feedback-hp" aria-hidden="true" for="feedback-website">Leave this empty</label>
+    <input id="feedback-website" name="website" type="text" tabindex="-1" autocomplete="off">
+    <button type="submit" class="feedback-submit" data-component="dynamic-button">Send report</button>
+    <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
+  </form>
+</section>
+
 <footer>
   <h3>Data sources</h3>
   <div class="src-links">
@@ -723,6 +736,14 @@
 <script src="app.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
+
+<!-- A deployed worker takes over immediately here (sw.js installs with
+     skipWaiting + clients.claim), so the update is announced by the controller
+     changing rather than by a waiting worker. Hidden until that happens. -->
+<div id="sw-update" class="sw-update" role="status" hidden>
+  <span>A newer version is installed.</span>
+  <button type="button" id="sw-update-reload" class="sw-update-btn">Reload</button>
+</div>
 <!-- Print-only data vintage so a printed page carries its own provenance -->
 <div class="print-vintage" aria-hidden="true"></div>
 </body>

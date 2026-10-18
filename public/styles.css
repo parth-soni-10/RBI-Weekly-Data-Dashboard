@@ -39,8 +39,17 @@
   --font:'Inter',system-ui,-apple-system,sans-serif;
   --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,monospace;
   --fs-body:14px;
-  /* Motion: state changes ease 150–300ms; nothing animates layout. */
+  /* Motion: state changes ease 150–300ms; nothing animates layout. The four
+     durations are the shared scale the other sites declare, so reduced motion is
+     one override rather than a sweep through every rule. */
   --ease-out:cubic-bezier(.2,.9,.3,1);
+  --motion-duration-micro:100ms;
+  --motion-duration-standard:200ms;
+  --motion-duration-complex:400ms;
+  --motion-duration-page:600ms;
+  --motion-ease-enter:cubic-bezier(.16,1,.3,1);
+  --motion-ease-exit:cubic-bezier(.7,0,.84,0);
+  --motion-ease-transform:cubic-bezier(.4,0,.2,1);
 }
 /* ── Dark (default) ─────────────────────────────────────────────────── */
 html{color-scheme:dark}
@@ -140,7 +149,7 @@ header{
   padding:.7rem clamp(1rem,3vw,2rem);
   display:flex;align-items:center;justify-content:space-between;gap:.8rem;
   position:sticky;top:0;z-index:200;
-  transition:transform .32s cubic-bezier(.4,0,.2,1),box-shadow .3s,background .3s;
+  transition:transform var(--motion-duration-complex) var(--motion-ease-transform),box-shadow var(--motion-duration-standard) var(--motion-ease-transform),background var(--motion-duration-standard) var(--motion-ease-transform);
 }
 header.header-hidden{transform:translateY(-110%);box-shadow:none}
 header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border2)}
@@ -171,7 +180,7 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 .theme-toggle{
   width:36px;height:36px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
   border-radius:var(--r2);border:1px solid var(--border);background:var(--surface2);color:var(--ink2);
-  cursor:pointer;transition:color .18s,border-color .18s,background .18s;
+  cursor:pointer;transition:color var(--motion-duration-standard) var(--motion-ease-transform),border-color var(--motion-duration-standard) var(--motion-ease-transform),background var(--motion-duration-standard) var(--motion-ease-transform);
 }
 .theme-toggle:hover{color:var(--brand);border-color:var(--brand-line);background:var(--brand-soft)}
 /* status pill */
@@ -738,9 +747,13 @@ html,body{overflow-x:clip}
 
 /* ═══════════ Reduced motion ═══════════ */
 @media(prefers-reduced-motion:reduce){
+  /* Zero, not .01ms: a hundredth of a millisecond still schedules a frame, and
+     the shared motion contract reads 0 as "off". The tokens are zeroed too, so a
+     rule that adopts them cannot put a duration back. */
+  :root{--motion-duration-micro:0s;--motion-duration-standard:0s;--motion-duration-complex:0s;--motion-duration-page:0s}
   html{scroll-behavior:auto}
   .dot.running{animation:none}
-  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+  *,*::before,*::after{transition-duration:0s!important;transition-delay:0s!important;animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important}
 }
 
 /* ═══════════ State and layout classes that replaced style attributes ═══
@@ -749,3 +762,82 @@ html,body{overflow-x:clip}
    that, at equal specificity, none wins for the initially-hidden EM row. */
 .is-hidden{display:none}
 .range-inset{padding:0 1.1rem}
+
+/* ═══════════════════════════ Feedback box ═════════════════════════════════
+   The site's only write. It sits above the footer so it is reachable from every
+   tab (the sections are in-page, so the footer is always the same document),
+   and it is a plain form: no inline handlers, no inline styles, one class per
+   state. */
+.feedback{
+  margin:1.6rem 0 0;padding:1.1rem 1.2rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);
+  max-width:var(--w);margin-left:auto;margin-right:auto;
+}
+.feedback h2{font-size:15px;margin:0 0 .35rem;color:var(--ink)}
+.feedback-intro{margin:0 0 .9rem;font-size:13px;line-height:1.55;color:var(--ink2);max-width:70ch}
+.feedback-label{display:block;font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--ink3);margin-bottom:.35rem}
+#feedback-message{
+  width:100%;box-sizing:border-box;resize:vertical;min-height:76px;
+  font:inherit;font-size:13.5px;line-height:1.5;
+  padding:.6rem .7rem;border-radius:var(--r2);
+  border:1px solid var(--border2);background:var(--surface2);color:var(--ink);
+}
+#feedback-message:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+/* The honeypot is announced to nobody and never displayed; it must not be
+   display:none, because a bot that skips hidden fields is the one a honeypot is
+   for. Off-screen, 1px, still in the document. */
+.feedback-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+#feedback-website{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.feedback-submit{
+  margin-top:.7rem;padding:.6rem 1.1rem;border-radius:var(--pill);
+  border:1px solid var(--brand-line);background:var(--brand-soft);color:var(--brand);
+  font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:background var(--motion-duration-micro) var(--motion-ease-transform),border-color var(--motion-duration-micro) var(--motion-ease-transform);
+}
+.feedback-submit:hover:not(:disabled){background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+.feedback-submit:disabled{opacity:.65;cursor:default}
+.feedback-status{margin:.6rem 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
+.feedback-status[data-kind="ok"]{color:var(--pos)}
+.feedback-status[data-kind="error"]{color:var(--neg)}
+.feedback-status[data-kind="pending"]{color:var(--ink3)}
+
+/* ═══════════════════════ Service-worker update bar ════════════════════════
+   Hidden by default ([hidden]); app.js reveals it when a new worker takes over
+   an already-controlled page. Fixed above the safe area so it cannot cover the
+   last table row, and it never appears on a first install. */
+.sw-update{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:80;
+  display:flex;align-items:center;gap:12px;
+  padding:.6rem .7rem .6rem 1rem;border-radius:var(--pill);
+  background:var(--surface);border:1px solid var(--border2);box-shadow:var(--shadow-lg);
+  font-size:13px;color:var(--ink);
+}
+.sw-update[hidden]{display:none}
+.sw-update-btn{
+  font:inherit;font-size:13px;font-weight:600;
+  padding:.4rem .9rem;border-radius:var(--pill);
+  border:1px solid var(--brand-line);background:var(--brand-soft);color:var(--brand);cursor:pointer;
+}
+
+/* ═══════════════════════════ 44px touch targets ═══════════════════════════
+   The shared utility from the brief's accessibility contract, on coarse
+   pointers only. One rule for the whole site rather than a per-component size:
+   this app has no component layer, so the class cannot be the only carrier. */
+.touch-target{min-height:44px;min-width:44px}
+@media (pointer: coarse){
+  .nav-link,
+  .nav-toggle,
+  .btn,
+  .tab,
+  .seg,
+  .seg-opt,
+  .chip,
+  .theme-toggle,
+  .feedback-submit,
+  .sw-update-btn,
+  .touch-target{
+    min-height:44px;min-width:44px;box-sizing:border-box;
+  }
+  /* A link inside a sentence is not a standalone target. */
+  p a:not(.touch-target){min-height:0;min-width:0}
+}
