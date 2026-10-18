@@ -57,7 +57,11 @@ html{color-scheme:dark}
   --bg:#070b15;
   --surface:#0d1526;--surface2:#111c31;
   --border:rgba(148,163,184,.13);--border2:rgba(148,163,184,.28);--border3:rgba(148,163,184,.4);
-  --ink:#e9eff8;--ink2:#a2b2c9;--ink3:#72829c;
+  /* ink3 measured 4.37:1 on --surface2 and 4.68:1 on --surface under white-
+     paper AA (the footer's own hint text and the section notes sit on both).
+     #7d8da6 clears 4.5:1 on every surface here — 5.05 / 5.41 / 5.84 — and is
+     still plainly the quietest of the three ink levels. */
+  --ink:#e9eff8;--ink2:#a2b2c9;--ink3:#7d8da6;
   --brand:#e9b949;--brand2:#f6cf7e;--on-brand:#241a04;--brand-soft:rgba(233,185,73,.13);--brand-line:rgba(233,185,73,.4);
   --active-bg:#e9b949;--active-fg:#241a04;
   --pos:#3ecf8e;--neg:#fb7d7d;--pos-c:#2fb67c;--neg-c:#f97070;
@@ -79,7 +83,9 @@ html{color-scheme:dark}
   --bg:#f1f3f7;
   --surface:#ffffff;--surface2:#f4f6fa;
   --border:rgba(15,30,55,.11);--border2:rgba(15,30,55,.22);--border3:rgba(15,30,55,.35);
-  --ink:#101d33;--ink2:#4d5e78;--ink3:#5f7189;
+  /* ink3 was 4.49:1 on --bg (#f1f3f7) — under 4.5:1, by 0.01 — which is what
+     the footer's h3 and paragraph were failing on. 4.75:1 now. */
+  --ink:#101d33;--ink2:#4d5e78;--ink3:#5c6d85;
   --brand:#9a5e06;--brand2:#7a4a04;--on-brand:#ffffff;--brand-soft:rgba(180,112,10,.1);--brand-line:rgba(154,94,6,.45);
   --active-bg:#d9a02c;--active-fg:#332106;
   --pos:#047857;--neg:#c22b2b;--pos-c:#10a06e;--neg-c:#e04545;

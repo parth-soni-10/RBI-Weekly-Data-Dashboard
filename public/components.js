@@ -216,7 +216,9 @@
   function jellyRadio(group) {
     var real = group.querySelectorAll('button.tab');
     if (real.length < 2 || real.length > 5) return;
-    mark(group, 'jelly-radio');
+    // The group keeps the done flag so the scan does not install twice; the
+    // component is marked on the chips, which are the control a person sees.
+    group.setAttribute('data-ct-done', '1');
     group.classList.add('rc-jelly');
     var wrap = el('div', 'rc-jelly-wrap');
     wrap.setAttribute('role', 'radiogroup');
@@ -247,7 +249,20 @@
     }
     group.parentNode.insertBefore(wrap, group);
     group.classList.add('rc-jelly-source');
+    mark(wrap, 'jelly-radio');
     real[0].parentNode.addEventListener('click', function () { setTimeout(sync, 0); });
+    // This row is the EM-peers lookback, and the app shows it only while the FX
+    // chart is in that mode (`modes.fx === 'em'`, `#emRanges.is-hidden`). The
+    // chips follow it: a visible control for a row that is deliberately hidden
+    // would be a new control, not the site's own, and it would let a visitor
+    // change a range they cannot see the result of.
+    var mirror = function () {
+      wrap.hidden = group.getClientRects().length === 0;
+    };
+    mirror();
+    if (window.MutationObserver) {
+      new MutationObserver(mirror).observe(group, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
     sync();
   }
 
@@ -346,7 +361,11 @@
     row.classList.add('rc-filters');
     var toggle = el('button', 'rc-filters-toggle');
     toggle.type = 'button';
-    toggle.setAttribute('aria-expanded', 'false');
+    // Open, like the strip was before anything was added to it. Collapsing the
+    // date-range inputs by default would take a control the site already showed
+    // and hide it behind a disclosure, which is a change in function rather
+    // than a change in style.
+    toggle.setAttribute('aria-expanded', 'true');
     var label = function () {
       var from = document.getElementById('range-from');
       var to = document.getElementById('range-to');
@@ -357,11 +376,10 @@
     toggle.addEventListener('click', function () {
       var open = toggle.getAttribute('aria-expanded') === 'true';
       toggle.setAttribute('aria-expanded', String(!open));
-      row.classList.toggle('rc-filters-open', !open);
+      row.classList.toggle('rc-filters-folded', open);
     });
     row.parentNode.insertBefore(toggle, row);
     row.addEventListener('change', label);
-    row.classList.add('rc-filters-folded');
   }
 
   /* ── 8. Stepper ───────────────────────────────────────────────────────────

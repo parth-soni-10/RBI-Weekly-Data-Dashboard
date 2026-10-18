@@ -56,6 +56,17 @@ function showSection(name, el, opts){
   return false;
 }
 
+/* The nav link for a section, found by href.
+   Every lookup used to be `.nav-link[onclick*="'name'"]`, and the CSP pass
+   rewrote those attributes into data-click with bare identifiers — so they all
+   matched nothing, and the deep-link restore, the new-week badge, the sentiment
+   toast's jump and the 1-5 section shortcuts each silently did half their job
+   (they found no link and never marked the section active). */
+function navLinkFor(name){
+  return document.querySelector(`.nav-link[href="#sec-${name}"]`)
+    || document.querySelector(`.nav-link[data-click*="showSection(${name},"]`);
+}
+
 /* Mobile collapsible nav (hamburger) — closes on select, outside tap, or Esc */
 function initNav(){
   const toggle = document.getElementById('nav-toggle');
@@ -1839,7 +1850,7 @@ function fngMaybeZoneAlert(d){
   showToast('Sentiment shift: ' + prev + ' → ' + zone,
     `The Fear & Greed meter ${dir} into ${zone.toLowerCase()} at ${d.score}/100.`,
     () => {
-      const link = document.querySelector('.nav-link[onclick*="\'dashboard\'"]');
+      const link = navLinkFor('dashboard');
       if(link) showSection('dashboard', link);
       const row = document.getElementById('sentiment-row');
       if(row) row.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
@@ -2776,14 +2787,20 @@ function hashLoad(){
   if(!h) return;
   const params = {};
   h.split('&').forEach(kv => { const [k,v] = kv.split('='); if(k && v) params[k] = v; });
+  // The links this looks for used to be found through an `onclick` attribute
+  // (`showSection('table',…)`). The CSP pass moved the handlers into data-click
+  // with bare identifiers (`showSection(table,$el)`), so every one of these
+  // selectors stopped matching and a deep link — or a reload of a tab — came
+  // back on the dashboard whatever the hash said. The href is the stable key
+  // now, with data-click as the fallback for a link whose href changes.
   if(params.tab){
-    const link = document.querySelector(`.nav-link[onclick*="'${params.tab}'"]`);
+    const link = navLinkFor(params.tab);
     if(link) showSection(params.tab, link, { focus: false });
   } else {
     // Support plain #sec-* anchors (nav hrefs) for middle-click / Cmd+click deep links.
     const m = h.match(/^sec-([a-z]+)$/);
     if(m){
-      const link = document.querySelector(`.nav-link[onclick*="'${m[1]}'"]`);
+      const link = navLinkFor(m[1]);
       if(link) showSection(m[1], link, { focus: false });
     }
   }
@@ -2792,9 +2809,10 @@ function hashLoad(){
       const [g, m] = kv.split(':');
       if(g && m && modes[g] !== undefined){
         modes[g] = m;
-        const all = document.querySelectorAll(`button.tab[onclick*="'${g}'"]`);
+        // `sw($el,res,usd)` — the group and the mode are the two arguments.
+        const all = document.querySelectorAll(`button.tab[data-click*=",${g},"]`);
         all.forEach(t => t.classList.remove('on'));
-        const target = Array.from(all).find(t => t.getAttribute('onclick').includes(`'${m}'`));
+        const target = Array.from(all).find(t => (t.getAttribute('data-click') || '').includes(`,${g},${m})`));
         if(target) target.classList.add('on');
       }
     });
@@ -2810,6 +2828,14 @@ function hashLoad(){
 
 // Initial wiring on page load
 window.addEventListener('DOMContentLoaded', () => {
+  try { hashLoad(); } catch(_) {}
+});
+
+// A hash the browser applies without reloading — a deep link pasted into the
+// address bar, Back and Forward between sections — reaches the same path as a
+// deep link at boot. Without this, `#tab=table` typed over an open page did
+// nothing: the navigation is same-document, so DOMContentLoaded never ran again.
+window.addEventListener('hashchange', () => {
   try { hashLoad(); } catch(_) {}
 });
 
@@ -3053,7 +3079,7 @@ function notifyNewWeek(rec, count){
   }
 }
 function gotoNewWeek(){
-  const link = document.querySelector('.nav-link[onclick*="\'dashboard\'"]');
+  const link = navLinkFor('dashboard');
   if(link) showSection('dashboard', link);
   window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   const b = document.getElementById('new-week-badge');
@@ -4298,7 +4324,7 @@ function updatePrintVintage(){
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     const n = parseInt(e.key, 10);
     if(n >= 1 && n <= ORDER.length){
-      const link = document.querySelector(`.nav-link[onclick*="'${ORDER[n-1]}'"]`);
+      const link = navLinkFor(ORDER[n-1]);
       if(link){ link.click(); link.focus({ preventScroll: true }); }
     }
   });

@@ -43,6 +43,10 @@
 /* ── Jelly radio ─────────────────────────────────────────────────────────── */
 .rc-jelly-source{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .rc-jelly-wrap{display:inline-flex;gap:6px;padding:4px;border-radius:var(--pill);background:var(--surface2);border:1px solid var(--border)}
+/* The chips follow the app's own row, hidden or shown. An author `display` beats
+   the UA's [hidden] rule, so the attribute has to be honoured by name — without
+   this the chips stayed on screen while the row they belong to was hidden. */
+.rc-jelly-wrap[hidden]{display:none}
 .rc-jelly-opt{
   font:inherit;font-size:12.5px;font-weight:600;padding:.35rem .8rem;border-radius:var(--pill);
   border:0;background:transparent;color:var(--ink2);cursor:pointer;
