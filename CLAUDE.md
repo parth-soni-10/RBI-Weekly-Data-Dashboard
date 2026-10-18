@@ -119,7 +119,7 @@ scripts/check-syntax.js  → `npm run check`, the whole static check the repo ha
 
 ## Redesign pass (2026-10-18) — what changed, and what has not
 
-The design-system rebuild of this site is **not done**: the 25 manifest components are still unimplemented, and `public/app.js` has no `data-component` markers yet. What was added in this pass is the site-level contract around them, so the component layer can land on top without re-doing this work:
+The design-system rebuild of this site is in two layers. The site-level contract landed first (below); the 25 manifest components are in `public/components.js` + `public/components.css` (see *Component layer* at the end of this file).
 
 - **Feedback box** (`public/index.html` `#feedback`, `public/styles.css` `.feedback`, `public/app.js` `initFeedback`): the site's only write, posting `{message, website}` to the existing `POST /api/feedback` (`functions/api/feedback.js`, bound to the shared `site-feedback` KV). It reports 201/202 as success, and 400/413/503 as named failures — it never says a report was stored when the function refused it. The honeypot field is off-screen rather than `display:none`, so a bot that skips hidden inputs is still caught.
 - **Service-worker update bar** (`#sw-update`, `initUpdatePrompt`): `sw.js` installs with `skipWaiting()` + `clients.claim()`, so there is no waiting worker to prompt from — the signal is `controllerchange` on a page that already had a controller. A first install stays quiet, and Reload is the user's choice rather than a forced swap.
@@ -128,3 +128,14 @@ The design-system rebuild of this site is **not done**: the 25 manifest componen
 - **Reduced motion / tokens / `null → —`**: untouched. The existing rules stand; nothing in this pass added an animation.
 - **Verification is deferred**, not skipped: guards (`npm run check`, `npm test`), Playwright at 375/768/1280, axe, CSP console, the feedback route and the update bar are all listed in the working root's `docs/DEFERRED_TESTS.md` for the testing pass. No test was run in this pass, and no push or deploy was made.
 - The remaining component work keeps the sites' hard contracts: `#tab=…&modes=…` + `showSection()`, the shared `null → —` formatter, and the vendored Chart.js/GSAP/three charts (borrowers, maturity, crude, ridge) stay as they are.
+
+## Component layer (2026-10-18)
+
+`public/components.js` installs the 25 manifest components onto the markup `app.js` renders; `public/components.css` styles them. The layer owns no data: every figure, label and row comes from `app.js` or `records`, and the templates in `app.js` are unchanged.
+
+- **Loaded after `app.js`** (`defer`, document order), then `scan()` runs once and again on any DOM mutation, so it follows the app's re-renders. Each installer is idempotent (marks `data-ct-done`) and a selector that matches nothing is normal — the sections really do differ.
+- **CSP-shaped**: `style-src 'self'` means no `style` attribute is written. Classes carry state; runtime geometry (nav blob, segment indicator, island progress) goes through CSSOM (`el.style.setProperty` / `el.style.transform`), which the policy does not govern.
+- **`data-component`** is the instrumentation: one id per installed component, several where a row is two (`data-component="swipe-row inline-disclosure-menu"`).
+- **Gotchas found in the browser, kept as comments at the site:** slots (`#rc-activity`, `#rc-weekly-trend`, `#rc-recent-weeks`) are filled only when empty, because the first scan runs before `records` exists; the sticky strip filters `.section` by `getClientRects()` on every call (hidden sections report `top: 0`); a `td` does not clip on `width: 0`, so the swipe cell is `display: none` until opened; `.cell-delta` is the weekly change (the cell's first number is the level); the week dialog's panel must not keep `aria-hidden`; and the row menu's date comes from the row's rendered label, not from the RBI link (its `PARAM1` is the *publication* Friday, one week later).
+- `#theme-toggle` is a real `role="switch"` over the app's own light/dark state; the week-on-week control is a second switch that hides `.mc-delta`, and both persist their choice.
+- **Verification for this layer is deferred** to the testing pass (`docs/DEFERRED_TESTS.md`): it was driven by hand in Chromium against the real `_headers` CSP at 1440/1280/375, which is what found the defects above, but no Playwright or axe run covers it.
