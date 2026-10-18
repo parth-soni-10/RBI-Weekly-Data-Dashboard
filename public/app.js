@@ -4593,6 +4593,8 @@ document.addEventListener('change', (e) => dispatchAct(e, 'data-change'));
         say('That message could not be accepted. Check the length and try again.', 'error');
       } else if (response.status === 413) {
         say('That message is too large. Shorten it and try again.', 'error');
+      } else if (response.status === 429) {
+        say('That is one report at a time — try again in a few minutes.', 'error');
       } else {
         say('Something went wrong on the way. Nothing was saved.', 'error');
       }

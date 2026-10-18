@@ -64,6 +64,7 @@ import dataLatest from "../netlify/functions/data-latest.js";
 import dataForexWeekly from "../netlify/functions/data-forex-weekly.js";
 import dataCrudeBpd from "../netlify/functions/data-crude-bpd.js";
 import dataSync from "../netlify/functions/data-sync.js";
+import feedbackModule from "./api/feedback.js";
 import fetchData from "../netlify/functions/fetch-data.js";
 import fetchCrude from "../netlify/functions/fetch-crude.js";
 import fetchEmPeers from "../netlify/functions/fetch-em-peers.js";
@@ -94,6 +95,9 @@ const ROUTES = {
   "/.netlify/functions/fetch-reer": fetchReer,
   "/.netlify/functions/fetch-sentiment": fetchSentiment,
   "/.netlify/functions/fetch-tax": fetchTax,
+  // Not a Netlify path: the feedback box is new. It sits in the same table so
+  // the catch-all has one place to look.
+  "/api/feedback": feedbackModule,
 };
 
 /** The clean public API `public/_redirects` described, pointing at the same
@@ -169,6 +173,9 @@ function wireBindings(env) {
     }
   }
   if (env.SYNC_KV) dataSync.setStore(storeFromKv(env.SYNC_KV));
+  // A KV namespace is an object, so it cannot ride on process.env: the feedback
+  // route is handed its namespace directly, the same way data-sync is.
+  feedbackModule.setStore(env.SITE_FEEDBACK);
   // The public /data/*.json endpoints read the committed snapshot through the
   // asset store instead of scraping RBI on request (see netlify/functions/_
   // utils/committed.js).
