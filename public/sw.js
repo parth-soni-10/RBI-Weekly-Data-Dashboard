@@ -14,7 +14,7 @@
  *
  * Bump CACHE_VERSION whenever the shell's asset list changes.
  */
-const CACHE_VERSION = 'rbi-dash-v2';
+const CACHE_VERSION = 'rbi-dash-v3';
 const SHELL = [
   './',
   './index.html',
@@ -22,6 +22,9 @@ const SHELL = [
   './app.js',
   './components.css',
   './components.js',
+  './hairline/kernel.js',
+  './hairline/mount.js',
+  './hairline/ribbon.js',
   './theme-init.js',
   './manifest.webmanifest',
   './icons/icon-192.png',

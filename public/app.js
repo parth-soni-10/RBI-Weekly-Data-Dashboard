@@ -794,6 +794,8 @@ function updateUI(){
   const summary = document.getElementById('weekly-summary');
   if (summary) summary.classList.add('show');
   renderWeeklySummary();
+  // The ribbon reads the same records as the metrics and the weekly table.
+  if (window.mountRbiRibbon) window.mountRbiRibbon(records);
   const snapshotText = {
     'snapshot-observation': fmtDate(latest.date),
     'snapshot-generated': generatedText,

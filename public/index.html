@@ -168,6 +168,11 @@
       <button class="dl" data-click="dlCSV(tab)"><i data-lucide="download"></i> Download table (CSV)</button>
     </div>
   </div>
+  <div class="chart-card hairline-card signal-ribbon-card" aria-labelledby="rbi-ribbon-title">
+    <div class="chart-title" id="rbi-ribbon-title">Weekly reserve signal</div>
+    <div class="hairline-figure" id="rbi-ribbon"></div>
+    <p class="hairline-read" data-hairline-read aria-live="polite">rest</p>
+  </div>
   <div class="fetch-panel">
     <div class="panel-label">Data: RBI Weekly Statistical Supplement — static snapshot plus live check</div>
     <button class="btn" id="start-btn" data-click="reloadData"><i data-lucide="rotate-cw"></i> Reload data</button>
@@ -737,6 +742,12 @@
 <!-- Deferred: runs after the parse, so #theme-toggle exists and lucide is
      already loaded. Document order puts it after the vendored chart/gsap
      tags, so window.Chart and window.gsap are defined too. -->
+<!-- Hairline: the engine, its mount adapter and the weekly signal ribbon.
+     Same-origin classic scripts, nothing inline; the engine's inject() is never
+     called, so the deployed style-src 'self' still holds. -->
+<script src="hairline/kernel.js" defer></script>
+<script src="hairline/mount.js" defer></script>
+<script src="hairline/ribbon.js" defer></script>
 <script src="app.js" defer></script>
 <!-- Deferred like app.js, so it runs after the first paint and after the data
      render; it adopts the rendered markup rather than creating a parallel UI. -->
