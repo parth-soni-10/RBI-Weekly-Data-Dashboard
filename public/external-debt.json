@@ -1,12 +1,12 @@
 {
-  "fetched_at": "2026-10-16T19:15:58.738Z",
+  "fetched_at": "2026-10-20T20:12:31.684Z",
   "source": "World Bank Quarterly External Debt Statistics, SDDS+GDDS (gross external debt position, all sectors, USD) + WDI reserves (FI.RES.TOTL.CD)",
   "source_url": "https://api.worldbank.org/v2/country/all/indicator/DT.DOD.DECT.CD.AR.US?format=json&source=22&mrnev=1",
   "indicator": "DT.DOD.DECT.CD.AR.US / DT.DOD.DECT.CD.TL.US + FI.RES.TOTL.CD",
   "status": "ok",
   "scope_note": "Gross external-debt stock ranking among economies reporting to the World Bank's Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income economies). Each economy's latest published quarter is used, so vintages differ by up to a few quarters. The annual IDS series — which excludes high-income reporters — tops out at China instead; QEDS shows the USA and UK far ahead.",
-  "as_of_period": "2026Q1",
-  "worldbank_lastupdated": "2026-08-07",
+  "as_of_period": "2026Q2",
+  "worldbank_lastupdated": "2026-10-16",
   "ranked_count": 135,
   "sdds_count": 129,
   "gdds_count": 60,
@@ -18,8 +18,8 @@
       "rank": 1,
       "iso3": "USA",
       "name": "United States",
-      "value_bn": 30197,
-      "period": "2026Q1",
+      "value_bn": 30467.3,
+      "period": "2026Q2",
       "reserves_bn": 1385.4,
       "reserves_year": "2025"
     },
@@ -27,8 +27,8 @@
       "rank": 2,
       "iso3": "GBR",
       "name": "United Kingdom",
-      "value_bn": 11182.9,
-      "period": "2026Q1",
+      "value_bn": 11400.3,
+      "period": "2026Q2",
       "reserves_bn": 214.4,
       "reserves_year": "2025"
     },
@@ -36,8 +36,8 @@
       "rank": 3,
       "iso3": "FRA",
       "name": "France",
-      "value_bn": 9233.4,
-      "period": "2026Q1",
+      "value_bn": 9528.1,
+      "period": "2026Q2",
       "reserves_bn": 428.2,
       "reserves_year": "2025"
     },
@@ -45,8 +45,8 @@
       "rank": 4,
       "iso3": "DEU",
       "name": "Germany",
-      "value_bn": 8125.5,
-      "period": "2026Q1",
+      "value_bn": 8297.2,
+      "period": "2026Q2",
       "reserves_bn": 572.2,
       "reserves_year": "2025"
     },
@@ -54,8 +54,8 @@
       "rank": 5,
       "iso3": "NLD",
       "name": "Netherlands",
-      "value_bn": 4868.8,
-      "period": "2026Q1",
+      "value_bn": 4953.3,
+      "period": "2026Q2",
       "reserves_bn": 118.1,
       "reserves_year": "2025"
     },
@@ -63,8 +63,8 @@
       "rank": 6,
       "iso3": "JPN",
       "name": "Japan",
-      "value_bn": 4765.1,
-      "period": "2026Q1",
+      "value_bn": 4538.4,
+      "period": "2026Q2",
       "reserves_bn": 1371.4,
       "reserves_year": "2025"
     },
@@ -72,8 +72,8 @@
       "rank": 7,
       "iso3": "LUX",
       "name": "Luxembourg",
-      "value_bn": 4048.4,
-      "period": "2026Q1",
+      "value_bn": 4111.5,
+      "period": "2026Q2",
       "reserves_bn": 3.1,
       "reserves_year": "2025"
     },
@@ -81,8 +81,8 @@
       "rank": 8,
       "iso3": "IRL",
       "name": "Ireland",
-      "value_bn": 3888.6,
-      "period": "2026Q1",
+      "value_bn": 3958.6,
+      "period": "2026Q2",
       "reserves_bn": 13.7,
       "reserves_year": "2025"
     },
@@ -90,8 +90,8 @@
       "rank": 9,
       "iso3": "CAN",
       "name": "Canada",
-      "value_bn": 3471.7,
-      "period": "2026Q1",
+      "value_bn": 3554.6,
+      "period": "2026Q2",
       "reserves_bn": 125.6,
       "reserves_year": "2025"
     },
@@ -99,8 +99,8 @@
       "rank": 10,
       "iso3": "ESP",
       "name": "Spain",
-      "value_bn": 3284.8,
-      "period": "2026Q1",
+      "value_bn": 3333.4,
+      "period": "2026Q2",
       "reserves_bn": 128.6,
       "reserves_year": "2025"
     },
@@ -108,8 +108,8 @@
       "rank": 11,
       "iso3": "ITA",
       "name": "Italy",
-      "value_bn": 3263.3,
-      "period": "2026Q1",
+      "value_bn": 3331.1,
+      "period": "2026Q2",
       "reserves_bn": 434,
       "reserves_year": "2025"
     },
@@ -117,8 +117,8 @@
       "rank": 12,
       "iso3": "SGP",
       "name": "Singapore",
-      "value_bn": 2580.7,
-      "period": "2026Q1",
+      "value_bn": 2684.3,
+      "period": "2026Q2",
       "reserves_bn": 432.1,
       "reserves_year": "2025"
     }
@@ -127,8 +127,8 @@
     "rank": 23,
     "iso3": "IND",
     "name": "India",
-    "value_bn": 762.8,
-    "period": "2026Q1",
+    "value_bn": 778.2,
+    "period": "2026Q2",
     "reserves_bn": 700.1,
     "reserves_year": "2025",
     "neighbours": [
@@ -136,8 +136,8 @@
         "rank": 21,
         "iso3": "BRA",
         "name": "Brazil",
-        "value_bn": 855.6,
-        "period": "2026Q1",
+        "value_bn": 869.5,
+        "period": "2026Q2",
         "reserves_bn": 358.5,
         "reserves_year": "2025"
       },
@@ -145,8 +145,8 @@
         "rank": 22,
         "iso3": "KOR",
         "name": "Korea, Rep.",
-        "value_bn": 774.4,
-        "period": "2026Q1",
+        "value_bn": 812.8,
+        "period": "2026Q2",
         "reserves_bn": 436.6,
         "reserves_year": "2025"
       },
@@ -154,26 +154,26 @@
         "rank": 23,
         "iso3": "IND",
         "name": "India",
-        "value_bn": 762.8,
-        "period": "2026Q1",
+        "value_bn": 778.2,
+        "period": "2026Q2",
         "reserves_bn": 700.1,
         "reserves_year": "2025"
       },
       {
         "rank": 24,
-        "iso3": "GRC",
-        "name": "Greece",
-        "value_bn": 687.2,
-        "period": "2026Q1",
-        "reserves_bn": 24,
+        "iso3": "FIN",
+        "name": "Finland",
+        "value_bn": 732.5,
+        "period": "2026Q2",
+        "reserves_bn": 22.5,
         "reserves_year": "2025"
       },
       {
         "rank": 25,
         "iso3": "DNK",
         "name": "Denmark",
-        "value_bn": 686.9,
-        "period": "2026Q1",
+        "value_bn": 701.3,
+        "period": "2026Q2",
         "reserves_bn": 127.8,
         "reserves_year": "2025"
       }
@@ -1084,7 +1084,7 @@
       {
         "period": "2026Q1",
         "rank": 22,
-        "reporters": 105,
+        "reporters": 106,
         "value_bn": 762.8,
         "neighbours": [
           {
@@ -1117,7 +1117,7 @@
       {
         "period": "2026Q2",
         "rank": 22,
-        "reporters": 82,
+        "reporters": 83,
         "value_bn": 778.2,
         "neighbours": [
           {
