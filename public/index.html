@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0b1120">
+<meta name="theme-color" content="#f1f3f7">
 <meta name="description" content="Track India's weekly forex reserves, gold, and rupee trends from RBI data, alongside markets and macro indicators—with dated source links and clear reporting periods.">
 <link rel="canonical" href="https://rbiweeklydashboard.pages.dev/">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
@@ -25,7 +25,7 @@
 <meta name="twitter:description" content="Explore India's weekly forex reserves, gold holdings, rupee, and market data with dated sources and reporting context.">
 <meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
 <meta name="twitter:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold, rupee, and markets">
-<meta name="color-scheme" content="dark light">
+<meta name="color-scheme" content="light dark">
 <title>India Forex Reserves, Gold &amp; Rupee | RBI Weekly Dashboard</title>
 <script type="application/json" id="seo-data-snapshot">{"fetched_at":"2026-10-17T11:10:17.406Z","date_modified":"2026-10-17","temporal_coverage":"2025-12-26/2026-10-09","latest":{"date":"2026-10-09","total_usd":726027,"gold_usd":105094,"usd_inr":96.82330322265625,"nifty":22520.44921875,"sensex":72472.328125}}</script>
 <script type="application/ld+json" id="seo-dataset-schema">
@@ -85,7 +85,8 @@
 </script>
 <!-- Synchronous on purpose: this has to set data-theme before the first
      paint, so it cannot be deferred. An external file rather than an inline
-     script so the CSP can stay script-src 'self'. -->
+     script so the CSP can stay script-src 'self'. It overwrites the static
+     light attribute above only for a visitor who has chosen dark. -->
 <script src="theme-init.js"></script>
 <script src="vendor/chart.umd.js" defer></script>
 <script src="vendor/gsap.min.js" defer></script>
@@ -127,7 +128,7 @@
       <button class="theme-toggle" id="share-btn" type="button" aria-label="Share this week's snapshot" title="Share / copy link with snapshot" hidden><i data-lucide="share-2"></i></button>
       <button class="theme-toggle" id="print-btn" type="button" aria-label="Print this view" title="Print / save as PDF"><i data-lucide="printer"></i></button>
       <button class="theme-toggle" id="install-btn" type="button" aria-label="Install app" title="Install app" hidden><i data-lucide="download"></i></button>
-      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme"><i data-lucide="moon"></i></button>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch theme"><i data-lucide="moon"></i></button>
     </span>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>

@@ -4475,6 +4475,12 @@ function dlPmCaresCSV(){
       btn.innerHTML = '<i data-lucide="' + (dark ? 'sun' : 'moon') + '"></i>';
       btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
     }
+    // Browser chrome follows the page, not whichever theme was the default
+    // when the markup was written. Read the token rather than repeating the hex
+    // here: a literal drifts the moment styles.css changes.
+    var meta = document.querySelector('meta[name="theme-color"]');
+    var bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+    if (meta && bg) meta.setAttribute('content', bg);
     if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
   }
   if (btn) btn.addEventListener('click', function () {
