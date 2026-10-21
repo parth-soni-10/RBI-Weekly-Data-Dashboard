@@ -14,18 +14,10 @@
  *
  * Bump CACHE_VERSION whenever the shell's asset list changes.
  */
-const CACHE_VERSION = 'rbi-dash-v4';
+const CACHE_VERSION = 'rbi-dash-v1';
 const SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './components.css',
-  './components.js',
-  './hairline/kernel.js',
-  './hairline/mount.js',
-  './hairline/ribbon.js',
-  './theme-init.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -97,25 +89,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Same-origin navigations + assets: network-first, cache fallback.
-  //
-  // Every successful same-origin GET is cached, not just documents. Previously
-  // only HTML was kept, so offline the cached page asked for styles.css and
-  // app.js and was answered — via the `index.html` fallback below — with an
-  // HTML document labelled as CSS or JavaScript. The fallback is now limited
-  // to navigations, where an HTML answer is the correct one.
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_VERSION);
     try {
       const fresh = await fetch(req);
-      if (fresh && fresh.ok) cache.put(req, fresh.clone());
+      if (fresh && fresh.ok && req.headers.get('accept')?.includes('text/html')) {
+        cache.put(req, fresh.clone());
+      }
       return fresh;
     } catch (_) {
-      const hit = await cache.match(req);
-      if (hit) return hit;
-      if (req.mode === 'navigate') {
-        return (await cache.match('./index.html')) || Response.error();
-      }
-      return Response.error();
+      const hit = (await cache.match(req)) || (await cache.match('./index.html'));
+      return hit || Response.error();
     }
   })());
 });

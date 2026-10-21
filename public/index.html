@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#f1f3f7">
+<meta name="theme-color" content="#0b1120">
 <meta name="description" content="Track India's weekly forex reserves, gold, and rupee trends from RBI data, alongside markets and macro indicators—with dated source links and clear reporting periods.">
 <link rel="canonical" href="https://rbiweeklydashboard.pages.dev/">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
@@ -25,7 +25,7 @@
 <meta name="twitter:description" content="Explore India's weekly forex reserves, gold holdings, rupee, and market data with dated sources and reporting context.">
 <meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
 <meta name="twitter:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold, rupee, and markets">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark light">
 <title>India Forex Reserves, Gold &amp; Rupee | RBI Weekly Dashboard</title>
 <script type="application/json" id="seo-data-snapshot">{"fetched_at":"2026-10-17T11:10:17.406Z","date_modified":"2026-10-17","temporal_coverage":"2025-12-26/2026-10-09","latest":{"date":"2026-10-09","total_usd":726027,"gold_usd":105094,"usd_inr":96.82330322265625,"nifty":22520.44921875,"sensex":72472.328125}}</script>
 <script type="application/ld+json" id="seo-dataset-schema">
@@ -85,8 +85,7 @@
 </script>
 <!-- Synchronous on purpose: this has to set data-theme before the first
      paint, so it cannot be deferred. An external file rather than an inline
-     script so the CSP can stay script-src 'self'. It overwrites the static
-     light attribute above only for a visitor who has chosen dark. -->
+     script so the CSP can stay script-src 'self'. -->
 <script src="theme-init.js"></script>
 <script src="vendor/chart.umd.js" defer></script>
 <script src="vendor/gsap.min.js" defer></script>
@@ -99,10 +98,6 @@
      cacheable on its own, and it is what lets the CSP say style-src 'self'
      instead of 'unsafe-inline'. -->
 <link rel="stylesheet" href="styles.css">
-<!-- The component layer. Class-only styles, loaded second so it can refine the
-     design system without restating it; the script below only adopts markup
-     that is already in the page. -->
-<link rel="stylesheet" href="components.css">
 </head>
 <body>
 
@@ -128,7 +123,7 @@
       <button class="theme-toggle" id="share-btn" type="button" aria-label="Share this week's snapshot" title="Share / copy link with snapshot" hidden><i data-lucide="share-2"></i></button>
       <button class="theme-toggle" id="print-btn" type="button" aria-label="Print this view" title="Print / save as PDF"><i data-lucide="printer"></i></button>
       <button class="theme-toggle" id="install-btn" type="button" aria-label="Install app" title="Install app" hidden><i data-lucide="download"></i></button>
-      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch theme"><i data-lucide="moon"></i></button>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme"><i data-lucide="moon"></i></button>
     </span>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle menu">
       <span></span><span></span><span></span>
@@ -144,8 +139,6 @@
     </div>
   </div>
 </header>
-
-  <main class="site-main">
 
 <div class="section active" id="sec-dashboard">
   <div id="snapshot-metrics" class="sr-snapshot" aria-label="Latest static weekly data snapshot">
@@ -170,11 +163,6 @@
     <div class="dl-row mt1">
       <button class="dl" data-click="dlCSV(tab)"><i data-lucide="download"></i> Download table (CSV)</button>
     </div>
-  </div>
-  <div class="chart-card hairline-card signal-ribbon-card" aria-labelledby="rbi-ribbon-title">
-    <div class="chart-title" id="rbi-ribbon-title">Weekly reserve signal</div>
-    <div class="hairline-figure" id="rbi-ribbon"></div>
-    <p class="hairline-read" data-hairline-read aria-live="polite">rest</p>
   </div>
   <div class="fetch-panel">
     <div class="panel-label">Data: RBI Weekly Statistical Supplement — static snapshot plus live check</div>
@@ -714,19 +702,6 @@
   </div>
 </div>
 
-<section class="feedback" id="feedback" aria-labelledby="feedback-title" data-component="feedback">
-  <h2 id="feedback-title">Report a data problem</h2>
-  <p class="feedback-intro">A figure that looks wrong, a week that did not refresh, a source that moved. This goes to me, not into the weekly data.</p>
-  <form id="feedback-form" novalidate>
-    <label class="feedback-label" for="feedback-message">What looks wrong?</label>
-    <textarea id="feedback-message" name="message" maxlength="2000" required rows="3" placeholder="Which figure, and what should it be?"></textarea>
-    <label class="feedback-hp" aria-hidden="true" for="feedback-website">Leave this empty</label>
-    <input id="feedback-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <button type="submit" class="feedback-submit" data-component="dynamic-button">Send report</button>
-    <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
-  </form>
-</section>
-
 <footer>
   <h3>Data sources</h3>
   <div class="src-links">
@@ -738,7 +713,6 @@
   </div>
   <p>Forex reserves and reserve-component observations: RBI Weekly Statistical Supplement. The dashboard keeps the WSS observation date (week ended/as on) separate from data generation time. USD/INR historical values and equity-index closes are separately sourced market series, not implied RBI calculations. RBI's own daily USD/INR reference-rate release ended when FBIL began publishing its reference rate on 10 July 2018; verify the source and coverage applicable to each observation.
      <a href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener noreferrer">RBI WSS</a> · <a href="https://www.rbi.org.in/CommonPerson/english/scripts/PressReleases.aspx?Id=3111" target="_blank" rel="noopener noreferrer">RBI/FBIL reference-rate transition</a> · <a href="https://www.fbil.org.in/" target="_blank" rel="noopener noreferrer">FBIL</a> · <a href="https://www.nseindia.com/reports-indices-historical-index-data" target="_blank" rel="noopener noreferrer">NSE index data</a> · <a href="https://www.bseindia.com/indices/indexarchivedata" target="_blank" rel="noopener noreferrer">BSE index data</a> · <a href="https://ppac.gov.in/import-export" target="_blank" rel="noopener noreferrer">PPAC imports</a>. No redistribution licence is asserted; consult each provider's terms.</p>
-  <p class="foot-credit">Built by <a href="https://parth-portfolio-wb.pages.dev/" target="_blank" rel="noopener">Parth</a>.</p>
 </footer>
 
 
@@ -746,28 +720,9 @@
 <!-- Deferred: runs after the parse, so #theme-toggle exists and lucide is
      already loaded. Document order puts it after the vendored chart/gsap
      tags, so window.Chart and window.gsap are defined too. -->
-<!-- Hairline: the engine, its mount adapter and the weekly signal ribbon.
-     Same-origin classic scripts, nothing inline; the engine's inject() is never
-     called, so the deployed style-src 'self' still holds. -->
-<script src="hairline/kernel.js" defer></script>
-<script src="hairline/mount.js" defer></script>
-<script src="hairline/ribbon.js" defer></script>
 <script src="app.js" defer></script>
-<!-- Deferred like app.js, so it runs after the first paint and after the data
-     render; it adopts the rendered markup rather than creating a parallel UI. -->
-<script src="components.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
-
-  </main>
-
-  <!-- A deployed worker takes over immediately here (sw.js installs with
-     skipWaiting + clients.claim), so the update is announced by the controller
-     changing rather than by a waiting worker. Hidden until that happens. -->
-<div id="sw-update" class="sw-update" role="status" hidden>
-  <span>A newer version is installed.</span>
-  <button type="button" id="sw-update-reload" class="sw-update-btn">Reload</button>
-</div>
 <!-- Print-only data vintage so a printed page carries its own provenance -->
 <div class="print-vintage" aria-hidden="true"></div>
 </body>

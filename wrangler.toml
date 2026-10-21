@@ -37,15 +37,3 @@ GH_REPO = "parth-soni-10/RBI-Weekly-Data-Dashboard"
 GH_BRANCH = "main"
 REFRESH_WEEK_LIMIT = "8"
 RSS_SITE_URL = "https://rbiweeklydashboard.pages.dev/"
-
-# The shared feedback namespace. /api/feedback answers 503 until this binding
-# exists, and that is deliberate: a route that silently accepted feedback it
-# could not store would read as a working form and lose every message.
-#
-# Provisioned once, shared by every site in this collection, then bound here:
-#   npx wrangler kv namespace create site-feedback
-# and uncomment the block below with the id it returns. No id is committed
-# before it exists — a placeholder id fails the deploy instead of the binding.
-# [[kv_namespaces]]
-# binding = "SITE_FEEDBACK"
-# id = "<id from wrangler kv namespace create site-feedback>"

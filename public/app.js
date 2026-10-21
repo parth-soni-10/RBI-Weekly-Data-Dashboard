@@ -23,18 +23,7 @@ const DATA_URL = 'rbi-data.json';
 // them from RBI. Falls back silently when the function isn't deployed.
 const SYNC_URL = '.netlify/functions/data-sync';
 
-/* The shared accessibility contract: after a client-side navigation, focus goes
-   to the page heading, which is what a full load would announce. showSection()
-   is this app's only navigation (the sections are in-page, the URL is a hash),
-   so it is the one place the move belongs. */
-function focusHeading(){
-  const heading = document.querySelector('header h1');
-  if(!heading) return;
-  if(!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex','-1');
-  try { heading.focus({ preventScroll: true }); } catch(_) { heading.focus(); }
-}
-
-function showSection(name, el, opts){
+function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const sec = document.getElementById('sec-'+name);
   sec.classList.add('active');
@@ -48,11 +37,6 @@ function showSection(name, el, opts){
   if(name==='crude') renderCrudeSection().catch(()=>{});
   if(name==='compare' && records.length){ cmpEnsureDefaults(); fillCompareSelects(); renderCompare(); }
   hashSave();
-  // A deep link is restored at boot through this same function, and moving focus
-  // while the document is still wiring itself up would take the keyboard away
-  // from the top of the page on a plain load. Only a navigation the user made
-  // moves focus; hashLoad() asks for the quiet path.
-  if(!opts || opts.focus !== false) focusHeading();
   return false;
 }
 
@@ -794,8 +778,6 @@ function updateUI(){
   const summary = document.getElementById('weekly-summary');
   if (summary) summary.classList.add('show');
   renderWeeklySummary();
-  // The ribbon reads the same records as the metrics and the weekly table.
-  if (window.mountRbiRibbon) window.mountRbiRibbon(records);
   const snapshotText = {
     'snapshot-observation': fmtDate(latest.date),
     'snapshot-generated': generatedText,
@@ -1089,7 +1071,7 @@ function rebuildTable(){
     // RBI link must use publication date (as-on date + 7 days)
     const pub = rbiPublicationDate(row.date);
     const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pub.getMonth()+1}/${pub.getDate()}/${pub.getFullYear()}`;
-    tr.innerHTML=`<th scope="row" class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener">${fmtDate(row.date)}</a>${isLatest?latestBadge():''}</td>`
+    tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener">${fmtDate(row.date)}</a>${isLatest?latestBadge():''}</td>`
       + cellHtml(row.total_usd, prev?.total_usd)
       + cellHtml(row.total_inr, prev?.total_inr)
       + cellHtml(row.gold_usd,  prev?.gold_usd)
@@ -4475,12 +4457,6 @@ function dlPmCaresCSV(){
       btn.innerHTML = '<i data-lucide="' + (dark ? 'sun' : 'moon') + '"></i>';
       btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
     }
-    // Browser chrome follows the page, not whichever theme was the default
-    // when the markup was written. Read the token rather than repeating the hex
-    // here: a literal drifts the moment styles.css changes.
-    var meta = document.querySelector('meta[name="theme-color"]');
-    var bg = getComputedStyle(root).getPropertyValue('--bg').trim();
-    if (meta && bg) meta.setAttribute('content', bg);
     if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
   }
   if (btn) btn.addEventListener('click', function () {
@@ -4550,89 +4526,3 @@ function dispatchAct(event, attr) {
 
 document.addEventListener('click', (e) => dispatchAct(e, 'data-click'));
 document.addEventListener('change', (e) => dispatchAct(e, 'data-change'));
-
-/* --------------------------------------------------------------- feedback --
-   The site's one write. `POST /api/feedback` is the route the Portal, Content
-   Tracker and F1 share (bound to the same `site-feedback` namespace), so the
-   contract is fixed there: JSON { message, website }, 201 on a write, 202 for a
-   filled honeypot, 400 for a bad message, 413 for an oversized body, 503 when
-   the namespace is not bound. The box says which of those happened instead of
-   pretending a report was stored.
-
-   Nothing is stored locally and no address is sent: the function records the
-   message, the site id and a timestamp, and that is all it has to record. */
-(function initFeedback(){
-  const form = document.getElementById('feedback-form');
-  if (!form) return;
-  const message = document.getElementById('feedback-message');
-  const honeypot = document.getElementById('feedback-website');
-  const status = document.getElementById('feedback-status');
-  const button = form.querySelector('.feedback-submit');
-  const say = (text, kind) => {
-    if (!status) return;
-    status.textContent = text;
-    status.dataset.kind = kind || '';
-  };
-
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!message) return;
-    const text = message.value.trim();
-    if (!text) { say('Write what looks wrong first.', 'error'); message.focus(); return; }
-    if (text.length > 2000) { say('That is over 2000 characters. Trim it down.', 'error'); return; }
-
-    const was = button ? button.textContent : '';
-    if (button) { button.disabled = true; button.textContent = 'Sending…'; }
-    say('Sending…', 'pending');
-
-    try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, website: honeypot ? honeypot.value : '' }),
-      });
-      if (response.status === 201 || response.status === 202) {
-        message.value = '';
-        if (honeypot) honeypot.value = '';
-        say('Thanks — that reached me.', 'ok');
-      } else if (response.status === 503) {
-        say('The report box is not configured on this deployment yet. Try again later.', 'error');
-      } else if (response.status === 400) {
-        say('That message could not be accepted. Check the length and try again.', 'error');
-      } else if (response.status === 413) {
-        say('That message is too large. Shorten it and try again.', 'error');
-      } else if (response.status === 429) {
-        say('That is one report at a time — try again in a few minutes.', 'error');
-      } else {
-        say('Something went wrong on the way. Nothing was saved.', 'error');
-      }
-    } catch (_) {
-      say('Could not reach the server. Nothing was saved.', 'error');
-    } finally {
-      if (button) { button.disabled = false; button.textContent = was || 'Send report'; }
-    }
-  });
-})();
-
-/* ------------------------------------------------- service-worker update bar --
-   sw.js installs with skipWaiting() and claims its clients, so a deploy takes
-   over the page immediately; there is no waiting worker to prompt from. The
-   signal is therefore the controller changing while a controller already
-   existed — the first install (no controller at load) is not an update and stays
-   quiet. The bar reloads on demand rather than swapping the document under an
-   open comparison. */
-(function initUpdatePrompt(){
-  if (!('serviceWorker' in navigator)) return;
-  const bar = document.getElementById('sw-update');
-  const reload = document.getElementById('sw-update-reload');
-  if (!bar || !reload) return;
-  const hadController = Boolean(navigator.serviceWorker.controller);
-  const show = () => { bar.hidden = false; };
-  reload.addEventListener('click', () => window.location.reload());
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) show(); });
-  if (typeof navigator.serviceWorker.getRegistration === 'function') {
-    navigator.serviceWorker.getRegistration().then((reg) => {
-      if (reg && reg.waiting && hadController) show();
-    }).catch(() => {});
-  }
-})();
