@@ -392,6 +392,13 @@ html{-webkit-tap-highlight-color:transparent}
 .tab:hover:not(.on){color:var(--ink);background:var(--row-hover)}
 .tab.on{background:var(--active-bg);color:var(--active-fg)}
 .tab .lucide{width:13px;height:13px;margin-right:.3rem;vertical-align:-2px}
+/* The index switcher is adopted by Rubber Segment (index.html): the thumb is
+   the same active fill the tab used to paint, so the chosen tab drops its own
+   background and the thumb is visible crossing the track between two
+   indices. The row already has the track shape; the component only adds the
+   thumb and the keyboard model. */
+.tab-row[data-rubber-segment]{--rs-thumb:var(--active-bg)}
+.tab-row[data-rubber-segment] .tab.on{background:transparent}
 
 /* ─── Empty states ──────────────────────────────────────────────────── */
 #empty{text-align:center;padding:3.5rem 1.5rem;color:var(--ink3)}

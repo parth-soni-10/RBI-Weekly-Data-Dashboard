@@ -101,6 +101,7 @@
      this dashboard's tokens, so the chip inherits the theme (dark or light). -->
 <link rel="stylesheet" href="glide-select.css">
 <link rel="stylesheet" href="jelly-radio.css" />
+<link rel="stylesheet" href="rubber-segment.css" />
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -388,7 +389,11 @@
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Nifty 50 &amp; Sensex: Friday close</h3><div class="chart-note">Source: Yahoo Finance · "Both" shows % return from first data point</div></div><span class="chart-actions"><button class="dl" data-click="return dlChartPNG(cIdx,indices)" title="Download this chart as a PNG image" aria-label="Download the Nifty 50 and Sensex chart as a PNG image"><i data-lucide="image-down"></i></button><button class="tab" data-click="return copyChartCSV(idx,$el)" title="Copy the underlying weekly figures as CSV" aria-label="Copy the Nifty 50 and Sensex closes as CSV">Copy CSV</button></span></div>
-      <div class="tab-row"><button class="tab on" data-click="sw($el,idx,nifty)">Nifty 50</button><button class="tab" data-click="sw($el,idx,sensex)">Sensex</button><button class="tab" data-click="sw($el,idx,both)">Both (%)</button></div>
+      <!-- The index switcher is one single-choice row inside its own track, so
+           Rubber Segment carries the thumb: the chosen tab drops its fill and
+           the gold thumb stretches across the track between two indices. -->
+      <div class="tab-row" data-rubber-segment data-rs-key="index-switch" data-rs-size="sm"
+           data-rs-inset="0" data-rs-radius="3" data-rs-stretch="90" data-rs-squash="2"><button class="tab on" data-click="sw($el,idx,nifty)">Nifty 50</button><button class="tab" data-click="sw($el,idx,sensex)">Sensex</button><button class="tab" data-click="sw($el,idx,both)">Both (%)</button></div>
       <div class="chart-wrap"><canvas id="cIdx" role="img" aria-label="Line chart of Nifty 50 and Sensex closing prices"></canvas></div>
     </div>
     <div class="chart-card">
@@ -726,6 +731,7 @@
      tags, so window.Chart and window.gsap are defined too. -->
 <script src="glide-select.js" defer></script>
 <script src="jelly-radio.js" defer></script>
+<script src="rubber-segment.js" defer></script>
 <script src="app.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
