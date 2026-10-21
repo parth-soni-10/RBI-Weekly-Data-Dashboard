@@ -1,0 +1,356 @@
+/* pages.css — the document pages (About, Contact, Privacy).
+ *
+ * `styles.css` loads first and supplies the palette, the type scale, the logo
+ * lockup and the footer's source links, so these pages stay the same product as
+ * the dashboard. This file only adds the reading column and the header nav: the
+ * dashboard's own nav is a JS-driven panel under 1280px and these pages ship no
+ * JavaScript, so they carry a plain link row that never collapses.
+ *
+ * No inline style anywhere, and no script beyond theme-init.js — the deployed
+ * policy is `style-src 'self'` with no 'unsafe-inline'.
+ */
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.doc-header {
+  padding: 0.7rem clamp(1rem, 3vw, 2rem);
+}
+
+.doc-header-inner {
+  width: 100%;
+  max-width: var(--w);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.doc-brand:hover .logo-text h1 {
+  color: var(--brand);
+}
+
+/* The sub-pages carry the page title as their h1, so the lockup is a span that
+   borrows the header's type rather than a second heading. It cannot reuse
+   `.logo-text`: that rule hides every span inside it below 1280px, which is
+   where these pages keep their brand visible. */
+.doc-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.doc-brand-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.25;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.doc-brand:hover .doc-brand-name {
+  color: var(--brand);
+}
+
+.doc-brand-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0.02em;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+.doc-nav {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 3px;
+  flex-wrap: wrap;
+}
+
+.doc-nav a {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 0.8rem;
+  border-radius: calc(var(--r2) - 3px);
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s;
+}
+
+.doc-nav a:hover {
+  background: var(--row-hover);
+  color: var(--ink);
+}
+
+.doc-nav a[aria-current="page"] {
+  background: var(--active-bg);
+  color: var(--active-fg);
+}
+
+/* ── Reading column ─────────────────────────────────────────────────── */
+.doc-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.6rem clamp(1rem, 3vw, 2rem) 1rem;
+}
+
+.doc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  box-shadow: var(--shadow);
+  padding: clamp(1.4rem, 3.4vw, 2.6rem);
+}
+
+.doc-eyebrow {
+  margin: 0 0 0.55rem;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.doc-card h1 {
+  margin: 0 0 0.55rem;
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.doc-lede {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  line-height: 1.62;
+  color: var(--ink2);
+  max-width: 64ch;
+}
+
+.doc-updated {
+  margin: 0.35rem 0 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink3);
+}
+
+.doc-card h2 {
+  margin: 2rem 0 0.6rem;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.doc-card h2:first-of-type {
+  margin-top: 1.7rem;
+}
+
+.doc-card p,
+.doc-card li {
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: var(--ink2);
+}
+
+.doc-card p {
+  margin: 0 0 0.8rem;
+  max-width: 68ch;
+}
+
+.doc-card ul {
+  margin: 0 0 0.9rem;
+  padding-left: 1.15rem;
+  max-width: 68ch;
+}
+
+.doc-card li {
+  margin-bottom: 0.42rem;
+}
+
+.doc-card li::marker {
+  color: var(--brand);
+}
+
+.doc-card strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.doc-card a {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 550;
+}
+
+.doc-card a:hover {
+  text-decoration: underline;
+}
+
+.doc-card code {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.06em 0.32em;
+}
+
+/* The four-up fact strip: the short answers an agent or a reader wants first. */
+.doc-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.55rem;
+  margin: 1.15rem 0 0.3rem;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-facts li {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 0.65rem 0.8rem;
+  margin: 0;
+}
+
+.doc-facts .fact-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 0.22rem;
+}
+
+.doc-facts .fact-value {
+  display: block;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.doc-note {
+  margin: 1.5rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--r2);
+  background: var(--surface2);
+}
+
+.doc-note p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.doc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.35rem;
+  height: 36px;
+  padding: 0 0.95rem;
+  border-radius: var(--r2);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-decoration: none;
+  border: 1px solid var(--brand-line);
+}
+
+.doc-back:hover {
+  background: var(--brand2);
+  color: var(--on-brand);
+  text-decoration: none;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+.doc-footer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2rem) 2.6rem;
+}
+
+.doc-footer .doc-footer-inner {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+}
+
+.doc-footer a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.doc-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .doc-header-inner {
+    align-items: flex-start;
+  }
+
+  .doc-brand-sub {
+    display: none;
+  }
+
+  .doc-nav {
+    width: 100%;
+  }
+
+  .doc-nav a {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 0 0.5rem;
+  }
+
+  .doc-wrap {
+    padding-top: 1rem;
+  }
+}
+
+@media print {
+  .doc-header,
+  .doc-nav,
+  .doc-footer {
+    display: none;
+  }
+
+  .doc-card {
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+}

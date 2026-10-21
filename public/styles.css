@@ -787,3 +787,11 @@ html,body{overflow-x:clip}
   box-shadow:0 14px 34px rgba(3,7,18,.45);
 }
 .glide-select__option{font-family:var(--font);font-size:13px;font-weight:500}
+
+/* Footer site links: the pages and machine-readable files a reader or an
+   agent checks after the data. Above the sources so the sources stay the
+   last word on where a number came from. */
+.footer-links{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .85rem;margin:0 0 1.15rem;font-family:var(--mono);font-size:11px;letter-spacing:.02em}
+.footer-links a{color:var(--ink2);text-decoration:none;transition:color .15s}
+.footer-links a:hover{color:var(--brand)}
+.footer-links a:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:3px}

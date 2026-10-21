@@ -1,0 +1,112 @@
+# RBI Weekly Dashboard
+
+> Independent dashboard for India's weekly foreign-exchange reserves, gold, the rupee and
+> the markets that move with them, built from the RBI Weekly Statistical Supplement and
+> dated public sources. Free, no account. Not an RBI publication.
+
+Live site: https://rbiweeklydashboard.pages.dev/
+Source: https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard
+Maintainer: Parth Soni — soni.soni.parth@gmail.com
+Cost: free, no account, no cookies, no analytics.
+
+## When to use this
+
+Use this dashboard when the task is one of these:
+
+- **Look up India's latest weekly reserves.** Total, foreign currency assets, gold, SDRs and the
+  IMF reserve position for the newest WSS Friday, in USD million and ₹ crore.
+- **Quote a specific reporting week.** `GET /data/forex-weekly.json?weeks=N` returns the last N
+  Fridays, oldest first, each with its observation date.
+- **Compare two weeks.** The Compare tab takes any two WSS Fridays and reports absolute and
+  percentage moves for every headline metric; the view is a linkable fragment.
+- **Get a history for a chart or a CSV.** The 10-week table, 26/52-week chart ranges and a CSV of
+  the whole fetched history.
+- **Pair reserves with markets.** USD/INR, EUR/INR, NIFTY 50 and BSE SENSEX for the same week, each
+  from its own dated series, never derived from the reserves.
+- **Add macro context.** FII/FPI flows (NSDL), the 10-year G-Sec yield, REER, RBI's net forward book,
+  monthly indirect-tax receipts, crude import values (PPAC), a World Bank external-debt ranking and
+  a market Fear & Greed composite — each a separate JSON endpoint.
+- **Check a transcribed figure.** The PM CARES section reproduces the Fund's audited Receipt and
+  Payment Accounts with its own caveats.
+
+Do **not** use it as an official RBI source, a real-time or intraday feed, an investment
+recommendation, or a redistribution channel. It is a personal reference transcription; no
+redistribution licence is asserted and each provider's terms still apply. Check the freshness
+fields before quoting: a `static fallback` value is curated or last-known, not freshly scraped,
+and the payload says so.
+
+## How to call it
+
+HTML, Markdown and JSON on one origin, no key:
+
+- `GET /` with `Accept: text/markdown` → the Markdown home; `Accept: text/html` → the dashboard.
+  HTML responses carry `Vary: Accept` and a `Link` alternate.
+- `/index.md`, `/about.md`, `/contact.md`, `/privacy.md` → always Markdown.
+- An unknown path with `Accept: text/markdown` → HTTP 404 with a Markdown body linking the sitemap
+  and this file. As HTML it returns the dashboard's own 404 page, also HTTP 404.
+
+### Data endpoints
+
+All `GET`, CORS `*`, no authentication:
+
+- `GET /data/latest.json` → `{ fetched_at, snapshot_updated_at, source, status, record, iso }`.
+  `record.date` is the WSS Friday; `fetched_at` is when the response was built.
+- `GET /data/forex-weekly.json?weeks=8` → `{ fetched_at, snapshot_updated_at, source, weeks, status,
+  records[] }`, oldest first, capped at the deployment's `MAX_WEEKS` (8).
+- `GET /data/crude-bpd.json` → `{ fetched_at, source, brent, wti, urals, *_date }` in USD/bbl; a
+  failed quote is `null`, and the response is still 200.
+- `GET /data/fii.json`, `GET /data/fii-history.json` → NSDL FII/FPI flows.
+- `GET /data/fx-intervention.json` → RBI's net forward book, month-end.
+- `GET /data/gsec.json` → 10-year G-Sec yield and repo path.
+- `GET /data/reer.json` → 36-country REER, monthly, base FY2017 = 100.
+- `GET /data/tax.json` → monthly GST, customs and excise receipts.
+- `GET /data/sentiment.json` → 0–100 Fear & Greed composite with components.
+- `GET /data/external-debt.json` → World Bank quarterly external-debt ranking.
+
+Every handler is also reachable at `/.netlify/functions/<name>`; `/data/*.json` is the public
+contract. `POST /.netlify/functions/data-sync` is the dashboard's private merge cache — not an API.
+
+### Units and dates
+
+- `*_usd` = USD million; `*_inr` = ₹ crore at that week's reference rate.
+- `usd_inr`, `eur_inr` = rupees per unit; `nifty`, `sensex` = index points; crude = USD/bbl;
+  flows and receipts = ₹ crore; `gsec` = percent.
+- `date` / `iso` = **observation** date. `fetched_at`, `snapshot_updated_at`, `data_modified` =
+  **generation** timestamps (UTC). Never mix them in a citation.
+- `status: "static fallback"` (or `"error"` on a failed scrape) means curated or last-known.
+
+### Share links
+
+A view is a fragment on `/`: `#tab=<dashboard|table|compare|crude|pmcares>`,
+`modes=res:usd,gold:inr,...`, and `cmp=<from>><to>` for a comparison. The app restores tab, toggles
+and comparison from it.
+
+```bash
+curl -sS -H 'Accept: text/markdown' https://rbiweeklydashboard.pages.dev/
+curl -sS https://rbiweeklydashboard.pages.dev/data/latest.json
+curl -sS 'https://rbiweeklydashboard.pages.dev/data/forex-weekly.json?weeks=12'
+```
+
+## How it stays current
+
+A GitHub Actions job runs Friday 22:00 UTC — after the WSS is published — regenerates the committed
+`rbi-data.json`, the feed and the auxiliary series, and commits; the commit deploys. The dashboard's
+Reload button additionally live-checks RBI for a week newer than the committed file and merges it in
+memory. A failed scrape keeps the last good snapshot and labels the tile instead of guessing.
+
+## Limits
+
+- Weekly, not intraday. Reserves are one Friday's WSS; market series are daily closes.
+- RBI is the source of truth. A disagreement with RBI's own publication means RBI is right.
+- Some macro tiles fall back to curated values when an upstream page changes shape.
+- External debt is quarterly and lags; the PM CARES section is a fixed historical account.
+- RBI's own daily USD/INR reference rate ended when FBIL took over on 10 July 2018; the rupee series
+  is a reference/market series per date.
+
+## Pages
+
+- [Dashboard](https://rbiweeklydashboard.pages.dev/): the latest week and the sections.
+- [About](https://rbiweeklydashboard.pages.dev/about): what it shows, who runs it, sources, limits.
+- [Contact](https://rbiweeklydashboard.pages.dev/contact): email, issues, how to report a figure.
+- [Privacy](https://rbiweeklydashboard.pages.dev/privacy): localStorage, the data cache, logs.
+- [Sitemap](https://rbiweeklydashboard.pages.dev/sitemap.xml)

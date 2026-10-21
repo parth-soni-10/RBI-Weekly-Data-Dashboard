@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About | RBI Weekly Dashboard</title>
+<meta name="description" content="What the RBI Weekly Dashboard shows, who runs it, where each weekly reserves and market series comes from, how it is refreshed, and what it is not.">
+<link rel="canonical" href="https://rbiweeklydashboard.pages.dev/about">
+<link rel="alternate" type="text/markdown" href="/about.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="RBI Weekly Dashboard">
+<meta property="og:title" content="About the RBI Weekly Dashboard">
+<meta property="og:description" content="An independent dashboard for India's weekly RBI reserves, gold, rupee and market context — sources, refresh cadence and limits.">
+<meta property="og:url" content="https://rbiweeklydashboard.pages.dev/about">
+<meta property="og:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<meta property="og:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold and markets">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="About the RBI Weekly Dashboard">
+<meta name="twitter:description" content="Sources, refresh cadence and limits of an independent RBI weekly reserves dashboard.">
+<meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="pages.css">
+<script src="theme-init.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<header class="doc-header">
+  <div class="doc-header-inner">
+    <a class="doc-brand" href="/">
+      <span class="logo-badge" aria-hidden="true">₹</span>
+      <span class="doc-brand-text">
+        <span class="doc-brand-name">RBI Weekly Dashboard</span>
+        <span class="doc-brand-sub">Forex, Rupee, Gold, Markets</span>
+      </span>
+    </a>
+    <nav class="doc-nav" aria-label="Site">
+      <a href="/">Dashboard</a>
+      <a href="/about" aria-current="page">About</a>
+      <a href="/contact">Contact</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="doc-wrap" id="main-content">
+  <article class="doc-card">
+    <p class="doc-eyebrow">About</p>
+    <h1>India's weekly reserves, in one readable place</h1>
+    <p class="doc-lede">
+      The RBI Weekly Dashboard reads the Reserve Bank of India's Weekly Statistical Supplement and
+      puts the reserves, gold, rupee and market series on one page — with each figure's reporting
+      date attached, so a weekly observation is never mistaken for a live quote.
+    </p>
+
+    <ul class="doc-facts">
+      <li><span class="fact-label">Maintainer</span><span class="fact-value">Parth Soni</span></li>
+      <li><span class="fact-label">Status</span><span class="fact-value">Independent, not RBI</span></li>
+      <li><span class="fact-label">Cadence</span><span class="fact-value">Weekly, after Friday's WSS</span></li>
+      <li><span class="fact-label">Cost</span><span class="fact-value">Free, no account</span></li>
+    </ul>
+
+    <h2>Who runs it</h2>
+    <p>
+      It is a personal project by <strong>Parth Soni</strong>, built and maintained independently. It
+      is not published, operated or endorsed by the Reserve Bank of India, and nothing here should be
+      cited as an official RBI figure. The source is public at
+      <a href="https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard" target="_blank" rel="noopener noreferrer">github.com/parth-soni-10/RBI-Weekly-Data-Dashboard</a>,
+      so every figure on the page can be traced back to the parser that produced it.
+    </p>
+
+    <h2>What it shows</h2>
+    <ul>
+      <li><strong>The latest week</strong> — total reserves, foreign currency assets, gold, SDRs and the IMF reserve position, in USD and in rupees, with each move against the previous Friday.</li>
+      <li><strong>Markets for the same week</strong> — USD/INR, EUR/INR, NIFTY 50 and BSE SENSEX, each from its own dated series rather than derived from the reserves.</li>
+      <li><strong>History</strong> — a ten-week table, 10-, 26- and 52-week chart ranges, a searchable table and a CSV of the whole fetched history.</li>
+      <li><strong>Comparison</strong> — any two WSS Fridays side by side, with absolute and percentage moves, in a link you can send.</li>
+      <li><strong>Context</strong> — FII/FPI flows, the 10-year G-Sec yield, REER, RBI's net forward book, monthly indirect-tax receipts, crude import values, a World Bank external-debt ranking and a market Fear &amp; Greed composite.</li>
+      <li><strong>PM CARES</strong> — the Fund's audited receipts and payments, transcribed with the Fund's own caveats rather than presented as budget spending.</li>
+    </ul>
+
+    <h2>Where the numbers come from</h2>
+    <p>
+      Every section names and links its source. In short: the
+      <a href="https://www.rbi.org.in/Scripts/BS_ViewWss.aspx" target="_blank" rel="noopener noreferrer">RBI Weekly Statistical Supplement</a>
+      for the weekly reserves and components; the
+      <a href="https://www.fbil.org.in/" target="_blank" rel="noopener noreferrer">FBIL</a> reference rate for USD/INR;
+      <a href="https://www.nseindia.com/reports-indices-historical-index-data" target="_blank" rel="noopener noreferrer">NSE</a> and
+      <a href="https://www.bseindia.com/indices/indexarchivedata" target="_blank" rel="noopener noreferrer">BSE</a> historical index data;
+      <a href="https://www.fpi.nsdl.co.in/" target="_blank" rel="noopener noreferrer">NSDL</a> for FII/FPI flows;
+      <a href="https://www.rbi.org.in/" target="_blank" rel="noopener noreferrer">RBI DBIE and the RBI Bulletin</a> for G-Sec, REER and the forward book;
+      <a href="https://ppac.gov.in/import-export" target="_blank" rel="noopener noreferrer">PPAC</a> for crude imports;
+      PIB/CBIC monthly releases for indirect taxes;
+      <a href="https://data.worldbank.org/indicator/DT.DOD.DECT.CD" target="_blank" rel="noopener noreferrer">World Bank</a> for external debt; and the
+      <a href="https://pmcares.gov.in/en/web/page/about_us" target="_blank" rel="noopener noreferrer">PM CARES Fund's audited statements</a> for that section.
+    </p>
+    <p>
+      Market quotes for the crude benchmarks come from Yahoo Finance through this site's own
+      server-side function. Nothing is scraped from your browser.
+    </p>
+
+    <h2>How it stays current</h2>
+    <p>
+      A scheduled GitHub Actions run fires on Friday at 22:00 UTC — after the week's WSS is
+      published — regenerates the committed data file and the auxiliary series, and commits what
+      changed; that commit is what deploys. The dashboard's <strong>Reload data</strong> button
+      additionally live-checks RBI for a week newer than the committed file and merges it in memory.
+      A failed scrape leaves the last good snapshot in place and marks the tile, rather than
+      replacing a number with a guess.
+    </p>
+
+    <h2>Observation date versus generation time</h2>
+    <p>
+      These are deliberately separate everywhere in the dashboard and in the JSON: the
+      <strong>observation date</strong> is the Friday the WSS reports (or the month/quarter for a
+      macro series), while <strong>fetched_at</strong> and <strong>snapshot_updated_at</strong> are
+      when this site built the response. Comparing the two is how you can tell a quiet week from a
+      stale one.
+    </p>
+
+    <h2>What it is not</h2>
+    <p>
+      It is not an RBI publication, a data vendor, an investment adviser or a real-time feed. No
+      affiliation with or endorsement by the Reserve Bank of India is claimed, and no redistribution
+      licence is asserted over the underlying data — consult each provider's terms before reusing a
+      figure. Where an upstream page changes shape and a scrape fails, the dashboard keeps the last
+      known value and labels it a fallback rather than presenting a guess as fresh data.
+    </p>
+
+    <p class="doc-note">
+      <strong>Found a figure that disagrees with the source?</strong> A correction is the most useful
+      thing you can send — see <a href="/contact">Contact</a> for what to include. The code is public
+      at <a href="https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard" target="_blank" rel="noopener noreferrer">github.com/parth-soni-10/RBI-Weekly-Data-Dashboard</a>.
+    </p>
+
+    <a class="doc-back" href="/">Open the dashboard</a>
+  </article>
+</main>
+
+<footer class="doc-footer">
+  <div class="doc-footer-inner">
+    <span>Independent project. Not an RBI publication.</span>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/llms.txt">Agent guide</a>
+    <a href="/sitemap.xml">Sitemap</a>
+  </div>
+</footer>
+</body>
+</html>

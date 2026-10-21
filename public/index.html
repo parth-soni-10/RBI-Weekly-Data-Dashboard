@@ -13,31 +13,66 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="alternate" type="text/markdown" href="/index.md">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="RBI Weekly Dashboard">
-<meta property="og:title" content="India Forex Reserves, Gold &amp; Rupee | RBI Weekly Dashboard">
+<meta property="og:title" content="RBI Weekly Dashboard — India Forex Reserves, Gold, Rupee &amp; Economy">
 <meta property="og:description" content="Explore India's weekly forex reserves, gold holdings, rupee, and market data with dated sources and reporting context.">
 <meta property="og:url" content="https://rbiweeklydashboard.pages.dev/">
 <meta property="og:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold, rupee, and markets">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="India Forex Reserves, Gold &amp; Rupee | RBI Weekly Dashboard">
+<meta name="twitter:title" content="RBI Weekly Dashboard — India Forex Reserves, Gold, Rupee &amp; Economy">
 <meta name="twitter:description" content="Explore India's weekly forex reserves, gold holdings, rupee, and market data with dated sources and reporting context.">
 <meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
 <meta name="twitter:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold, rupee, and markets">
 <meta name="color-scheme" content="dark light">
-<title>India Forex Reserves, Gold &amp; Rupee | RBI Weekly Dashboard</title>
+<title>RBI Weekly Dashboard — India Forex Reserves, Gold, Rupee &amp; Economy</title>
 <script type="application/json" id="seo-data-snapshot">{"fetched_at":"2026-10-17T11:10:17.406Z","date_modified":"2026-10-17","temporal_coverage":"2025-12-26/2026-10-09","latest":{"date":"2026-10-09","total_usd":726027,"gold_usd":105094,"usd_inr":96.82330322265625,"nifty":22520.44921875,"sensex":72472.328125}}</script>
 <script type="application/ld+json" id="seo-dataset-schema">
 {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://rbiweeklydashboard.pages.dev/#organization",
+      "name": "RBI Weekly Dashboard",
+      "alternateName": "RBI Weekly Data Dashboard",
+      "url": "https://rbiweeklydashboard.pages.dev/",
+      "description": "An independent dashboard for India's weekly RBI foreign-exchange reserves, gold, rupee and the market context around them. Not an RBI publication.",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://rbiweeklydashboard.pages.dev/icons/icon-512.png",
+        "width": 512,
+        "height": 512
+      },
+      "email": "soni.soni.parth@gmail.com",
+      "founder": { "@type": "Person", "name": "Parth Soni" },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "technical support",
+        "email": "soni.soni.parth@gmail.com",
+        "url": "https://rbiweeklydashboard.pages.dev/contact",
+        "availableLanguage": ["English", "Hindi"]
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Dublin",
+        "addressCountry": "IE"
+      },
+      "sameAs": [
+        "https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard"
+      ]
+    },
+    {
       "@type": "WebSite",
       "@id": "https://rbiweeklydashboard.pages.dev/#website",
       "url": "https://rbiweeklydashboard.pages.dev/",
       "name": "RBI Weekly Dashboard",
-      "inLanguage": "en-IN"
+      "inLanguage": "en-IN",
+      "publisher": { "@id": "https://rbiweeklydashboard.pages.dev/#organization" }
     },
     {
       "@type": "WebApplication",
@@ -47,7 +82,8 @@
       "description": "An independent dashboard for exploring India's weekly foreign-exchange reserves, gold, rupee and related market indicators.",
       "applicationCategory": "FinanceApplication",
       "operatingSystem": "Web",
-      "isAccessibleForFree": true
+      "isAccessibleForFree": true,
+      "publisher": { "@id": "https://rbiweeklydashboard.pages.dev/#organization" }
     },
     {
       "@type": "Dataset",
@@ -55,10 +91,8 @@
       "name": "India weekly foreign-exchange reserves and market observations",
       "description": "A dashboard dataset containing weekly observations as published or reported in RBI Weekly Statistical Supplement (WSS) source files and separately attributed market series. Observation dates, series definitions, units and sources are documented on this page. No redistribution licence is asserted here.",
       "url": "https://rbiweeklydashboard.pages.dev/",
-      "creator": {
-        "@type": "Organization",
-        "name": "RBI Weekly Dashboard"
-      },
+      "creator": { "@id": "https://rbiweeklydashboard.pages.dev/#organization" },
+      "publisher": { "@id": "https://rbiweeklydashboard.pages.dev/#organization" },
       "dateModified": "2026-10-17",
       "temporalCoverage": "2025-12-26/2026-10-09",
       "citation": [
@@ -712,6 +746,14 @@
 </div>
 
 <footer>
+  <nav class="footer-links" aria-label="Site">
+    <a href="/">Dashboard</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/llms.txt">Agent guide</a>
+    <a href="/sitemap.xml">Sitemap</a>
+  </nav>
   <h3>Data sources</h3>
   <div class="src-links">
     <a class="src-link last-week" id="footer-last-week" href="https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=5/29/2026" target="_blank" rel="noopener">

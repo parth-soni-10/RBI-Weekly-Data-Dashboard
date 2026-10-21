@@ -58,6 +58,13 @@
  * Handlers are called with the same event shape they declare ({ httpMethod,
  * headers, queryStringParameters, body, ... }), and their { statusCode, headers,
  * body } result is turned straight back into a Response.
+ *
+ * The agent layer sits beside the API and touches none of it: `/`, `/about`,
+ * `/contact` and `/privacy` negotiate `text/markdown`, their `.md` aliases always
+ * answer Markdown, and an unmatched path gets a Markdown 404 when one is asked
+ * for. `/data/*.json` and `/.netlify/functions/*` are matched first, so no
+ * document rule can shadow a data endpoint. The bodies live in
+ * `_agent-docs.js`; the dashboard's own delivery is unchanged.
  */
 
 import dataLatest from "../netlify/functions/data-latest.js";
@@ -76,6 +83,16 @@ import fetchGsec from "../netlify/functions/fetch-gsec.js";
 import fetchReer from "../netlify/functions/fetch-reer.js";
 import fetchSentiment from "../netlify/functions/fetch-sentiment.js";
 import fetchTax from "../netlify/functions/fetch-tax.js";
+import {
+  DOCUMENTS,
+  HTML_ALIASES,
+  MARKDOWN_ALIASES,
+  NOT_ACCEPTABLE_MARKDOWN,
+  markdownResponse,
+  mergeVary,
+  negotiate,
+  notFoundMarkdown,
+} from "./_agent-docs.js";
 
 const ROUTES = {
   "/.netlify/functions/data-latest": dataLatest,
@@ -178,6 +195,66 @@ function wireBindings(env) {
   }
 }
 
+/** Fetch a negotiated HTML document, falling back to its `.html` file: Pages
+    resolves clean URLs itself, but the assets layer is the only place that
+    knows how, and this keeps the behaviour identical under a test stub. */
+async function fetchDocument(env, request, document) {
+  let response = await env.ASSETS.fetch(request);
+  if (response.status === 404 && document.file) {
+    const url = new URL(request.url);
+    url.pathname = document.file;
+    response = await env.ASSETS.fetch(new Request(url, request));
+  }
+  return response;
+}
+
+/** Advertise the Markdown alternative on the HTML response, and make a shared
+    cache key on Accept — without Vary it would hand one visitor's
+    representation to the next. */
+function withDocHeaders(response, document) {
+  const headers = new Headers(response.headers);
+  mergeVary(headers);
+  if (response.status >= 200 && response.status < 300) {
+    headers.set(
+      "Link",
+      `<${document.alternate}>; rel="alternate"; type="text/markdown", ` +
+        `</llms.txt>; rel="describedby"; type="text/plain"`
+    );
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function withVary(response) {
+  const headers = new Headers(response.headers);
+  mergeVary(headers);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** One of the agent documents: alias, negotiated Markdown, or the real page.
+    Returns null when the pathname is not a document. */
+async function serveDocument(request, env, pathname) {
+  const alias = MARKDOWN_ALIASES.get(pathname);
+  if (alias) return markdownResponse(alias, 200, request.method);
+
+  const document = DOCUMENTS.get(pathname);
+  if (!document) return null;
+
+  const choice = negotiate(request.headers.get("Accept"));
+  if (choice === "markdown") return markdownResponse(document.markdown, 200, request.method);
+  if (choice === "not-acceptable") {
+    return markdownResponse(NOT_ACCEPTABLE_MARKDOWN, 406, request.method);
+  }
+  return withDocHeaders(await fetchDocument(env, request, document), document);
+}
+
 /** Build the event the functions are written against out of this request. */
 async function toEvent(request, url) {
   const headers = {};
@@ -201,7 +278,34 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const mod = ROUTES[url.pathname] || PUBLIC_API[url.pathname];
-    if (!mod) return env.ASSETS.fetch(request);
+    if (!mod) {
+      if (request.method === "GET" || request.method === "HEAD") {
+        // One canonical address per page: `/about.html` redirects to `/about`,
+        // so a search result or a pasted link never splits into two documents.
+        const canonical = HTML_ALIASES.get(url.pathname);
+        if (canonical) {
+          const target = new URL(url);
+          target.pathname = canonical;
+          return new Response(null, {
+            status: 308,
+            headers: { Location: target.toString(), "Cache-Control": "public, max-age=3600" },
+          });
+        }
+
+        const document = await serveDocument(request, env, url.pathname);
+        if (document) return document;
+
+        const response = await env.ASSETS.fetch(request);
+        if (response.status === 404) {
+          if (negotiate(request.headers.get("Accept")) === "markdown") {
+            return markdownResponse(notFoundMarkdown(url.pathname), 404, request.method);
+          }
+          return withVary(response);
+        }
+        return response;
+      }
+      return env.ASSETS.fetch(request);
+    }
 
     wireBindings(env);
 

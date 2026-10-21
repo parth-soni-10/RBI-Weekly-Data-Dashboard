@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact | RBI Weekly Dashboard</title>
+<meta name="description" content="How to report a wrong RBI reserves figure, a stalled series or a broken page in the RBI Weekly Dashboard, and how to reach the maintainer.">
+<link rel="canonical" href="https://rbiweeklydashboard.pages.dev/contact">
+<link rel="alternate" type="text/markdown" href="/contact.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="RBI Weekly Dashboard">
+<meta property="og:title" content="Contact the RBI Weekly Dashboard">
+<meta property="og:description" content="Report a wrong figure, a stalled series or a broken page. Email, issue tracker, and what to include.">
+<meta property="og:url" content="https://rbiweeklydashboard.pages.dev/contact">
+<meta property="og:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<meta property="og:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold and markets">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Contact the RBI Weekly Dashboard">
+<meta name="twitter:description" content="Email, issue tracker, and what to include when reporting a data problem.">
+<meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="pages.css">
+<script src="theme-init.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<header class="doc-header">
+  <div class="doc-header-inner">
+    <a class="doc-brand" href="/">
+      <span class="logo-badge" aria-hidden="true">₹</span>
+      <span class="doc-brand-text">
+        <span class="doc-brand-name">RBI Weekly Dashboard</span>
+        <span class="doc-brand-sub">Forex, Rupee, Gold, Markets</span>
+      </span>
+    </a>
+    <nav class="doc-nav" aria-label="Site">
+      <a href="/">Dashboard</a>
+      <a href="/about">About</a>
+      <a href="/contact" aria-current="page">Contact</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="doc-wrap" id="main-content">
+  <article class="doc-card">
+    <p class="doc-eyebrow">Contact</p>
+    <h1>Report a wrong figure, or a series that stopped</h1>
+    <p class="doc-lede">
+      This is a one-person project, and data corrections are the most useful messages it gets. The
+      dashboard only re-states public sources, so a disagreement with the source is always worth
+      reporting — it is either a transcription bug or a parser that needs updating.
+    </p>
+
+    <ul class="doc-facts">
+      <li><span class="fact-label">Email</span><span class="fact-value"><a href="mailto:soni.soni.parth@gmail.com">soni.soni.parth@gmail.com</a></span></li>
+      <li><span class="fact-label">Bugs and scrapers</span><span class="fact-value">GitHub issues</span></li>
+      <li><span class="fact-label">Data source</span><span class="fact-value">RBI Weekly Statistical Supplement</span></li>
+      <li><span class="fact-label">Response</span><span class="fact-value">Best effort, no SLA</span></li>
+    </ul>
+
+    <h2>Email</h2>
+    <p>
+      Write to <a href="mailto:soni.soni.parth@gmail.com">soni.soni.parth@gmail.com</a> for anything
+      that should not be public: a wrong number, a source that has moved, a privacy or removal
+      request, or a question about how a series is computed. There is no support contract and no
+      guaranteed response time; messages are read and acted on when they can be.
+    </p>
+
+    <h2>Source code and issue tracker</h2>
+    <p>
+      The site is open source at
+      <a href="https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard" target="_blank" rel="noopener noreferrer">github.com/parth-soni-10/RBI-Weekly-Data-Dashboard</a>.
+      A scraper that broke, a table that parsed into the wrong column, or a feature request can be
+      filed there as an issue — that keeps the discussion next to the parser that would change, and
+      it is the fastest route for anything reproducible.
+    </p>
+
+    <h2>Reporting a data problem well</h2>
+    <p>Include four things and no round trip is needed to reproduce it:</p>
+    <ul>
+      <li><strong>The metric</strong> — for example foreign currency assets, gold, USD/INR, FII equity net, the 10-year G-Sec yield.</li>
+      <li><strong>The date</strong> — the WSS Friday, or the month/quarter for a macro series.</li>
+      <li><strong>Both values</strong> — what the dashboard shows and what the source shows, with the unit.</li>
+      <li><strong>The source link</strong> — the RBI/NSDL/PPAC/World Bank page or file you compared against.</li>
+    </ul>
+    <p>
+      A screenshot is welcome but a link and the two numbers are what make it fixable. If the
+      dashboard says <code>static fallback</code>, that already tells you the value is curated or
+      last-known rather than freshly scraped — a source link showing a newer figure is exactly the
+      report that helps.
+    </p>
+
+    <h2>What this site cannot do</h2>
+    <p>
+      It cannot answer an RBI query, correct a figure at the source, or give investment, tax or legal
+      advice. If a figure differs from RBI's own publication, RBI is right — the dashboard is a
+      transcription. Send the link and the row and the transcription will be fixed.
+    </p>
+
+    <p class="doc-note">
+      <strong>Before writing:</strong> the latest week's figure is on the homepage, and every series
+      is also available as JSON — <code>/data/latest.json</code> and <code>/data/forex-weekly.json</code>
+      are the quickest way to quote the exact value you are questioning.
+    </p>
+
+    <a class="doc-back" href="/">Open the dashboard</a>
+  </article>
+</main>
+
+<footer class="doc-footer">
+  <div class="doc-footer-inner">
+    <span>Independent project. Not an RBI publication.</span>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/llms.txt">Agent guide</a>
+    <a href="/sitemap.xml">Sitemap</a>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy | RBI Weekly Dashboard</title>
+<meta name="description" content="What the RBI Weekly Dashboard stores in your browser, what its server caches, how sources are fetched, and how to have anything removed.">
+<link rel="canonical" href="https://rbiweeklydashboard.pages.dev/privacy">
+<link rel="alternate" type="text/markdown" href="/privacy.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="RBI Weekly Dashboard">
+<meta property="og:title" content="Privacy — RBI Weekly Dashboard">
+<meta property="og:description" content="No accounts, no cookies, no analytics. What stays in your browser, what the server caches, and your rights.">
+<meta property="og:url" content="https://rbiweeklydashboard.pages.dev/privacy">
+<meta property="og:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<meta property="og:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold and markets">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Privacy — RBI Weekly Dashboard">
+<meta name="twitter:description" content="No accounts, no cookies, no analytics. What the dashboard stores and what it does not.">
+<meta name="twitter:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="pages.css">
+<script src="theme-init.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<header class="doc-header">
+  <div class="doc-header-inner">
+    <a class="doc-brand" href="/">
+      <span class="logo-badge" aria-hidden="true">₹</span>
+      <span class="doc-brand-text">
+        <span class="doc-brand-name">RBI Weekly Dashboard</span>
+        <span class="doc-brand-sub">Forex, Rupee, Gold, Markets</span>
+      </span>
+    </a>
+    <nav class="doc-nav" aria-label="Site">
+      <a href="/">Dashboard</a>
+      <a href="/about">About</a>
+      <a href="/contact">Contact</a>
+      <a href="/privacy" aria-current="page">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="doc-wrap" id="main-content">
+  <article class="doc-card">
+    <p class="doc-eyebrow">Privacy</p>
+    <h1>What this dashboard keeps, and where</h1>
+    <p class="doc-lede">
+      The RBI Weekly Dashboard has no accounts, no advertising and no analytics or tracking scripts.
+      There is no form that collects personal data. This page lists the little the site does handle.
+    </p>
+    <p class="doc-updated">Last updated: 21 October 2026</p>
+
+    <ul class="doc-facts">
+      <li><span class="fact-label">Cookies</span><span class="fact-value">None</span></li>
+      <li><span class="fact-label">Analytics</span><span class="fact-value">None</span></li>
+      <li><span class="fact-label">Accounts</span><span class="fact-value">None</span></li>
+      <li><span class="fact-label">Server-side state</span><span class="fact-value">Data cache only</span></li>
+    </ul>
+
+    <h2>What stays in your browser</h2>
+    <p>
+      The dashboard remembers your choices locally so the page opens where you left it:
+      <code>rbi-theme</code> (light or dark), <code>rbi-macro</code> (whether the macro panel is
+      expanded), and a merged-data cache written by the reload button so repeat reloads do not
+      re-scrape weeks it already has. A service-worker cache stores the app shell and the last data
+      files so the last week still renders when you are offline.
+    </p>
+    <p>
+      None of that is sent to this site as personal data, and none of it identifies you. Clearing
+      site data, or using a private window, removes all of it.
+    </p>
+
+    <h2>What the server keeps</h2>
+    <p>
+      There is no account system, no newsletter and no contact form. The only durable server-side
+      state is a cache of figures the dashboard itself fetched — the merged weekly rows and a few
+      macro series — held in a Cloudflare KV namespace so a reload does not re-scrape the same weeks.
+      It holds numbers and timestamps, not visitors: no IP addresses, no user agents and no
+      identifiers are written to it.
+    </p>
+
+    <h2>Requests to third parties</h2>
+    <p>
+      Reserves and macro series are fetched by this site's own server-side functions, so your browser
+      does not contact RBI, NSDL, NSE, BSE, PPAC, the World Bank or Yahoo Finance for them, and those
+      providers do not see your IP address from those requests. Fonts, scripts and styles load only
+      from this domain. Following a source link takes you to that provider, under its own privacy
+      policy.
+    </p>
+
+    <h2>Hosting and logs</h2>
+    <p>
+      The site is hosted on Cloudflare Pages, which processes requests and keeps standard operational
+      logs — IP address, user agent, requested URL and timestamp — as any web host does, for security
+      and reliability. This project does not build profiles from them, combine them with anything
+      else, or sell or share data. There is no third-party embed on any page.
+    </p>
+
+    <h2>Cookies and consent</h2>
+    <p>
+      This site sets no cookies and runs no consent banner, because there is nothing to consent to: no
+      analytics, no advertising identifiers, no cross-site tracking. The only client-side storage is
+      the local preferences and offline cache described above, which exist to make the page work.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Under the GDPR you may ask for access, correction or erasure of personal data, and you have the
+      right to complain to the
+      <a href="https://www.dataprotection.ie/" target="_blank" rel="noopener noreferrer">Irish Data Protection Commission</a>.
+      Questions about this page, or a removal request, can go to
+      <a href="mailto:soni.soni.parth@gmail.com">soni.soni.parth@gmail.com</a>. If this notice
+      changes, the date at the top changes with it.
+    </p>
+
+    <p class="doc-note">
+      <strong>Short version:</strong> no accounts, no cookies, no analytics. Preferences and the
+      offline cache live in your browser; the server caches only the figures it fetched.
+    </p>
+
+    <a class="doc-back" href="/">Open the dashboard</a>
+  </article>
+</main>
+
+<footer class="doc-footer">
+  <div class="doc-footer-inner">
+    <span>Independent project. Not an RBI publication.</span>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/llms.txt">Agent guide</a>
+    <a href="/sitemap.xml">Sitemap</a>
+  </div>
+</footer>
+</body>
+</html>

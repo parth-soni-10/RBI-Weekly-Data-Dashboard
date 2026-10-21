@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- One page, so one entry. No <lastmod>: nothing in the repo records a
-     build date, and a guessed one is worse than an absent one. -->
+<!-- Four pages, no <lastmod>: the dashboard's data changes weekly but the page
+     markup does not record a build date, and a guessed one is worse than an
+     absent one. The .md aliases are alternates of these URLs (advertised by
+     Link headers and <link rel="alternate">), not separate destinations. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://rbiweeklydashboard.pages.dev/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://rbiweeklydashboard.pages.dev/about</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://rbiweeklydashboard.pages.dev/contact</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://rbiweeklydashboard.pages.dev/privacy</loc>
+    <priority>0.5</priority>
   </url>
 </urlset>
