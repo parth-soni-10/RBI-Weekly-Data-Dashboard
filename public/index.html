@@ -100,6 +100,7 @@
 <!-- The GlideSelect defaults load first; styles.css maps its variables onto
      this dashboard's tokens, so the chip inherits the theme (dark or light). -->
 <link rel="stylesheet" href="glide-select.css">
+<link rel="stylesheet" href="jelly-radio.css" />
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -369,7 +370,7 @@
     </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Gold reserves: weekly change</h3><div class="chart-note">Week-on-week Δ</div></div><button class="tab" data-click="return copyChartCSV(gold,$el)" title="Copy the underlying weekly figures as CSV" aria-label="Copy the weekly gold reserves figures as CSV">Copy CSV</button></div>
-      <div class="tab-row"><button class="tab on" data-click="sw($el,gold,usd)">USD mn</button><button class="tab" data-click="sw($el,gold,inr)">INR cr</button></div>
+      <div class="tab-row" data-jelly-radio data-jelly-bare data-jelly-size="sm" data-jelly-radius="999" data-jelly-swell="0.1" data-jelly-barge="3"><button class="tab on" data-click="sw($el,gold,usd)">USD mn</button><button class="tab" data-click="sw($el,gold,inr)">INR cr</button></div>
       <div class="chart-wrap"><canvas id="cGold" role="img" aria-label="Bar chart of weekly change in gold reserves"></canvas></div>
     </div>
     <!-- Usable forex: gross reserves − gold − forward book (USD bn) -->
@@ -724,6 +725,7 @@
      already loaded. Document order puts it after the vendored chart/gsap
      tags, so window.Chart and window.gsap are defined too. -->
 <script src="glide-select.js" defer></script>
+<script src="jelly-radio.js" defer></script>
 <script src="app.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
