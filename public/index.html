@@ -145,6 +145,8 @@
   </div>
 </header>
 
+  <main class="site-main">
+
 <div class="section active" id="sec-dashboard">
   <div id="snapshot-metrics" class="sr-snapshot" aria-label="Latest static weekly data snapshot">
     Latest committed snapshot: RBI WSS week ended <time id="snapshot-observation">9 October 2026</time>. Generated <time id="snapshot-generated">17 Oct 2026, 11:10 am UTC</time>.
@@ -757,7 +759,9 @@
 
 <div id="toast-zone" aria-live="polite"></div>
 
-<!-- A deployed worker takes over immediately here (sw.js installs with
+  </main>
+
+  <!-- A deployed worker takes over immediately here (sw.js installs with
      skipWaiting + clients.claim), so the update is announced by the controller
      changing rather than by a waiting worker. Hidden until that happens. -->
 <div id="sw-update" class="sw-update" role="status" hidden>

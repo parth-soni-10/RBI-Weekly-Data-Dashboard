@@ -582,15 +582,34 @@
      text — separators, decimals and the em dash included. Under reduce it does
      nothing at all. */
 
+  /* The figure is the way to the rows behind it. Every metric card on this page
+     summarises the weekly table, so the value is a real button that opens that
+     section; the card's own carousel click still works around it. */
+  function openWeeklyTable() {
+    var link = document.querySelector('.nav-link[href="#sec-table"]');
+    if (link) link.click();
+    else location.hash = '#tab=table';
+  }
+
   function counter(node) {
     var finalText = text(node);
     if (!finalText || finalText === '—') return;
     var match = finalText.match(/-?[\d,]+(\.\d+)?/);
     if (!match) return;
     mark(node, 'animated-counter');
-    if (reduced()) return;
+
+    var figure = el('button', 'rc-figure', finalText);
+    figure.type = 'button';
+    figure.setAttribute('aria-label', finalText + ' — open the weekly table');
+    figure.addEventListener('click', function (event) {
+      event.stopPropagation();
+      openWeeklyTable();
+    });
+    node.textContent = '';
+    node.appendChild(figure);
+
     var target = Number(match[0].replace(/,/g, ''));
-    if (!isFinite(target) || target > 1e12) return;
+    if (reduced() || !isFinite(target) || target > 1e12) return;
     var decimals = (match[1] || '').length - (match[1] ? 1 : 0);
     var prefix = finalText.slice(0, match.index);
     var suffix = finalText.slice(match.index + match[0].length);
@@ -599,9 +618,9 @@
       var t = Math.min(1, (now - started) / 600);
       var eased = 1 - Math.pow(1 - t, 3);
       var value = target * eased;
-      node.textContent = prefix + (decimals > 0 ? value.toFixed(decimals) : Math.round(value).toLocaleString('en-IN')) + suffix;
+      figure.textContent = prefix + (decimals > 0 ? value.toFixed(decimals) : Math.round(value).toLocaleString('en-IN')) + suffix;
       if (t < 1) requestAnimationFrame(frame);
-      else node.textContent = finalText;
+      else figure.textContent = finalText;
     }
     requestAnimationFrame(frame);
   }
@@ -626,6 +645,12 @@
     }
     if (changes.length < 6) return;
     var peak = changes.reduce(function (max, c) { return Math.max(max, Math.abs(c.delta)); }, 0) || 1;
+
+    var drill = el('button', 'rc-drill', 'Open the weekly table →');
+    drill.type = 'button';
+    drill.setAttribute('aria-label', 'Open the weekly table behind this activity grid');
+    drill.addEventListener('click', openWeeklyTable);
+    host.appendChild(drill);
 
     var grid = el('div', 'rc-activity-grid');
     grid.setAttribute('role', 'img');
@@ -746,8 +771,13 @@
     bar.setAttribute('role', 'status');
     var what = el('span', 'rc-sticky-what', 'Dashboard');
     var when = el('span', 'rc-sticky-when', '');
+    var open = el('button', 'rc-sticky-open', 'Table →');
+    open.type = 'button';
+    open.setAttribute('aria-label', 'Open the weekly table');
+    open.addEventListener('click', openWeeklyTable);
     bar.appendChild(what);
     bar.appendChild(when);
+    bar.appendChild(open);
     var header = document.querySelector('header');
     if (header && header.parentNode) header.parentNode.insertBefore(bar, header.nextSibling);
     else document.body.insertBefore(bar, document.body.firstChild);
@@ -828,6 +858,11 @@
         detail.textContent = 'Gold ' + fmtNumber(record.gold_usd) + ' · USD/INR ' + fmtNumber(record.usd_inr, 2)
           + (isFinite(delta) ? ' · Δ ' + (delta >= 0 ? '+' : '') + fmtNumber(delta) : '');
         card.appendChild(detail);
+        var open = el('button', 'rc-tx-open', 'Open in the weekly table');
+        open.type = 'button';
+        open.setAttribute('aria-label', 'Open the week of ' + fmtDate(record.date) + ' in the weekly table');
+        open.addEventListener('click', openWeeklyTable);
+        card.appendChild(open);
         host.appendChild(card);
       })(recent[i], i);
     }
@@ -871,9 +906,7 @@
     var first = null;
     for (var i = 0; i < cards.length; i++) {
       (function (card, at) {
-        var value = card.querySelector('.mc-val');
         card.classList.add('rc-fund-item');
-        if (value) value.setAttribute('data-component', 'animated-counter');
         card.addEventListener('click', function () { select(at, false); });
         if (at === 0) first = card;
       })(cards[i], i);
@@ -1298,8 +1331,12 @@
       fresh('.cmp-select').forEach(glideSelect);
 
       // Metric cards: the counter animates the value, the widget gives the grid
-      // a keyboard path and the card a dialog.
-      fresh('#metrics .mc-val, #metric-extras .mex-val').forEach(counter);
+      // a keyboard path and the card a dialog. app.js rewrites these values as
+      // later data lands, which removed the button; a marked node with no
+      // figure is upgraded again rather than treated as done.
+      document.querySelectorAll('#metrics .mc-val, #metric-extras .mex-val').forEach(function (node) {
+        if (!node.querySelector('.rc-figure')) counter(node);
+      });
       var metrics = document.getElementById('metrics');
       if (metrics) fundWidget(metrics);
 

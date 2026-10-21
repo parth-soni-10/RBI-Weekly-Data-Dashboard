@@ -1089,7 +1089,7 @@ function rebuildTable(){
     // RBI link must use publication date (as-on date + 7 days)
     const pub = rbiPublicationDate(row.date);
     const rbiUrl=`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${pub.getMonth()+1}/${pub.getDate()}/${pub.getFullYear()}`;
-    tr.innerHTML=`<td class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener">${fmtDate(row.date)}</a>${isLatest?latestBadge():''}</td>`
+    tr.innerHTML=`<th scope="row" class="date-cell"><a href="${rbiUrl}" target="_blank" rel="noopener">${fmtDate(row.date)}</a>${isLatest?latestBadge():''}</td>`
       + cellHtml(row.total_usd, prev?.total_usd)
       + cellHtml(row.total_inr, prev?.total_inr)
       + cellHtml(row.gold_usd,  prev?.gold_usd)
