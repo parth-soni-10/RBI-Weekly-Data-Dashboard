@@ -97,6 +97,9 @@
 <!-- The design system lives in styles.css rather than inline: a file is
      cacheable on its own, and it is what lets the CSP say style-src 'self'
      instead of 'unsafe-inline'. -->
+<!-- The GlideSelect defaults load first; styles.css maps its variables onto
+     this dashboard's tokens, so the chip inherits the theme (dark or light). -->
+<link rel="stylesheet" href="glide-select.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -511,12 +514,12 @@
   <div class="cmp-picker">
     <div class="cmp-pick">
       <label class="panel-label" for="cmp-from">From week</label>
-      <select id="cmp-from" class="cmp-select" data-change="return onCompareChange(from)"></select>
+      <select id="cmp-from" class="cmp-select" data-glide data-glide-menu-width="210" data-change="return onCompareChange(from)"></select>
     </div>
     <button class="dl" id="cmp-swap" type="button" title="Swap the two weeks" data-click="return swapCompare"><i data-lucide="arrow-left-right"></i> Swap</button>
     <div class="cmp-pick">
       <label class="panel-label" for="cmp-to">To week</label>
-      <select id="cmp-to" class="cmp-select" data-change="return onCompareChange(to)"></select>
+      <select id="cmp-to" class="cmp-select" data-glide data-glide-menu-width="210" data-change="return onCompareChange(to)"></select>
     </div>
     <div class="cmp-quick" role="group" aria-label="Quick comparison ranges">
       <button class="tab" data-click="return quickCompare(4)" title="Latest week vs 4 weeks earlier">4W</button>
@@ -720,6 +723,7 @@
 <!-- Deferred: runs after the parse, so #theme-toggle exists and lucide is
      already loaded. Document order puts it after the vendored chart/gsap
      tags, so window.Chart and window.gsap are defined too. -->
+<script src="glide-select.js" defer></script>
 <script src="app.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>

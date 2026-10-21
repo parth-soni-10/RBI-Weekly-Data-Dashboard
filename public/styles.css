@@ -755,3 +755,28 @@ html,body{overflow-x:clip}
    that, at equal specificity, none wins for the initially-hidden EM row. */
 .is-hidden{display:none}
 .range-inset{padding:0 1.1rem}
+
+/* ── GlideSelect ────────────────────────────────────────────────────────
+   The two Compare pickers are chips with a gliding menu. The native <select>
+   stays in the DOM because app.js reads and writes its value; the chip only
+   changes the surface. */
+.glide-select{
+  --gs-surface:var(--surface2);
+  --gs-highlight:color-mix(in srgb, var(--brand) 24%, var(--surface2));
+  --gs-text:var(--ink);
+  --gs-accent:var(--brand);
+  --gs-radius:var(--r3);
+  --gs-inner-radius:var(--r2);
+  --gs-menu-w:210px;
+}
+.cmp-pick > .glide-select{display:block;width:100%}
+.glide-select .glide-select__trigger{
+  width:100%;height:38px;border:1px solid var(--border2);
+  font-family:var(--font);font-size:13px;font-weight:550;
+}
+.glide-select__trigger:hover{border-color:var(--brand-line)}
+.glide-select__menu{
+  border:1px solid var(--border2);
+  box-shadow:0 14px 34px rgba(3,7,18,.45);
+}
+.glide-select__option{font-family:var(--font);font-size:13px;font-weight:500}
