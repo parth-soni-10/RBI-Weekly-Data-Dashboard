@@ -150,6 +150,7 @@
 <link rel="stylesheet" href="glide-select.css">
 <link rel="stylesheet" href="jelly-radio.css" />
 <link rel="stylesheet" href="rubber-segment.css" />
+<link rel="stylesheet" href="squish-switch.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -302,7 +303,15 @@
 
   <!--Macro context section: FII / G-Sec / Tax / REER / FX intervention. All loaded async from the Worker's endpoints below; fall back to curated last-known figures when the live scrape fails. -->
   <div class="macro-context" id="macro-context">
-    <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention, market sentiment</span><button class="tab" id="macro-toggle" aria-expanded="true" aria-controls="macro-grid" data-click="return toggleMacro">Collapse</button></h3>
+    <h3><span>Macroeconomic context: FII flows, G-Sec, Tax, REER, FX intervention, market sentiment</span>
+      <!-- The strip's open state was already two-valued and already stored
+           (rbi-macro), so it is a switch now: the heading names the subject
+           and the thumb says whether the strip is showing. aria-checked is the
+           state; toggleMacro() writes it and the component follows. -->
+      <button class="macro-switch" id="macro-toggle" type="button" role="switch" aria-checked="true"
+              aria-controls="macro-grid" data-click="return toggleMacro"
+              data-squish-switch data-ss-size="sm">Macro context</button>
+    </h3>
     <div class="mc-grid" id="macro-grid">
       <div class="mctx">
         <div class="mctx-label" data-glossary="Foreign Portfolio Investor (FPI) net equity flows for the most recent trading day in INR crores. Negative = selling. Source: NSDL.">FPI Equity (today)</div>
@@ -789,6 +798,10 @@
 <script src="jelly-radio.js" defer></script>
 <script src="rubber-segment.js" defer></script>
 <script src="app.js" defer></script>
+<!-- After app.js, so initMacroToggle() has already written aria-checked from
+     the stored rbi-macro value when the component reads it: a strip restored
+     collapsed starts with the thumb in its seat rather than animating there. -->
+<script src="squish-switch.js" defer></script>
 
 <div id="toast-zone" aria-live="polite"></div>
 <!-- Print-only data vintage so a printed page carries its own provenance -->

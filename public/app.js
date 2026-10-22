@@ -974,7 +974,9 @@ function toggleMacro(){
   const box = document.getElementById('macro-context');
   const btn = document.getElementById('macro-toggle');
   const collapsed = box.classList.toggle('collapsed');
-  if(btn){ btn.textContent = collapsed ? 'Expand' : 'Collapse'; btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); }
+  // The control is a switch, so its state lives in aria-checked; the thumb
+  // follows that attribute and nothing here paints it.
+  if(btn){ btn.setAttribute('aria-checked', collapsed ? 'false' : 'true'); }
   try { localStorage.setItem('rbi-macro', collapsed ? 'collapsed' : 'open'); } catch(e){}
   return false;
 }
@@ -985,7 +987,7 @@ function toggleMacro(){
   const box = document.getElementById('macro-context');
   const btn = document.getElementById('macro-toggle');
   if(box) box.classList.add('collapsed');
-  if(btn){ btn.textContent = 'Expand'; btn.setAttribute('aria-expanded', 'false'); }
+  if(btn){ btn.setAttribute('aria-checked', 'false'); }
 })();
 
 /* ─── Per-chart Copy CSV ────────────────────────────────────────────

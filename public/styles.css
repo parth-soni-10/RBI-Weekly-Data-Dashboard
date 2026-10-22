@@ -728,6 +728,14 @@ details.read-more .chart-note{margin-top:.35rem}
    unaffected. overflow-x:clip (not hidden) keeps sticky positioning working. */
 html,body{overflow-x:clip}
 .macro-context.collapsed .mc-grid{display:none}
+/* The strip's open state is a switch now: the same stored rbi-macro value, but
+   drawn as a track instead of an action word. The vertical padding keeps a
+   40px target around a 24px track without growing the heading's line box. */
+.macro-switch{
+  flex:none;margin-left:auto;padding:.4rem 0;
+  --ss-track:var(--border2);--ss-track-on:var(--brand);--ss-thumb-color:#fff;--ss-focus:var(--brand);
+  font-size:12px;font-weight:550;color:var(--ink2);
+}
 
 /* Panel titles must wrap instead of clipping on narrow screens: flex items
    default to min-width:auto, which blocks shrinking (note + fetch title
