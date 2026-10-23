@@ -150,6 +150,7 @@
 <link rel="stylesheet" href="glide-select.css">
 <link rel="stylesheet" href="jelly-radio.css" />
 <link rel="stylesheet" href="rubber-segment.css" />
+<link rel="stylesheet" href="analytics-chart.css" />
 <link rel="stylesheet" href="squish-switch.css">
 <link rel="stylesheet" href="gooey-nav.css">
 <link rel="stylesheet" href="styles.css">
@@ -417,6 +418,10 @@
   </div>
 
   <div id="charts">
+    <div class="chart-card">
+      <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: the level</h3><div class="chart-note">Total reserves in USD million, weekly &middot; last 52 weeks &middot; point for the week it was published</div></div></div>
+      <div class="chart-wrap compact"><div id="resLevel" class="res-level-chart" data-ac-label="total reserves"></div></div>
+    </div>
     <div class="chart-card">
       <div class="chart-hdr"><div><h3 class="chart-title">Foreign exchange reserves: weekly change</h3><div class="chart-note">Week-on-week Δ · green = increase, red = decrease</div></div><span class="chart-actions"><button class="dl" data-click="return dlChartPNG(cRes,reserves-change)" title="Download this chart as a PNG image" aria-label="Download the foreign exchange reserves chart as a PNG image"><i data-lucide="image-down"></i></button><button class="tab" data-click="return copyChartCSV(res,$el)" title="Copy the underlying weekly figures as CSV" aria-label="Copy the weekly reserves figures as CSV">Copy CSV</button></span></div>
       <div class="tab-row"><button class="tab on" data-click="sw($el,res,usd)">USD mn</button><button class="tab" data-click="sw($el,res,inr)">INR cr</button><button class="tab" data-click="sw($el,res,lvl1y)" title="Level of total reserves over the last year">1Y level</button><button class="tab" id="ridge-toggle" aria-expanded="false" aria-controls="ridge-panel" data-click="return toggleRidge($el)"><i data-lucide="box"></i> 3D ridge</button></div>
@@ -798,6 +803,7 @@
 <script src="glide-select.js" defer></script>
 <script src="jelly-radio.js" defer></script>
 <script src="rubber-segment.js" defer></script>
+<script src="analytics-chart.js" defer></script>
 <script src="gooey-nav.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from

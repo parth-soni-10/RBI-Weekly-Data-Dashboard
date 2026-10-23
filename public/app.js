@@ -849,6 +849,7 @@ function updateUI(){
   set('m-nifty',   L.nifty,    'd-nifty',   P?+(L.nifty-P.nifty).toFixed(1):null,1);
   set('m-sensex',  L.sensex,   'd-sensex',  P?+(L.sensex-P.sensex).toFixed(1):null,1);
   renderSparklines();
+  renderReserveLevel();
   rebuildCharts();
   renderWeeklySummary();
   rebuildTable();
@@ -877,6 +878,24 @@ const SPARK_METRICS = [
   ['m-usd-inr', 'usd_inr'],   ['m-eur-inr', 'eur_inr'],
   ['m-nifty', 'nifty'],       ['m-sensex', 'sensex'],
 ];
+/* The level of total reserves, as the design system's analytics-chart.
+   The page already draws the week-on-week CHANGE as bars and keeps the level
+   behind the "1Y level" tab of that card; a reading that important should not
+   need a tab, so it gets its own line. One series, one tooltip, no legend. */
+function renderReserveLevel(){
+  const host = document.getElementById('resLevel');
+  if(!host || !window.AnalyticsChart || !records.length) return;
+  const rows = records.filter(r => r.total_usd != null).slice(-52);
+  if(rows.length < 2) return;
+  AnalyticsChart.render(host, rows.map(r => ({
+    label: r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '',
+    value: r.total_usd,
+  })), {
+    label: 'total reserves',
+    format: v => 'US$ ' + Math.round(v).toLocaleString('en-IN') + ' mn',
+  });
+}
+
 function renderSparklines(){
   if(!records.length) return;
   const cs = getComputedStyle(document.documentElement);

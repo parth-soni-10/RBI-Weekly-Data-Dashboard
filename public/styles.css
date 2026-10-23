@@ -384,6 +384,18 @@ html{-webkit-tap-highlight-color:transparent}
 .chart-wrap.wide{height:290px}
 .chart-wrap.compact{height:215px}
 
+/* Total reserves, as the analytics-chart kit. The card sets the height and the
+   paper; the kit draws the line, the grid and the tooltip. */
+.res-level-chart{
+  --ac-height:180px;
+  --ac-accent:var(--brand);
+  --ac-area:var(--brand-soft);
+  --ac-grid:var(--border);
+  --ac-ink:var(--ink3);
+  --ac-tip-bg:var(--surface2);
+  --ac-tip-ink:var(--ink);
+}
+
 /* chart mode tabs */
 .tab-row{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:3px;width:fit-content;max-width:100%;overflow-x:auto;margin-bottom:.75rem}
 .tab{
