@@ -1,0 +1,32 @@
+name: Data Refresh
+
+# Weekly refresh of RBI (Reserve Bank of India) data including reserves, forex, and
+# macro indicators. Runs the data pipeline to fetch fresh data and update the dashboard.
+
+on:
+  schedule:
+    - cron: '0 4 * * 0' # Weekly on Sunday at 04:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run data refresh
+        run: node scripts/refresh-static.js
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/ public/app.js
+          git diff --staged --quiet || git commit -m "rbi-data: weekly refresh $(date -u +%F)"
+          git push || echo "push failed — next scheduled run reconciles"

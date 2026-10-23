@@ -1,0 +1,35 @@
+name: FII/DII History Refresh
+
+# Weekly refresh of FII (Foreign Institutional Investor) and DII (Domestic Institutional Investor)
+# history data from RBI sources, stored as committed snapshots for SEO-friendly rendering.
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # Mondays, 05:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch FII/DII data
+        run: python scripts/fetch-all.js
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/
+          git diff --staged --quiet || git commit -m "fii-dii-history: weekly refresh $(date -u +%F)"
+          git push || echo "push failed — next scheduled run reconciles"
