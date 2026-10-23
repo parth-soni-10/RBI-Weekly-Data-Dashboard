@@ -163,7 +163,9 @@ header.header-scrolled{box-shadow:var(--shadow);border-bottom-color:var(--border
 .head-right{display:flex;align-items:center;gap:.55rem}
 /* nav */
 .nav-links{display:flex;align-items:center;gap:3px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:var(--r2);padding:3px}
+  border:1px solid var(--border);border-radius:var(--r2);padding:3px;
+  /* gooey-nav.js draws the active pill: the host owns its colour and corner. */
+  --gn-fill:var(--active-bg);--gn-radius:calc(var(--r2) - 3px)}
 .nav-link{
   height:32px;display:inline-flex;align-items:center;gap:.45rem;padding:0 .8rem;
   border-radius:calc(var(--r2) - 3px);font-size:12.5px;font-weight:550;letter-spacing:.01em;

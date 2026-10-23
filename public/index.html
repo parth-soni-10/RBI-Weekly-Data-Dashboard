@@ -151,6 +151,7 @@
 <link rel="stylesheet" href="jelly-radio.css" />
 <link rel="stylesheet" href="rubber-segment.css" />
 <link rel="stylesheet" href="squish-switch.css">
+<link rel="stylesheet" href="gooey-nav.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -166,7 +167,7 @@
     </div>
   </div>
   <div class="head-right">
-    <nav class="nav-links" id="site-nav" aria-label="Primary">
+    <nav class="nav-links" id="site-nav" data-gooey-nav aria-label="Primary">
       <a class="nav-link active" href="#sec-dashboard" data-click="return showSection(dashboard,$el)"><i data-lucide="layout-dashboard"></i>Dashboard</a>
       <a class="nav-link" href="#sec-table" data-click="return showSection(table,$el)"><i data-lucide="table-2"></i>10-Week Table</a>
       <a class="nav-link" href="#sec-compare" data-click="return showSection(compare,$el)"><i data-lucide="git-compare"></i>Compare</a>
@@ -797,6 +798,7 @@
 <script src="glide-select.js" defer></script>
 <script src="jelly-radio.js" defer></script>
 <script src="rubber-segment.js" defer></script>
+<script src="gooey-nav.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from
      the stored rbi-macro value when the component reads it: a strip restored
