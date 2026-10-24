@@ -432,6 +432,14 @@ html{-webkit-tap-highlight-color:transparent}
 .tbl-header span{font-size:11px;color:var(--ink3);font-family:var(--mono)}
 .tbl-header .hdr-actions span{font-family:var(--font);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;font-weight:600;color:var(--ink3)}
 .hdr-actions{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
+/* Table length: the stepper sits where the three preset buttons used to. The
+   generic .tbl-header span rules also reach inside the control, so its own
+   spans are put back to inherit below. */
+.stp-field-row{display:flex;align-items:center;gap:.45rem}
+.stp-field-row .stp-label{font-family:var(--font);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;font-weight:600;color:var(--ink3)}
+.stp-field-row .stp{--stp-bg:var(--surface2);--stp-btn-bg:var(--active-bg);--stp-line:var(--border);--stp-radius:var(--r2)}
+.tbl-header .stp span{font-family:inherit;font-size:inherit;color:inherit}
+.tbl-header .stp .stp-unit{font-size:.6em}
 .tbl-header .hdr-actions .panel-label{margin:0;display:inline-flex;align-items:center;gap:.4rem}
 .tbl-scroll{overflow-x:auto}
 .tbl-scroll.hidden{display:none}

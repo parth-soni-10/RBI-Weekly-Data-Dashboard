@@ -154,6 +154,7 @@
 <link rel="stylesheet" href="squish-switch.css">
 <link rel="stylesheet" href="gooey-nav.css">
 <link rel="stylesheet" href="time-undo.css">
+<link rel="stylesheet" href="stepper.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -533,7 +534,7 @@
 
 <div class="section" id="sec-table">
   <div class="tbl-intro">
-    <p><strong>Most recent weeks</strong> of RBI Weekly Statistical Supplement data (switch the table length between 10 / 26 / 52 weeks in the table header).
+    <p><strong>Most recent weeks</strong> of RBI Weekly Statistical Supplement data (choose any table length from 4 to 52 weeks in the table header).
     All values from the <strong>Friday closing / reporting date</strong>.
     Δ = change vs. the previous week.
     <strong>Forex reserves</strong> in USD million &amp; ₹ crore.
@@ -545,7 +546,10 @@
   <div class="tbl-wrap">
     <div class="tbl-header"><h2>Weekly summary: <span id="range-label">last 10 Fridays</span></h2><span id="tbl-updated"></span>
       <div class="hdr-actions">
-        <div class="tab-row" role="group" aria-label="Table length"><button class="tab on" data-click="return swRange($el,10)">10W</button><button class="tab" data-click="return swRange($el,26)">26W</button><button class="tab" data-click="return swRange($el,52)">52W</button></div>
+        <div class="stp-field stp-field-row">
+          <span class="stp-label">Table length</span>
+          <div id="tableLen" class="stp-host"></div>
+        </div>
         <button class="dl" data-click="dlCSV"><i data-lucide="download"></i> Full history (CSV)</button>
       </div>
     </div>
@@ -807,6 +811,7 @@
 <script src="analytics-chart.js" defer></script>
 <script src="gooey-nav.js" defer></script>
 <script src="time-undo.js" defer></script>
+<script src="stepper.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from
      the stored rbi-macro value when the component reads it: a strip restored

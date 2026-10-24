@@ -2994,7 +2994,9 @@ function dlCompareCSV(){
   URL.revokeObjectURL(a.href);
 }
 
-const RANGE_WEEKS = [10, 26, 52];
+// The table length used to be three preset buttons (10 / 26 / 52). It is one
+// number, so the stepper owns it now and any length from 4 to 52 works.
+const RANGE_MIN = 4, RANGE_MAX = 52;
 let TABLE_RANGE = 10;
 const tableCount = () => Math.min(TABLE_RANGE, records.length);
 /* Rows actually shown: the date-range filter wins over the 10/26/52 cap. */
@@ -3003,13 +3005,26 @@ function tableRows(){
   if(!filt) return records.slice(-tableCount());
   return filt.slice(-120);
 }
-function swRange(el, weeks){
-  if(!RANGE_WEEKS.includes(weeks)) return false;
-  TABLE_RANGE = weeks;
-  el.closest('.tab-row').querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  el.classList.add('on');
+function setTableRange(weeks){
+  const n = Math.round(Number(weeks));
+  if(!isFinite(n)) return false;
+  TABLE_RANGE = Math.max(RANGE_MIN, Math.min(RANGE_MAX, n));
   rebuildTable(); rebuildEqTable(); rebuildRupeeEqTable(); setRangeLabels();
   return false;
+}
+/* Kept for the window API and any old deep link that names a preset. */
+function swRange(el, weeks){ return setTableRange(weeks); }
+
+/* The length control lives in the table header: a stepper whose value is the
+   number of Fridays the three weekly tables show. */
+function mountTableStepper(){
+  const host = document.getElementById('tableLen');
+  if(!host || !window.Stepper || window.Stepper.get(host) !== null) return;
+  Stepper.mount(host, {
+    value: TABLE_RANGE, min: RANGE_MIN, max: RANGE_MAX, step: 1,
+    label: 'Weeks shown', unit: 'week', size: 'sm',
+    onChange: (n) => setTableRange(n)
+  });
 }
 function setRangeLabels(){
   const n = tableRows().length;
@@ -4358,6 +4373,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (ly) ly.textContent = `Forex, Rupee, Gold, Markets, ${new Date().getFullYear()}`;
   if(window.Chart) Chart.register(eventsPlugin); // deferred lib is ready by now
   updatePrintVintage();
+  mountTableStepper();
   loadMacroData();
   loadFngHistory();
   renderPmCares();
