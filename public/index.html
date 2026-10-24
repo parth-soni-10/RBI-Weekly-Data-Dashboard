@@ -153,6 +153,7 @@
 <link rel="stylesheet" href="analytics-chart.css" />
 <link rel="stylesheet" href="squish-switch.css">
 <link rel="stylesheet" href="gooey-nav.css">
+<link rel="stylesheet" href="time-undo.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -551,7 +552,7 @@
     <div class="range-row range-inset">
       <label for="range-from">From</label><input type="date" id="range-from" data-change="applyDateRange">
       <label for="range-to">To</label><input type="date" id="range-to" data-change="applyDateRange">
-      <button class="dl range-clear" id="range-clear" data-click="return clearDateRange" hidden>Clear dates</button>
+      <button class="dl range-clear tu-btn" id="range-clear" hidden>Clear dates</button>
     </div>
     <div id="tbl-empty" class="tbl-empty">Fetch data first to populate this table.</div>
     <div id="tbl-container" class="tbl-scroll hidden">
@@ -805,6 +806,7 @@
 <script src="rubber-segment.js" defer></script>
 <script src="analytics-chart.js" defer></script>
 <script src="gooey-nav.js" defer></script>
+<script src="time-undo.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from
      the stored rbi-macro value when the component reads it: a strip restored

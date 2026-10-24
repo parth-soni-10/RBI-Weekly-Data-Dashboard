@@ -4562,3 +4562,41 @@ function dispatchAct(event, attr) {
 
 document.addEventListener('click', (e) => dispatchAct(e, 'data-click'));
 document.addEventListener('change', (e) => dispatchAct(e, 'data-change'));
+
+/* ─── Time Undo on "Clear dates" ─────────────────────────────────────
+   Clearing the range is immediate, and the same button keeps the filter row
+   while the six-second window runs. onCommit is what hides it again; until
+   then the control that restored the dates is the control that can bring them
+   back. The button is only reachable while a range exists, so the no-filter
+   path needs no guard. */
+(function mountRangeUndo(){
+  const btn = document.getElementById('range-clear');
+  if (!btn || !window.TimeUndo) return;
+  let before = null;
+  TimeUndo.mount(btn, {
+    seconds: 6,
+    onStart: () => {
+      const f = document.getElementById('range-from'), t = document.getElementById('range-to');
+      before = { from: f ? f.value : '', to: t ? t.value : '' };
+      if (!before.from && !before.to) return false;
+      if (f) f.value = '';
+      if (t) t.value = '';
+      applyDateRange();
+      btn.hidden = false;           // applyDateRange hides it; the window owns it now
+      return true;
+    },
+    onCancel: () => {
+      if (!before) return;
+      const f = document.getElementById('range-from'), t = document.getElementById('range-to');
+      if (f) f.value = before.from;
+      if (t) t.value = before.to;
+      applyDateRange();
+      btn.hidden = false;
+      before = null;
+    },
+    onCommit: () => {
+      before = null;
+      applyDateRange();
+    }
+  });
+})();

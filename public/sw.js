@@ -14,7 +14,7 @@
  *
  * Bump CACHE_VERSION whenever the shell's asset list changes.
  */
-const CACHE_VERSION = 'rbi-dash-v1';
+const CACHE_VERSION = 'rbi-dash-v3';
 const SHELL = [
   './',
   './index.html',
@@ -24,6 +24,8 @@ const SHELL = [
   './icons/maskable-192.png',
   './icons/maskable-512.png',
   './lucide.min.js',
+  './time-undo.css',
+  './time-undo.js',
 ];
 const DATA_URLS = ['rbi-data.json', 'external-debt.json', 'fii-dii-history.json'];
 
