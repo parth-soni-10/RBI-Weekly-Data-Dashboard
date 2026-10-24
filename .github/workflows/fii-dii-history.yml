@@ -1,35 +1,80 @@
-name: FII/DII History Refresh
+name: Snapshot FII/DII daily flows (manual)
 
-# Weekly refresh of FII (Foreign Institutional Investor) and DII (Domestic Institutional Investor)
-# history data from RBI sources, stored as committed snapshots for SEO-friendly rendering.
+# MANUAL ONLY — the weekly snapshot happens in the Friday refresh now.
+#
+# Appends NSDL FPI (equity/debt) + NSE DII flow rows to the committed
+# public/fii-dii-history.json that the dashboard's FII/DII chart renders. The
+# weekly refresh (.github/workflows/refresh-data.yml, Friday 22:00 UTC) runs the
+# same snapshot — its plan (netlify/functions/refresh-data.js) calls
+# scripts/snapshot-fii-dii.js — so this workflow is the fallback for a week that
+# refresh misses, and the way to append rows by hand between runs.
+#
+# The 16:00 UTC schedule it used to carry was set by the sources rather than by
+# preference — NSDL publishes the day's flows on the evening of the same day. The
+# weekly run sits later than that, so it covers the day too, and there is no
+# second Friday job left for it to race. Restoring a daily schedule here is a
+# one-line change if the month-tail gap below ever matters more than the extra
+# runs; it is not restored by default because it would write the same file the
+# weekly refresh writes, for a difference that only shows up at a month's end.
+#
+# A weekly run does NOT lose Monday-to-Thursday of the week it runs in. The
+# script merges NSDL's whole current-month table rather than the latest session
+# alone, so each run captures every trading day of that month so far, including
+# the days before it.
+#
+# What it cannot capture is the tail of a month whose last trading days fall
+# AFTER that month's last Friday: NSDL's Monthly page only ever lists the current
+# month, so those rows are gone by the next run. A daily schedule was what covered
+# that. Named here so it is a known trade-off rather than a gap someone
+# eventually notices in the FII/DII chart.
+#
+# The script fails open: if NSDL/NSE are unreachable it exits 0 and leaves the
+# file untouched, so a bad evening never breaks the run.
 
 on:
-  schedule:
-    - cron: '0 5 * * 1' # Mondays, 05:00 UTC
-  workflow_dispatch: {}
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write
+
+# Serialize runs (two manual runs at once is how the push step loses a race).
+concurrency:
+  group: fii-dii-history
+  cancel-in-progress: false
 
 jobs:
-  refresh:
+  snapshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: 20
 
-      - name: Install dependencies
-        run: pip install requests
+      # Syntax-check every function/script before anything is written — the
+      # snapshot reuses the fetch-fii-history parser, so a broken edit must
+      # not be committed as data.
+      - name: Syntax check
+        run: npm run check
 
-      - name: Fetch FII/DII data
-        run: python scripts/fetch-all.js
+      - name: Append today's FII/DII rows
+        run: npm run snapshot:fii
 
-      - name: Commit updated data
+      - name: Commit updated history (if changed)
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/data/
-          git diff --staged --quiet || git commit -m "fii-dii-history: weekly refresh $(date -u +%F)"
-          git push || echo "push failed — next scheduled run reconciles"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/fii-dii-history.json
+          if git diff --cached --quiet; then
+            echo "No new rows — nothing to commit."
+          else
+            git commit -m "chore(data): append FII/DII daily flow history"
+            # A manual push can land on main while this run scrapes — rebase
+            # our single data commit first; retry once on a fresh race.
+            git pull --rebase origin main && git push || \
+              { sleep 20; git pull --rebase origin main && git push; }
+            echo "Pushed refreshed FII/DII history."
+          fi

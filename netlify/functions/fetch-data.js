@@ -346,14 +346,24 @@ async function getYahooClose(symbol, targetDate) {
 // per-attempt AbortController so the timeout is honoured on every runtime:
 // node:https is a shim under Cloudflare's nodejs_compat and can ignore the
 // socket timeout, which made the deployed function hang instead of failing.
-// Retries with backoff when the limiter does serve a challenge; returns null
-// when every attempt fails, so the caller skips the week and retries on the
-// next Reload.
+//
+// Returns { buf, reason }. `reason` says WHY the file did not arrive, because
+// the two failures need opposite reactions:
+//
+//   "challenge"  the CDN answered fast with F5's bot page — transient, so it
+//                is worth one more try after a short backoff.
+//   "timeout" /  the request never came back: this runtime's network cannot
+//   "network"    reach the doc CDN at all (Cloudflare's egress is refused by
+//                RBI's CDN). Retrying the same URL cannot change that, so the
+//                wait is not doubled for nothing and the caller reports it as
+//                "this edge cannot reach the source" rather than "try again".
 async function downloadSpreadsheet(url, timeoutMs = 8000) {
   const MAX_ATTEMPTS = 2;
   const backoffMs = [2000];
+  let reason = "unavailable";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf = null;
+    let why = "unavailable";
     const ctrl = new AbortController();
     // Race the whole request (connect + body) against a hard timer: a runtime
     // can leave a fetch to a black-holed host pending well past the
@@ -367,21 +377,29 @@ async function downloadSpreadsheet(url, timeoutMs = 8000) {
             signal: ctrl.signal,
             headers: { "User-Agent": UA, "Referer": "https://www.rbi.org.in/" },
           });
-          return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+          if (!res.ok) { why = "http"; return null; }
+          return Buffer.from(await res.arrayBuffer());
         })(),
         new Promise((_, reject) => {
           timer = setTimeout(() => { ctrl.abort(); reject(new Error("timeout")); }, timeoutMs);
         }),
       ]);
-    } catch (_) {
+    } catch (e) {
       buf = null;
+      why = (e && e.message === "timeout") ? "timeout" : "network";
     } finally {
       clearTimeout(timer);
     }
-    if (isSpreadsheet(buf)) return buf;
+    if (isSpreadsheet(buf)) return { buf, reason: null };
+    if (why === "unavailable") why = "challenge"; // a body that is not a spreadsheet
+    reason = why;
+    // Only a challenge page is worth a second attempt: it came back quickly,
+    // which means the network is fine. A timeout or a refused connection is
+    // the network itself, and no retry can fix it.
+    if (reason !== "challenge") break;
     if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
   }
-  return null;
+  return { buf: null, reason };
 }
 
 // ─── PROCESS ONE FRIDAY ───────────────────────────────────────
@@ -397,22 +415,50 @@ async function processOneFriday(pubFriday) {
     const res = await get(`https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Basic&PARAM1=${fmtRbi(pubFriday)}`, 10000);
     html = await res.text();
   } catch(e) {
-    return { iso, error: `RBI page: ${e.message} - retry on next request` };
+    return {
+      iso,
+      code: "page_unreachable",
+      error: `RBI's WSS page could not be reached from this runtime (${e.message})`,
+      hint: "This network cannot reach RBI — the committed Friday snapshot is the current data",
+    };
   }
 
   // 2. Find Excel links (now matches Python "Foreign Exchange Reserves" row logic primarily)
   const urls = findExcelUrls(html);
-  if (!urls.reserves) return { iso, error: "no reserves Excel link on page - RBI may not have published this week; retry later" };
+  if (!urls.reserves) {
+    // Not an error: the publication Friday in question simply has no
+    // supplement yet (RBI publishes later in the day), so the dashboard's
+    // newest committed week is still the current one.
+    return {
+      iso,
+      code: "not_published",
+      error: "RBI has not published this week's supplement yet",
+      hint: "Nothing to merge — the committed Friday snapshot is current",
+    };
+  }
 
   // 3. Download the reserves Excel with F5-limiter validation + retries.
   //    Yahoo targets use the as-on Friday (previous week) for all.
   //    Nifty and Sensex (and rupee) for the latest record will be the values
   //    at scrape time (up to latest available).
-  const resBuf = await downloadSpreadsheet(urls.reserves, 8000);
-  if (!resBuf) return { iso, error: "reserves Excel download failed - will retry on next request" };
+  const dl = await downloadSpreadsheet(urls.reserves, 8000);
+  if (!dl.buf) {
+    const blocked = dl.reason === "timeout" || dl.reason === "network";
+    return {
+      iso,
+      code: blocked ? "source_unreachable" : "download_blocked",
+      error: blocked
+        ? "RBI's document CDN is unreachable from this runtime (the request timed out)"
+        : "RBI's document CDN served a bot-challenge page instead of the file",
+      hint: blocked
+        ? "This network cannot reach RBI's file host — the committed Friday snapshot is the current data"
+        : "RBI's limiter is serving a challenge page — the next attempt usually gets the file",
+    };
+  }
+  const resBuf = dl.buf;
 
   // 4. Spot Excel + Yahoo quotes in parallel now that reserves is in hand.
-  const [spotBuf, nifty, sensex, usdInr, eurInr] = await Promise.all([
+  const [spotDl, nifty, sensex, usdInr, eurInr] = await Promise.all([
     urls.spot ? downloadSpreadsheet(urls.spot, 8000) : null,
     getYahooClose("^NSEI",  asOn),
     getYahooClose("^BSESN", asOn),
@@ -422,9 +468,16 @@ async function processOneFriday(pubFriday) {
 
   // 5. Parse
   const reserves = parseReservesExcel(resBuf);
-  if (reserves.total_usd == null) return { iso, error: "could not parse total_usd from Excel - retry on next request" };
+  if (reserves.total_usd == null) {
+    return {
+      iso,
+      code: "parse_failed",
+      error: "could not parse total_usd from Excel - retry on next request",
+      hint: "The file arrived but did not carry the expected reserves row",
+    };
+  }
 
-  const spot = spotBuf ? parseSpotRateExcel(spotBuf) : { usd_inr: null, eur_inr: null };
+  const spot = spotDl && spotDl.buf ? parseSpotRateExcel(spotDl.buf) : { usd_inr: null, eur_inr: null };
 
   return {
     iso,
@@ -500,6 +553,11 @@ exports.handler = async (event) => {
       done:      false,
       record:    result.record || null,
       error:     result.error  || null,
+      // Why the week failed, as a stable code — the client uses it to say the
+      // honest thing: "not published yet" and "this edge cannot reach RBI" are
+      // not the user's problem to retry, a challenge page or a parse failure is.
+      errorCode: result.code  || null,
+      hint:      result.hint  || null,
       iso:       result.iso,
       weekIndex: offset,
       totalWeeks: total,

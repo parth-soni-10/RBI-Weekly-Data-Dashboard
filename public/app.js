@@ -347,7 +347,22 @@ async function mergeLiveUpdates() {
       if (j.record && j.record.date) {
         if (mergeLiveRecord(j.record)) added++;
       } else if (j.error) {
-        appendLog(`⚠ Skipped week ${j.iso || walked}: ${j.error} - click Reload to retry`);
+        // The live check is a bonus on top of the committed Friday snapshot, so
+        // it reports what happened without pretending the user has to fix it:
+        // a week RBI has not published yet, and an edge that cannot reach
+        // RBI's file host, are both normal states — not a warning, and not
+        // something "click Reload to retry" can fix.
+        const code = j.errorCode || '';
+        const detail = j.hint || j.error;
+        if (code === 'not_published') {
+          appendLog(`ℹ ${j.iso || walked}: ${detail}`);
+        } else if (code === 'source_unreachable' || code === 'page_unreachable') {
+          appendLog(`ℹ Live week check unavailable from this edge — ${detail}`);
+        } else if (code === 'download_blocked') {
+          appendLog(`ℹ ${j.iso || walked}: ${detail}`);
+        } else {
+          appendLog(`⚠ Skipped week ${j.iso || walked}: ${j.error} - click Reload to retry`);
+        }
         break;
       }
     }
