@@ -5,8 +5,15 @@
     <link>https://rbiweeklydashboard.pages.dev/</link>
     <description>One item per RBI Weekly Statistical Supplement week: forex reserves, gold, and the rupee, from the dashboard's weekly data.</description>
     <language>en-in</language>
-    <lastBuildDate>Fri, 16 Oct 2026 06:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 23 Oct 2026 06:00:00 GMT</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>RBI week as on 2026-10-16: reserves $721.0B · USD/INR 94.52</title>
+      <link>https://rbiweeklydashboard.pages.dev/#tab=dashboard</link>
+      <guid isPermaLink="false">rbi-week-2026-10-16</guid>
+      <pubDate>Fri, 23 Oct 2026 06:00:00 GMT</pubDate>
+      <description>Forex reserves 7,21,016 USD mn, gold 1,05,800 USD mn, USD/INR 94.52. Reserves fell 5,011 USD mn week-on-week.</description>
+    </item>
     <item>
       <title>RBI week as on 2026-10-09: reserves $726.0B · USD/INR 96.82</title>
       <link>https://rbiweeklydashboard.pages.dev/#tab=dashboard</link>
@@ -181,13 +188,6 @@
       <guid isPermaLink="false">rbi-week-2026-04-24</guid>
       <pubDate>Fri, 01 May 2026 06:00:00 GMT</pubDate>
       <description>Forex reserves 6,98,487 USD mn, gold 1,20,236 USD mn, USD/INR 94.11. Reserves fell 4,821 USD mn week-on-week.</description>
-    </item>
-    <item>
-      <title>RBI week as on 2026-04-17: reserves $703.3B · USD/INR 93.05</title>
-      <link>https://rbiweeklydashboard.pages.dev/#tab=dashboard</link>
-      <guid isPermaLink="false">rbi-week-2026-04-17</guid>
-      <pubDate>Fri, 24 Apr 2026 06:00:00 GMT</pubDate>
-      <description>Forex reserves 7,03,308 USD mn, gold 1,22,133 USD mn, USD/INR 93.05. Reserves rose 2,362 USD mn week-on-week.</description>
     </item>
   </channel>
 </rss>
