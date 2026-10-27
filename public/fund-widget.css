@@ -1,0 +1,84 @@
+/* Fund Widget — the reel the cards sit on.
+ *
+ * Layout only. The host's own cards keep their padding, their type and their
+ * colours: every rule here is either the geometry of the ring or a neutral
+ * default that a host's more specific rule outweighs.
+ *
+ * Tune from the host's stylesheet:
+ *   --fw-h        height of the opening (216px) — how much of the ring shows
+ *   --fw-gap      distance between two cards (78px); the turn and the z
+ *                 pull-back are derived from it
+ *   --fw-persp    perspective depth (820px)
+ *   --fw-card-w   widest a card may be (460px)
+ *   --fw-dur      length of a turn (380ms)
+ *
+ * The geometry only exists once the script has marked the host
+ * [data-fw-ready]. Before that — or with the script missing — these are just
+ * cards in a column, which is what the host's markup already is.
+ */
+
+.fw-host[data-fw-ready] {
+  position: relative;
+  height: var(--fw-h, 216px);
+  perspective: var(--fw-persp, 820px);
+  overflow: hidden;
+  /* The reel is the drag surface: a vertical gesture on it spins the cards
+     instead of scrolling the page underneath. */
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: var(--fw-r, 14px);
+  outline: none;
+}
+
+.fw-host[data-fw-ready].is-dragging,
+.fw-host[data-fw-ready]:active { cursor: grabbing; }
+
+.fw-host[data-fw-ready]:focus-visible {
+  outline: 2px solid var(--fw-focus, currentColor);
+  outline-offset: 6px;
+}
+
+.fw-host[data-fw-ready] .fw-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin: 0 auto;
+  max-width: var(--fw-card-w, 460px);
+  will-change: transform, opacity;
+  transition:
+    transform var(--fw-dur, 380ms) cubic-bezier(.22, .9, .28, 1),
+    opacity var(--fw-dur, 380ms) ease;
+}
+
+/* While a finger or a cursor is on it the reel follows exactly; the easing is
+   for the snap after the release, and for the settle after a key. The quiet
+   class covers the other case — a resize or a rebuilt list, where the card is
+   not moving, it is being re-measured. */
+.fw-host[data-fw-ready].is-dragging .fw-item,
+.fw-host[data-fw-ready].is-quiet .fw-item { transition: none; }
+
+/* A neutral card, for hosts that bring none of their own. */
+.fw-item {
+  padding: var(--fw-pad, 14px 18px);
+  border: 1px solid var(--fw-line, rgba(148, 163, 184, .28));
+  border-radius: var(--fw-r, 14px);
+  background: var(--fw-bg, rgba(148, 163, 184, .07));
+}
+
+.fw-host[data-fw-ready] [data-fw-front] {
+  border-color: var(--fw-line-front, rgba(148, 163, 184, .5));
+}
+
+.fw-label { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .72; }
+.fw-value { font-size: 26px; line-height: 1.18; font-weight: 600; letter-spacing: -.01em; }
+.fw-change { font-size: 12.5px; line-height: 1.4; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.fw-change[data-fw-dir='up'] { color: var(--fw-up, #2fb67c); }
+.fw-change[data-fw-dir='down'] { color: var(--fw-down, #f97070); }
+.fw-change[data-fw-dir='flat'] { opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-host[data-fw-ready] .fw-item { transition: none; }
+}

@@ -155,6 +155,7 @@
 <link rel="stylesheet" href="gooey-nav.css">
 <link rel="stylesheet" href="time-undo.css">
 <link rel="stylesheet" href="stepper.css">
+<link rel="stylesheet" href="fund-widget.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -723,6 +724,21 @@
     <div class="mc"><div class="mc-label">Biggest yearly disbursement</div><div class="mc-val" id="pm-bigspend">—</div><div class="mc-sub">FY 2020-21 · pandemic relief</div></div>
   </div>
 
+  <!-- The Fund's year-by-year corpus on a reel: label (financial year), value
+       (closing corpus), change (that year's net movement — receipts + interest
+       − disbursed). renderPmCares() fills it from the same audited rows the
+       table below prints, then hands it to Fund Widget. Hidden until then, so
+       a reader without the script is not shown an empty ring. -->
+  <div class="pm-reel" id="pm-reel" hidden>
+    <div class="chart-hdr">
+      <div>
+        <h3 class="chart-title">Corpus by year</h3>
+        <div class="chart-note">Closing corpus at 31 March, ₹ crore · drag the reel, or focus it and use ↑ ↓ · change = receipts + interest − disbursed</div>
+      </div>
+    </div>
+    <div class="fw-host" id="pm-reel-host" data-fund-widget data-fw-index="last" role="listbox" aria-label="PM CARES corpus by financial year"></div>
+  </div>
+
   <!-- Disbursements chart -->
   <div class="chart-card">
     <div class="chart-hdr"><div><h3 class="chart-title">PM CARES: receipts · interest · disbursements by financial year (₹ crore)</h3><div class="chart-note">Green = total receipts · blue = interest earned in the year · amber = disbursed. FY 2019-20 covers only Mar 27-31, 2020.</div></div></div>
@@ -812,6 +828,8 @@
 <script src="gooey-nav.js" defer></script>
 <script src="time-undo.js" defer></script>
 <script src="stepper.js" defer></script>
+<!-- Before app.js: renderPmCares() fills the reel and hands it to the kit. -->
+<script src="fund-widget.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from
      the stored rbi-macro value when the component reads it: a strip restored

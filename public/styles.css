@@ -825,3 +825,22 @@ html,body{overflow-x:clip}
 .footer-links a{color:var(--ink2);text-decoration:none;transition:color .15s}
 .footer-links a:hover{color:var(--brand)}
 .footer-links a:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:3px}
+
+/* ─── PM CARES corpus reel (Fund Widget) ─────────────────────────────────
+   The Fund's year-by-year corpus as a reel the reader drags. The kit supplies
+   the ring geometry and nothing else: the cards wear the page's own chrome
+   (surface2 under a hairline border, r3 radius, DM Mono figures), and the two
+   change colours come from the dashboard's pos/neg tokens instead of the
+   kit's defaults. Height and gap live here, so the ring's density is a
+   stylesheet decision like every other spacing on the page. */
+.pm-reel{margin:0 0 1rem;padding:1.05rem 1.1rem .55rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r3)}
+.pm-reel .fw-host{--fw-gap:76px;--fw-h:236px;--fw-card-w:460px;--fw-up:var(--pos-c);--fw-down:var(--neg-c);--fw-focus:var(--brand)}
+.pm-reel .fw-item{padding:.7rem .95rem;background:var(--surface2);border-color:var(--border)}
+.pm-reel .fw-label{font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--ink3);text-transform:uppercase;opacity:1}
+.pm-reel .fw-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:21px;font-weight:500;letter-spacing:-.02em;line-height:1.3;color:var(--ink)}
+.pm-reel .fw-change{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:-.01em;margin-top:.2rem}
+.pm-reel .fw-host[data-fw-ready] [data-fw-front]{border-color:var(--border3)}
+@media (max-width:560px){
+  .pm-reel{padding:1rem .8rem .4rem}
+  .pm-reel .fw-host{--fw-h:214px;--fw-gap:70px}
+}

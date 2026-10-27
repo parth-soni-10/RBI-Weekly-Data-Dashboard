@@ -4450,6 +4450,26 @@ function renderPmCares(){
     </tr>`
   ).join('');
 
+  // Year-by-year corpus as a reel: the same audited closes the table prints,
+  // each carrying that year's net movement (receipts + interest − disbursed).
+  // mount() re-reads the cards on every render, so a reload that re-persists
+  // the rows keeps the year the reader was looking at.
+  const reel = document.getElementById('pm-reel-host');
+  if (reel && window.FundWidget) {
+    reel.innerHTML = rows.map(r=>{
+      const move = r.close - r.open;
+      const dir = move > 0 ? 'up' : move < 0 ? 'down' : 'flat';
+      const sign = move > 0 ? '+' : move < 0 ? '−' : '';
+      return `<div class="fw-item" data-fw-item>`
+        + `<div class="fw-label" data-fw-label>FY ${escHtml(r.fy)}</div>`
+        + `<div class="fw-value" data-fw-value>${fmt(r.close,2)}</div>`
+        + `<div class="fw-change" data-fw-change data-fw-dir="${dir}">${sign}${fmt(Math.abs(move),2)}</div>`
+        + `</div>`;
+    }).join('');
+    window.FundWidget.mount(reel);
+    document.getElementById('pm-reel').hidden = false;
+  }
+
   // chart (grouped bar: receipts / interest / disbursed)
   const el = document.getElementById('cPmCares');
   if(!el) return;
