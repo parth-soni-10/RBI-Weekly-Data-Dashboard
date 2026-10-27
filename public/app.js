@@ -1035,8 +1035,20 @@ function toggleMacro(){
 function copyCsvText(csv, btn){
   const done = ok => {
     if(!btn) return;
+    const label = ok ? 'Copied ✓' : 'Copy failed';
+    // "Copy CSV" -> "Copied ✓" is a second label, not a second button: the kit
+    // cross-fades the two and travels between their widths. It owns the box
+    // while it says something, so the plain-text path is the fallback for a
+    // page where the script never arrived — writing textContent into a mounted
+    // button would throw the kit's layers away, which is why these are either
+    // or rather than one after the other.
+    if(window.DynamicButton){
+      window.DynamicButton.say(btn, label);
+      setTimeout(() => window.DynamicButton.restore(btn), 1500);
+      return;
+    }
     const orig = btn.textContent;
-    btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+    btn.textContent = label;
     setTimeout(() => { btn.textContent = orig; }, 1500);
   };
   if(navigator.clipboard && navigator.clipboard.writeText){

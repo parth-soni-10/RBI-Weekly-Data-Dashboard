@@ -156,6 +156,7 @@
 <link rel="stylesheet" href="time-undo.css">
 <link rel="stylesheet" href="stepper.css">
 <link rel="stylesheet" href="fund-widget.css">
+<link rel="stylesheet" href="dynamic-button.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -830,6 +831,10 @@
 <script src="stepper.js" defer></script>
 <!-- Before app.js: renderPmCares() fills the reel and hands it to the kit. -->
 <script src="fund-widget.js" defer></script>
+<!-- The Copy-CSV buttons say 'Copied ✓' and back: the kit cross-fades the two
+     labels and travels between their widths (copyCsvText() falls back to plain
+     text when this never loads). -->
+<script src="dynamic-button.js" defer></script>
 <script src="app.js" defer></script>
 <!-- After app.js, so initMacroToggle() has already written aria-checked from
      the stored rbi-macro value when the component reads it: a strip restored
