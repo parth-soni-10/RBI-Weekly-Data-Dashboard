@@ -129,7 +129,7 @@ const MONTHS = { january:1, february:2, march:3, april:4, may:5, june:6,
 function mpcRangeEndIso(title){
   const t = String(title || "");
   let month = null, day = null, year = null;
-  let m = t.match(/([A-Za-z]+)\s+(\d{1,2})\s*(?:to|[–--])\s*(\d{1,2}),?\s*(\d{4})/);
+  let m = t.match(/([A-Za-z]+)\s+(\d{1,2})\s*(?:to|[-])\s*(\d{1,2}),?\s*(\d{4})/);
   if(m){ month = MONTHS[m[1].toLowerCase()]; day = +m[3]; year = +m[4]; }
   else {
     m = t.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
