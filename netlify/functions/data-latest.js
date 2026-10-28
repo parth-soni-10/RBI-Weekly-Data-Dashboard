@@ -1,4 +1,4 @@
-// Public JSON API — returns ONLY the most recent RBI weekly record.
+// Public JSON API - returns ONLY the most recent RBI weekly record.
 //
 // GET /data/latest.json  →  { record, fetched_at, source }
 //
@@ -22,7 +22,7 @@ const CORS = {
   "Content-Type":                  "application/json",
 };
 
-// Never cache failure responses — an unavailable snapshot shouldn't keep
+// Never cache failure responses - an unavailable snapshot shouldn't keep
 // serving an error for 15 minutes once it is back.
 const ERR_HEADERS = { ...CORS, "Cache-Control": "no-store" };
 

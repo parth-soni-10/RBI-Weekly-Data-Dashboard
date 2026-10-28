@@ -11,7 +11,7 @@
 # stage, and `wrangler deploy` is not a command this repository has any use for.
 #
 # The build only stages: `pages_build_output_dir` names the upload that
-# tools/deploy-pages.mjs writes from `public/`, and it regenerates no data — the
+# tools/deploy-pages.mjs writes from `public/`, and it regenerates no data - the
 # committed `public/*.json` is what a deploy ships, which is why the weekly
 # refresh is .github/workflows/refresh-data.yml and not a build step.
 
@@ -24,7 +24,7 @@ compatibility_date = "2026-10-01"
 # so those builtins are left as `node:` externals in the deployment.
 compatibility_flags = ["nodejs_compat"]
 
-# The KV namespace data-sync's merge cache lives in — the only copy.
+# The KV namespace data-sync's merge cache lives in - the only copy.
 [[kv_namespaces]]
 binding = "SYNC_KV"
 id = "722040ed409f423ca8d6ed9c8ca81153"

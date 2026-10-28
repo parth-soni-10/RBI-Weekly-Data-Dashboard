@@ -1,21 +1,21 @@
-// Netlify callable: India market sentiment — a composite Fear & Greed meter
+// Netlify callable: India market sentiment - a composite Fear & Greed meter
 // built from free Yahoo Finance quotes, in the spirit of CNN's Fear & Greed
 // Index but tuned for Indian markets (no key, no paid API).
 //
 // Signals (all server-side from Yahoo):
-//   1. Nifty 50 momentum     — % distance from its 125-day moving average
+//   1. Nifty 50 momentum     - % distance from its 125-day moving average
 //                              (≈ 6 trading months). Deep below the MA = fear.
-//   2. Nifty 50 strength     — share of the last 52 weeks' range where the
+//   2. Nifty 50 strength     - share of the last 52 weeks' range where the
 //                              index currently sits. Near the low = fear.
-//   3. India VIX             — level relative to its own trailing 1-year
+//   3. India VIX             - level relative to its own trailing 1-year
 //                              percentiles (P25/P75 computed from the series).
 //                              High volatility = fear.
-//   4. Breadth proxy         — Nifty's 21-day return vs the Nifty Smallcap
+//   4. Breadth proxy         - Nifty's 21-day return vs the Nifty Smallcap
 //                              index's 21-day return. When smallcaps lag large
 //                              caps sharply, speculative appetite is fading.
-//   5. Safe-haven demand     — 21-day % change in USD/INR. A surging dollar
+//   5. Safe-haven demand     - 21-day % change in USD/INR. A surging dollar
 //                              against the rupee = capital leaving = fear.
-//   6. Foreign flows         — FII equity net for the latest NSDL reporting
+//   6. Foreign flows         - FII equity net for the latest NSDL reporting
 //                              session (₹ cr). Sustained foreign selling = fear;
 //                              buying = greed. Optional: the meter runs on
 //                              five signals when NSDL is unreachable.
@@ -38,7 +38,7 @@
 //
 // Response is cached in-process (30 min) + Cache-Control (15 min). The last
 // good payload is remembered module-side too, so a temporarily blocked Yahoo
-// serves the last-known meter flagged "static fallback" — the same honest
+// serves the last-known meter flagged "static fallback" - the same honest
 // degradation the other dashboard scrapers use.
 
 const { get, parseNum } = require("./_utils/http");
@@ -133,7 +133,7 @@ function vixSig(vix){
   };
 }
 
-// 4. Breadth proxy — 21-day return spread, smallcaps − largecaps. When the
+// 4. Breadth proxy - 21-day return spread, smallcaps − largecaps. When the
 //    series is missing, falls back to a direct 21-day Nifty return (a falling
 //    market reads as fear regardless of smallcap behaviour).
 function breadthSig(nifty, small){
@@ -174,7 +174,7 @@ function fxSig(usdinr){
 // 6. Foreign flows: FII equity net for the latest NSDL reporting session.
 //    The Latest page's Equity/Stock Exchange row is
 //    [date, Equity, Stock Exchange, grossBuy, grossSell, net₹cr, net$m];
-//    NSDL marks negative nets in parentheses — strip them WITH the sign.
+//    NSDL marks negative nets in parentheses - strip them WITH the sign.
 //    Optional signal: any fetch/parse failure just drops the component.
 const NSDL_LATEST = "https://www.fpi.nsdl.co.in/web/Reports/Latest.aspx";
 async function fetchFiiNet(){
@@ -216,7 +216,7 @@ async function buildPayload(){
     chart("^NSEI"),
     chart("^INDIAVIX"),
     chart("USDINR=X").catch(() => null),
-    fetchFiiNet().catch(() => null), // NSDL flows — optional sixth signal
+    fetchFiiNet().catch(() => null), // NSDL flows - optional sixth signal
   ]);
 
   // Score all signals for a given set of series; returns { comps, score } or
@@ -234,7 +234,7 @@ async function buildPayload(){
     // small-vs-large spread; without it, a direct Nifty 21-day return.
     push("breadth", breadthSig(N, S));
     if(U) push("haven", fxSig(U));
-    if(fii) push("fii", fiiSig(fii)); // scalar — same reading at t and t−1
+    if(fii) push("fii", fiiSig(fii)); // scalar - same reading at t and t−1
     if(comps.length < 3) return null;
     return { comps, score: comps.reduce((a, c) => a + c.score, 0) / comps.length };
   }
@@ -254,7 +254,7 @@ async function buildPayload(){
     as_of: nifty.asOf,
     components: cur.comps.map(c => ({ key: c.key, label: c.label, value: c.value, unit: c.unit, score: Math.round(c.score) })),
     status: usdinr ? "ok" : "partial",
-    note: usdinr ? null : "USD/INR signal unavailable — meter averages the remaining signals.",
+    note: usdinr ? null : "USD/INR signal unavailable - meter averages the remaining signals.",
   };
 }
 
@@ -270,7 +270,7 @@ exports.handler = async () => {
   } catch (e) {
     if(lastGood){
       const p = { ...lastGood, status: "static fallback",
-        note: "Live quotes unreachable (" + String(e.message || e) + ") — showing the last successful meter (" + lastGood.fetched_at + ")." };
+        note: "Live quotes unreachable (" + String(e.message || e) + ") - showing the last successful meter (" + lastGood.fetched_at + ")." };
       return { statusCode: 200, headers: CORS, body: JSON.stringify(p) };
     }
     return { statusCode: 200, headers: CORS, body: JSON.stringify({
@@ -279,7 +279,7 @@ exports.handler = async () => {
       score: null, label: null, change: null, as_of: null,
       components: [],
       status: "unavailable",
-      note: "Live quotes unreachable — no last-known meter available yet: " + String(e.message || e),
+      note: "Live quotes unreachable - no last-known meter available yet: " + String(e.message || e),
     }) };
   }
 };

@@ -1,4 +1,4 @@
-// scripts/make-rss.js — generate public/feed.xml (RSS 2.0) from rbi-data.json.
+// scripts/make-rss.js - generate public/feed.xml (RSS 2.0) from rbi-data.json.
 // Lets people subscribe to "new RBI week published" in any reader without
 // visiting the dashboard. Runs in the weekly refresh (npm run fetch:data, and
 // the Friday workflow), so every refresh ships a feed whose newest item
@@ -6,7 +6,7 @@
 //
 // buildFeed() is pure: records in, feed out, and every date in the file derives
 // from those records. lastBuildDate is the newest item's own pubDate rather than
-// "now" for the same reason — a feed that changes only when its items change is
+// "now" for the same reason - a feed that changes only when its items change is
 // what lets the scheduled refresh tell a real change from a rewrite and skip a
 // commit that would ship nothing new.
 const fs = require('fs');
@@ -35,7 +35,7 @@ function item(rec, prev, site) {
     ` Reserves ${dRes >= 0 ? 'rose' : 'fell'} ${Math.abs(Math.round(dRes)).toLocaleString('en-IN')} USD mn week-on-week.`;
   const title = `RBI week as on ${rec.date}: reserves $${(rec.total_usd / 1000).toFixed(1)}B` +
     (rec.usd_inr != null ? ` · USD/INR ${rec.usd_inr.toFixed(2)}` : '');
-  const desc = `Forex reserves ${rec.total_usd != null ? rec.total_usd.toLocaleString('en-IN') : '—'} USD mn` +
+  const desc = `Forex reserves ${rec.total_usd != null ? rec.total_usd.toLocaleString('en-IN') : '-'} USD mn` +
     (rec.gold_usd != null ? `, gold ${rec.gold_usd.toLocaleString('en-IN')} USD mn` : '') +
     (rec.usd_inr != null ? `, USD/INR ${rec.usd_inr.toFixed(2)}` : '') + '.' + change;
   return `    <item>
@@ -57,7 +57,7 @@ function buildFeed(records, { siteUrl = SITE } = {}) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>RBI Weekly Dashboard — new weeks</title>
+    <title>RBI Weekly Dashboard - new weeks</title>
     <link>${site}</link>
     <description>One item per RBI Weekly Statistical Supplement week: forex reserves, gold, and the rupee, from the dashboard's weekly data.</description>
     <language>en-in</language>
@@ -77,10 +77,10 @@ function buildFeedFile({ priorText = null, siteUrl = null } = {}) {
   try {
     data = JSON.parse(priorText);
   } catch (e) {
-    return { text: null, detail: `skipped — rbi-data.json unreadable (${e.message})` };
+    return { text: null, detail: `skipped - rbi-data.json unreadable (${e.message})` };
   }
   if (!data || !Array.isArray(data.records) || !data.records.length) {
-    return { text: null, detail: 'skipped — rbi-data.json has no records' };
+    return { text: null, detail: 'skipped - rbi-data.json has no records' };
   }
   const feed = buildFeed(data.records, { siteUrl });
   return { text: feed.text, detail: `${feed.items} items · newest ${feed.newest}` };

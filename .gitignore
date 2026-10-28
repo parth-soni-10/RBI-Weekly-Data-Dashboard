@@ -17,7 +17,7 @@ node_modules/
 .env.*
 !.env.example
 
-# Lockfiles — npm's package-lock.json IS tracked (deterministic installs).
+# Lockfiles - npm's package-lock.json IS tracked (deterministic installs).
 # Block competing lockfiles so a different package manager can't sneak in.
 yarn.lock
 pnpm-lock.yaml

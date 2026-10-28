@@ -1,16 +1,16 @@
-// Netlify callable: RBI FX Forward Position (USD bn) — the Reserve Bank's
+// Netlify callable: RBI FX Forward Position (USD bn) - the Reserve Bank's
 // outstanding NET position in its forward dollar book. This is the closest
 // public proxy for FX intervention and is the data behind the "RBI Fwd
 // Position" macro tile plus the "RBI forward book" history chart.
 //
 // ── WHY THIS IS AUTO-UPDATED (not scraped live) ──────────────────────────
 // RBI discloses its net forward position monthly in the RBI Bulletin's
-// "Current Statistics" — table "4A. Maturity Breakdown (by Residual Maturity)
+// "Current Statistics" - table "4A. Maturity Breakdown (by Residual Maturity)
 // of Outstanding Forwards of RBI (US$ Million)", a server-rendered
-// BS_ViewBulletin page — and at HALF-YEARLY frequency in the "Half-Yearly
+// BS_ViewBulletin page - and at HALF-YEARLY frequency in the "Half-Yearly
 // Report on Management of Foreign Exchange Reserves" (the two match: e.g.
 // end-Sep 2025 reads $59.40bn in both). Both are added to FWD_SERIES
-// AUTOMATICALLY — this array is the machine-updated source of truth the
+// AUTOMATICALLY - this array is the machine-updated source of truth the
 // function serves:
 //
 //   scripts/update-fwd-monthly.js  → reads the newest Bulletin issue's Table 4A
@@ -19,8 +19,8 @@
 //   scripts/update-fwd-series.js   → appends/upgrades the Mar/Sep half-yearly
 //     report anchors; where the two disagree at the same date the half-yearly
 //     report wins (RBI revised some early Bulletin figures, e.g. Sep-2021
-//     reads +49.61bn in the Nov-2021 Bulletin but the report — and later
-//     Bulletins — use +49.11bn).
+//     reads +49.61bn in the Nov-2021 Bulletin but the report - and later
+//     Bulletins - use +49.11bn).
 //
 // (Pre-2021 press-carried figures like the Mar-21 anchor remain curated; the
 // updaters never delete entries, and a slow/blocked RBI site fails open.)
@@ -90,13 +90,13 @@ const FWD_SERIES = [
   { date: "2023-12", net_fwd: 2.18, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on December 31, 2023 (official)" },
   { date: "2024-01", net_fwd: 9.97, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on January 31, 2024 (official)" },
   { date: "2024-02", net_fwd: 9.69, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on February 29, 2024 (official)" },
-  { date: "2024-03", net_fwd:   -0.54, source: "RBI Half-Yearly FX Reserves Report, Oct 2023–Mar 2024 (net payable ≈ nil — book at the flip)" },
+  { date: "2024-03", net_fwd:   -0.54, source: "RBI Half-Yearly FX Reserves Report, Oct 2023–Mar 2024 (net payable ≈ nil - book at the flip)" },
   { date: "2024-04", net_fwd: -16.26, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on April 30, 2024 (official)" },
   { date: "2024-05", net_fwd: -10.36, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on May 31, 2024 (official)" },
   { date: "2024-06", net_fwd: -15.84, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on June 30, 2024 (official)" },
   { date: "2024-07", net_fwd: -9.10, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on July 31, 2024 (official)" },
   { date: "2024-08", net_fwd: -18.98, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on August 31, 2024 (official)" },
-  { date: "2024-09", net_fwd:  -14.58, source: "RBI Half-Yearly FX Reserves Report, Apr–Sep 2024 (net payable — short era begins)" },
+  { date: "2024-09", net_fwd:  -14.58, source: "RBI Half-Yearly FX Reserves Report, Apr–Sep 2024 (net payable - short era begins)" },
   { date: "2024-10", net_fwd: -49.18, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on October 31, 2024 (official)" },
   { date: "2024-11", net_fwd: -58.85, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on November 30, 2024 (official)" },
   { date: "2024-12", net_fwd: -67.94, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on December 31, 2024 (official)" },
@@ -129,7 +129,7 @@ exports.handler = async () => {
     headers: CORS,
     body: JSON.stringify({
       fetched_at: new Date().toISOString(),
-      source: "RBI Bulletin Table 4A (monthly, auto-updated) — cross-checked to Half-Yearly FX Reserves Reports",
+      source: "RBI Bulletin Table 4A (monthly, auto-updated) - cross-checked to Half-Yearly FX Reserves Reports",
       status: "static fallback", // honest: curated figures, not a live scrape
       month: latest.date,
       net_fwd: latest.net_fwd,

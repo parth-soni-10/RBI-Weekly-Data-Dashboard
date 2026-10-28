@@ -5,7 +5,7 @@
                  width="420" height="320" frameborder="0"
                  style="border-radius:8px;border:1px solid #bbf7d0"></iframe>
 
-  Self-contained: pulls the site's vendored Chart.js (same-origin — the CSP
+  Self-contained: pulls the site's vendored Chart.js (same-origin - the CSP
   only allows 'self' scripts, so a CDN copy would be blocked) + the latest
   record from /data/latest.json. Falls back gracefully if data is missing.
 -->
@@ -13,14 +13,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>India Forex Reserves — embed</title>
+<title>India Forex Reserves - embed</title>
 <script src="/vendor/chart.umd.js"></script>
 <link rel="stylesheet" href="/embed/forex-reserves.css">
 </head>
 <body>
 <div class="hdr">India Forex Reserves</div>
-<div class="val" id="val">—</div>
-<div class="sub" id="sub" aria-live="polite">As of —</div>
+<div class="val" id="val">-</div>
+<div class="sub" id="sub" aria-live="polite">As of -</div>
 <div class="ch"><canvas id="c" role="img" aria-label="India forex reserves composition in USD million"></canvas></div>
 <div id="err" class="err" hidden aria-live="polite"></div>
 

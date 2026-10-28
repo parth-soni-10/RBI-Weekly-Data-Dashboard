@@ -1,7 +1,7 @@
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 function formatNumber(value, decimals = 0) {
-  if (value == null || !Number.isFinite(Number(value))) return "—";
+  if (value == null || !Number.isFinite(Number(value))) return "-";
   return Number(value).toLocaleString("en-IN", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

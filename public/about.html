@@ -10,10 +10,10 @@
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="RBI Weekly Dashboard">
 <meta property="og:title" content="About the RBI Weekly Dashboard">
-<meta property="og:description" content="An independent dashboard for India's weekly RBI reserves, gold, rupee and market context — sources, refresh cadence and limits.">
+<meta property="og:description" content="An independent dashboard for India's weekly RBI reserves, gold, rupee and market context - sources, refresh cadence and limits.">
 <meta property="og:url" content="https://rbiweeklydashboard.pages.dev/about">
 <meta property="og:image" content="https://rbiweeklydashboard.pages.dev/og-image.png">
-<meta property="og:image:alt" content="RBI Weekly Dashboard — India's forex reserves, gold and markets">
+<meta property="og:image:alt" content="RBI Weekly Dashboard - India's forex reserves, gold and markets">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="About the RBI Weekly Dashboard">
 <meta name="twitter:description" content="Sources, refresh cadence and limits of an independent RBI weekly reserves dashboard.">
@@ -52,7 +52,7 @@
     <h1>India's weekly reserves, in one readable place</h1>
     <p class="doc-lede">
       The RBI Weekly Dashboard reads the Reserve Bank of India's Weekly Statistical Supplement and
-      puts the reserves, gold, rupee and market series on one page — with each figure's reporting
+      puts the reserves, gold, rupee and market series on one page - with each figure's reporting
       date attached, so a weekly observation is never mistaken for a live quote.
     </p>
 
@@ -74,12 +74,12 @@
 
     <h2>What it shows</h2>
     <ul>
-      <li><strong>The latest week</strong> — total reserves, foreign currency assets, gold, SDRs and the IMF reserve position, in USD and in rupees, with each move against the previous Friday.</li>
-      <li><strong>Markets for the same week</strong> — USD/INR, EUR/INR, NIFTY 50 and BSE SENSEX, each from its own dated series rather than derived from the reserves.</li>
-      <li><strong>History</strong> — a ten-week table, 10-, 26- and 52-week chart ranges, a searchable table and a CSV of the whole fetched history.</li>
-      <li><strong>Comparison</strong> — any two WSS Fridays side by side, with absolute and percentage moves, in a link you can send.</li>
-      <li><strong>Context</strong> — FII/FPI flows, the 10-year G-Sec yield, REER, RBI's net forward book, monthly indirect-tax receipts, crude import values, a World Bank external-debt ranking and a market Fear &amp; Greed composite.</li>
-      <li><strong>PM CARES</strong> — the Fund's audited receipts and payments, transcribed with the Fund's own caveats rather than presented as budget spending.</li>
+      <li><strong>The latest week</strong> - total reserves, foreign currency assets, gold, SDRs and the IMF reserve position, in USD and in rupees, with each move against the previous Friday.</li>
+      <li><strong>Markets for the same week</strong> - USD/INR, EUR/INR, NIFTY 50 and BSE SENSEX, each from its own dated series rather than derived from the reserves.</li>
+      <li><strong>History</strong> - a ten-week table, 10-, 26- and 52-week chart ranges, a searchable table and a CSV of the whole fetched history.</li>
+      <li><strong>Comparison</strong> - any two WSS Fridays side by side, with absolute and percentage moves, in a link you can send.</li>
+      <li><strong>Context</strong> - FII/FPI flows, the 10-year G-Sec yield, REER, RBI's net forward book, monthly indirect-tax receipts, crude import values, a World Bank external-debt ranking and a market Fear &amp; Greed composite.</li>
+      <li><strong>PM CARES</strong> - the Fund's audited receipts and payments, transcribed with the Fund's own caveats rather than presented as budget spending.</li>
     </ul>
 
     <h2>Where the numbers come from</h2>
@@ -104,8 +104,8 @@
 
     <h2>How it stays current</h2>
     <p>
-      A scheduled GitHub Actions run fires on Friday at 22:00 UTC — after the week's WSS is
-      published — regenerates the committed data file and the auxiliary series, and commits what
+      A scheduled GitHub Actions run fires on Friday at 22:00 UTC - after the week's WSS is
+      published - regenerates the committed data file and the auxiliary series, and commits what
       changed; that commit is what deploys. The dashboard's <strong>Reload data</strong> button
       additionally live-checks RBI for a week newer than the committed file and merges it in memory.
       A failed scrape leaves the last good snapshot in place and marks the tile, rather than
@@ -125,14 +125,14 @@
     <p>
       It is not an RBI publication, a data vendor, an investment adviser or a real-time feed. No
       affiliation with or endorsement by the Reserve Bank of India is claimed, and no redistribution
-      licence is asserted over the underlying data — consult each provider's terms before reusing a
+      licence is asserted over the underlying data - consult each provider's terms before reusing a
       figure. Where an upstream page changes shape and a scrape fails, the dashboard keeps the last
       known value and labels it a fallback rather than presenting a guess as fresh data.
     </p>
 
     <p class="doc-note">
       <strong>Found a figure that disagrees with the source?</strong> A correction is the most useful
-      thing you can send — see <a href="/contact">Contact</a> for what to include. The code is public
+      thing you can send - see <a href="/contact">Contact</a> for what to include. The code is public
       at <a href="https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard" target="_blank" rel="noopener noreferrer">github.com/parth-soni-10/RBI-Weekly-Data-Dashboard</a>.
     </p>
 

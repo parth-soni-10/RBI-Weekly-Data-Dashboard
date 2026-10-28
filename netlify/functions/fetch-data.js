@@ -1,5 +1,5 @@
 const XLSX  = require("node-xlsx");
-// Shared HTTP client (UA + timeout) and numeric parser from _utils/http — one
+// Shared HTTP client (UA + timeout) and numeric parser from _utils/http - one
 // place for every scraper instead of a private copy here.
 const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
 
@@ -19,7 +19,7 @@ const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
 // list still contains late-Dec 2026 Fridays).
 //
 // All arithmetic uses UTC (getUTCDay/setUTCDate) so the result is stable
-// regardless of the runtime's timezone or DST transitions — otherwise a
+// regardless of the runtime's timezone or DST transitions - otherwise a
 // server in BST/PST/etc. can shift "Friday" labels onto adjacent days.
 function getAllFridaysUntilToday(startISO) {
   const thisYear = new Date().getFullYear();
@@ -59,7 +59,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ─── HTTP ────────────────────────────────────────────────────
 // Same shared client every other scraper uses, pinned to the RBI referer the
-// upstream expects — with accept:false: RBI's doc CDN (rbidocs, behind an F5
+// upstream expects - with accept:false: RBI's doc CDN (rbidocs, behind an F5
 // bot check) serves an .xlsx challenge page whenever Accept names text/html.
 const get = (url, timeoutMs) => httpGet(url, { timeoutMs, referer: "https://www.rbi.org.in/", accept: false });
 
@@ -104,7 +104,7 @@ function findExcelUrls(html) {
 
 // helper to parse number, strip commas etc.
 // Only accept strings that are purely numeric (after removing commas) to avoid
-// picking numbers out of labels like "1 Total Reserves" or "1.2 Gold" —
+// picking numbers out of labels like "1 Total Reserves" or "1.2 Gold" -
 // parseNum from _utils/http implements exactly that.
 
 // ─── PARSE RESERVES EXCEL ────────────────────────────────────
@@ -114,7 +114,7 @@ function findExcelUrls(html) {
 //
 // Extended (decomposition): also extracts Foreign Currency Assets (FCA), Special
 // Drawing Rights (SDR), IMF Reserve Position, and Gold tonnes when those rows exist
-// in the Excel. Falls back gracefully — these fields stay null on older sheets.
+// in the Excel. Falls back gracefully - these fields stay null on older sheets.
 function parseReservesExcel(buf) {
   const result = {
     total_usd: null, total_inr: null,
@@ -196,7 +196,7 @@ function parseReservesExcel(buf) {
   // Adds fields without disturbing existing total + gold logic above.
   // Each entry is null if the row / numerics aren't found in the sheet.
   //
-  // RBI row layout: [Label ... | INR cr | USD mn] — INR crore comes FIRST,
+  // RBI row layout: [Label ... | INR cr | USD mn] - INR crore comes FIRST,
   // same column order as the Total and Gold rows read above (first numeric →
   // INR, second → USD). Verified against archived + live sheets: FCA(₹60.5L cr)
   // + Gold + SDR + IMF in USD mn sum exactly to total_usd.
@@ -227,10 +227,10 @@ function parseReservesExcel(buf) {
               usd: nums[1]
             });
           } else if (nums.length === 1) {
-            // Single-column report — assume USD mn.
+            // Single-column report - assume USD mn.
             candidates.push({ sheetIdx: si, rowIdx: j, usd: nums[0], inr: null });
           }
-          // NOTE: deliberately no `break` — scan every sheet. RBI's WSS can
+          // NOTE: deliberately no `break` - scan every sheet. RBI's WSS can
           // carry a decoy row of the same label in another table (e.g. the
           // balance-sheet "Foreign Currency Assets" in T_1, in a different
           // unit); collecting all candidates lets the sanity filter below
@@ -341,7 +341,7 @@ async function getYahooClose(symbol, targetDate) {
 // Download a single URL as a Buffer, validating it's a real spreadsheet.
 // Sends NO Accept header: RBI's rbidocs CDN (behind an F5 bot check) serves a
 // challenge page whenever Accept names text/html, and a spreadsheet Accept
-// trips a transport-level failure — but a request with no Accept at all gets
+// trips a transport-level failure - but a request with no Accept at all gets
 // the real .xlsx (verified against the live CDN). Uses fetch() with a
 // per-attempt AbortController so the timeout is honoured on every runtime:
 // node:https is a shim under Cloudflare's nodejs_compat and can ignore the
@@ -350,7 +350,7 @@ async function getYahooClose(symbol, targetDate) {
 // Returns { buf, reason }. `reason` says WHY the file did not arrive, because
 // the two failures need opposite reactions:
 //
-//   "challenge"  the CDN answered fast with F5's bot page — transient, so it
+//   "challenge"  the CDN answered fast with F5's bot page - transient, so it
 //                is worth one more try after a short backoff.
 //   "timeout" /  the request never came back: this runtime's network cannot
 //   "network"    reach the doc CDN at all (Cloudflare's egress is refused by
@@ -367,7 +367,7 @@ async function downloadSpreadsheet(url, timeoutMs = 8000) {
     const ctrl = new AbortController();
     // Race the whole request (connect + body) against a hard timer: a runtime
     // can leave a fetch to a black-holed host pending well past the
-    // AbortController, so the race — not the signal — is what guarantees we
+    // AbortController, so the race - not the signal - is what guarantees we
     // stop waiting and either retry or give up.
     let timer;
     try {
@@ -419,7 +419,7 @@ async function processOneFriday(pubFriday) {
       iso,
       code: "page_unreachable",
       error: `RBI's WSS page could not be reached from this runtime (${e.message})`,
-      hint: "This network cannot reach RBI — the committed Friday snapshot is the current data",
+      hint: "This network cannot reach RBI - the committed Friday snapshot is the current data",
     };
   }
 
@@ -433,7 +433,7 @@ async function processOneFriday(pubFriday) {
       iso,
       code: "not_published",
       error: "RBI has not published this week's supplement yet",
-      hint: "Nothing to merge — the committed Friday snapshot is current",
+      hint: "Nothing to merge - the committed Friday snapshot is current",
     };
   }
 
@@ -451,8 +451,8 @@ async function processOneFriday(pubFriday) {
         ? "RBI's document CDN is unreachable from this runtime (the request timed out)"
         : "RBI's document CDN served a bot-challenge page instead of the file",
       hint: blocked
-        ? "This network cannot reach RBI's file host — the committed Friday snapshot is the current data"
-        : "RBI's limiter is serving a challenge page — the next attempt usually gets the file",
+        ? "This network cannot reach RBI's file host - the committed Friday snapshot is the current data"
+        : "RBI's limiter is serving a challenge page - the next attempt usually gets the file",
     };
   }
   const resBuf = dl.buf;
@@ -521,7 +521,7 @@ exports.handler = async (event) => {
   const startYear = parseInt(qs.startYear ?? "") || new Date().getFullYear();
   let allFridays = getAllFridaysUntilToday(`${startYear}-01-01`);
 
-  // ?after=YYYY-MM-DD — incremental mode: only process Fridays strictly AFTER
+  // ?after=YYYY-MM-DD - incremental mode: only process Fridays strictly AFTER
   // this date. weekOffset is then relative to the remaining list, so a client
   // can re-fetch just the weeks published since its last successful fetch
   // instead of re-scraping the entire year on every request.
@@ -553,7 +553,7 @@ exports.handler = async (event) => {
       done:      false,
       record:    result.record || null,
       error:     result.error  || null,
-      // Why the week failed, as a stable code — the client uses it to say the
+      // Why the week failed, as a stable code - the client uses it to say the
       // honest thing: "not published yet" and "this edge cannot reach RBI" are
       // not the user's problem to retry, a challenge page or a parse failure is.
       errorCode: result.code  || null,

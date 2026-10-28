@@ -2,14 +2,14 @@
 //
 // Yield: try a handful of Yahoo tickers historically used for the India 10Y
 // benchmark. Yahoo occasionally renames or retires these tickers, so we try
-// several in order and never throw — we always return 200.
+// several in order and never throw - we always return 200.
 //
 // Repo rate: a small curated table of recent RBI MPC decisions, LIVE-VERIFIED
 // on every invocation against RBI's own press-release listing (see
 // fetchLiveRepoDecision below): when the listing names a decision newer than
 // the table head, the live figure wins. The table stays as history + fallback,
 // and still needs its top entry updated after each meeting for the fallback
-// path — but a missed edit can no longer freeze the site on a stale rate.
+// path - but a missed edit can no longer freeze the site on a stale rate.
 //
 // CORS: open.
 //
@@ -58,7 +58,7 @@ const REPO_HISTORY = [
 
 // Upcoming MPC meetings, published by RBI in advance (the FY 2026-27 schedule
 // was announced 2026-03-23; the decision lands on the meeting's LAST day).
-// Deliberately NOT part of REPO_HISTORY — these are scheduled dates, not
+// Deliberately NOT part of REPO_HISTORY - these are scheduled dates, not
 // decisions, so nothing that expects a decided rate ever sees a null. The
 // repo chart draws them as hollow diamonds on the in-force plateau. When a
 // meeting resolves: append the decision to the top of REPO_HISTORY, drop the
@@ -111,14 +111,14 @@ async function fetchYahooYield() {
 
 // When the live Yahoo fetch fails we return the value but mark the date as
 // null so callers can distinguish "live + timestamped" from "fallback + unknown".
-// (Don't pin a stale-looking fallback date — the dashboard should not surface it.)
+// (Don't pin a stale-looking fallback date - the dashboard should not surface it.)
 
 // ─── Live repo-rate verification against RBI's press releases ──────
 // The listing page names every MPC resolution ("Monetary Policy Statement,
 // YYYY-YY Resolution of the Monetary Policy Committee <range>") with a stable
 // prid link; the release page states the decision in plain prose ("to increase
 // the policy repo rate ... by 25 bps to 5.50 per cent" / "to keep ... unchanged
-// at 5.25 per cent"). The decision date is the meeting range's last day — the
+// at 5.25 per cent"). The decision date is the meeting range's last day - the
 // same convention MPC_SCHEDULE documents. Anything unparseable resolves to
 // null and the curated table stands; the payload shape never changes.
 const RBI_PR_LISTING = "https://m.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx";
@@ -129,7 +129,7 @@ const MONTHS = { january:1, february:2, march:3, april:4, may:5, june:6,
 function mpcRangeEndIso(title){
   const t = String(title || "");
   let month = null, day = null, year = null;
-  let m = t.match(/([A-Za-z]+)\s+(\d{1,2})\s*(?:to|[–—-])\s*(\d{1,2}),?\s*(\d{4})/);
+  let m = t.match(/([A-Za-z]+)\s+(\d{1,2})\s*(?:to|[–--])\s*(\d{1,2}),?\s*(\d{4})/);
   if(m){ month = MONTHS[m[1].toLowerCase()]; day = +m[3]; year = +m[4]; }
   else {
     m = t.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
@@ -172,12 +172,12 @@ async function fetchLiveRepoDecision(){
 }
 
 // The RBI check must never delay the payload: resolve to null (curated table
-// stands) when it is slow — same pattern as the peer-rate withTimeout below.
+// stands) when it is slow - same pattern as the peer-rate withTimeout below.
 const withTimeoutNull = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 
 // ─── Peer policy rates for the repo chart's comparison lines ─────────
 // US Fed funds upper target (FRED csv mirror of DFEDTARU) and the ECB main
-// refinancing rate (ECB's own SDMX API — FRED's ECB mirror sits behind a bot
+// refinancing rate (ECB's own SDMX API - FRED's ECB mirror sits behind a bot
 // challenge). Both are policy rates: parsed to {date, pct} CHANGE points and
 // drawn stepped. Failures return [] so the chart falls back to repo alone.
 async function fetchFredSteps(id) {
@@ -191,7 +191,7 @@ async function fetchFredSteps(id) {
       const date = line.slice(0, i), v = parseFloat(line.slice(i + 1));
       if (/^\d{4}-\d{2}-\d{2}$/.test(date) && isFinite(v) && v > 0 && v < 15) rows.push({ date, pct: v });
     }
-    // DFEDTARU is a DAILY series — collapse to change points (a step chart
+    // DFEDTARU is a DAILY series - collapse to change points (a step chart
     // only needs the values where the rate moved; ~1200 rows → ~10).
     return rows.filter((r, i) => i === 0 || r.pct !== rows[i - 1].pct);
   } catch (_) { return []; }
@@ -214,12 +214,12 @@ async function fetchEcbSteps() {
   } catch (_) { return []; }
 }
 
-// A slow peer source must never delay the payload — race each fetch against
+// A slow peer source must never delay the payload - race each fetch against
 // a timeout that resolves to [] (the chart then just draws fewer lines).
 const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r([]), ms))]);
 
 // Exported for tests/gsec-repo.test.js (same pattern as fetch-data.js sharing
-// helpers with data-latest.js) — Netlify ignores module.exports on deploy.
+// helpers with data-latest.js) - Netlify ignores module.exports on deploy.
 exports.handler = async () => {
   const [yahoo, live, [fedSteps, ecbSteps]] = await Promise.all([
     fetchYahooYield(),
@@ -268,7 +268,7 @@ exports.handler = async () => {
 };
 
 // Exported for tests/gsec-repo.test.js (same pattern as fetch-data.js sharing
-// helpers with data-latest.js): attach to the existing exports object —
+// helpers with data-latest.js): attach to the existing exports object -
 // reassigning module.exports here would orphan exports.handler above.
 exports.mpcRangeEndIso = mpcRangeEndIso;
 exports.parseRepoDecision = parseRepoDecision;

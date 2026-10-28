@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * update-fwd-series.js — keep the RBI forward-book series current automatically.
+ * update-fwd-series.js - keep the RBI forward-book series current automatically.
  *
  * The RBI discloses its net forward position twice a year in the "Half-Yearly
  * Report on Management of Foreign Exchange Reserves" (I.3 Forward Outstanding:
@@ -21,7 +21,7 @@
  * removes data.
  *
  * buildFwdSeriesFile() is the whole job as a pure function of the file's current
- * text — the weekly refresh hands it the copy the repository holds and commits
+ * text - the weekly refresh hands it the copy the repository holds and commits
  * the result, while the CLI writes it to `FWD_FN`.
  *
  * Usage:
@@ -31,7 +31,7 @@
 const fs = require("fs");
 const path = require("path");
 
-// The CLI writes into the function's source file, so it needs a path on disk —
+// The CLI writes into the function's source file, so it needs a path on disk -
 // but the weekly refresh imports buildFwdSeriesFile() from this module, which
 // bundles the whole file into the Worker, where `__dirname` does not exist and
 // referencing it at module scope failed the Worker at startup. The guard keeps the
@@ -77,7 +77,7 @@ async function newestReport(){
   const entries = [...html.matchAll(/PublicationsView\.aspx\?[Ii]d=(\d+)[^>]*>([\s\S]*?)<\/a>/g)]
     .map(m => {
       const title = strip(m[2]).replace(/\s+/g, " ").trim();
-      const end = title.match(/[-–—]\s*([A-Za-z]+)\s+(\d{4})\s*$/);
+      const end = title.match(/[-–-]\s*([A-Za-z]+)\s+(\d{4})\s*$/);
       if (!end) return null;
       const mo = monthNum(end[1]);
       return mo ? { id: +m[1], title, date: `${end[2]}-${fmtMonth(mo)}` } : null;
@@ -154,7 +154,7 @@ function applyEdit(src, action){
 /**
  * The current source → { text, detail, warn? }. `text` is null when the series
  * already matches the newest official report, i.e. when there is nothing to
- * write. Throws on a failure worth surfacing (no FWD_SERIES block, RBI down) —
+ * write. Throws on a failure worth surfacing (no FWD_SERIES block, RBI down) -
  * both callers fail open around it.
  */
 async function buildFwdSeriesFile(src, { log = () => {} } = {}) {
@@ -190,7 +190,7 @@ async function buildFwdSeriesFile(src, { log = () => {} } = {}) {
     }
   }
 
-  if (action.type === "none") return { text: null, detail: `Up to date — ${action.reason}.` };
+  if (action.type === "none") return { text: null, detail: `Up to date - ${action.reason}.` };
   return {
     text: applyEdit(src, action),
     detail: `${action.type === "append" ? "Appended" : "Upgraded"} ${fig.date} → ${fig.net_fwd >= 0 ? "+$" : "−$"}${Math.abs(fig.net_fwd).toFixed(2)}B (${action.source})`,
@@ -201,7 +201,7 @@ async function main(){
   const src = fs.readFileSync(FN, "utf8");
   const res = await buildFwdSeriesFile(src, { log: console.log });
   if (!res.text) {
-    console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} — leaving FWD_SERIES unchanged.`);
+    console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} - leaving FWD_SERIES unchanged.`);
     return;
   }
   fs.writeFileSync(FN, res.text, "utf8");
@@ -211,7 +211,7 @@ async function main(){
 if (require.main === module) {
   main().catch(e => {
     // fail open: never break a refresh because RBI was slow/blocked/unparseable
-    console.warn(`⚠ update-fwd-series skipped (${e.message}) — FWD_SERIES unchanged.`);
+    console.warn(`⚠ update-fwd-series skipped (${e.message}) - FWD_SERIES unchanged.`);
   });
 }
 

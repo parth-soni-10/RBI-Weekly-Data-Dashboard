@@ -1,11 +1,11 @@
-/* Fund Widget — the reel the cards sit on.
+/* Fund Widget - the reel the cards sit on.
  *
  * Layout only. The host's own cards keep their padding, their type and their
  * colours: every rule here is either the geometry of the ring or a neutral
  * default that a host's more specific rule outweighs.
  *
  * Tune from the host's stylesheet:
- *   --fw-h        height of the opening (216px) — how much of the ring shows
+ *   --fw-h        height of the opening (216px) - how much of the ring shows
  *   --fw-gap      distance between two cards (78px); the turn and the z
  *                 pull-back are derived from it
  *   --fw-persp    perspective depth (820px)
@@ -13,7 +13,7 @@
  *   --fw-dur      length of a turn (380ms)
  *
  * The geometry only exists once the script has marked the host
- * [data-fw-ready]. Before that — or with the script missing — these are just
+ * [data-fw-ready]. Before that - or with the script missing - these are just
  * cards in a column, which is what the host's markup already is.
  */
 
@@ -55,7 +55,7 @@
 
 /* While a finger or a cursor is on it the reel follows exactly; the easing is
    for the snap after the release, and for the settle after a key. The quiet
-   class covers the other case — a resize or a rebuilt list, where the card is
+   class covers the other case - a resize or a rebuilt list, where the card is
    not moving, it is being re-measured. */
 .fw-host[data-fw-ready].is-dragging .fw-item,
 .fw-host[data-fw-ready].is-quiet .fw-item { transition: none; }

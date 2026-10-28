@@ -199,7 +199,7 @@ function ppacToMonthlyBarrels(ppacData) {
 
 // PPAC import Value (USD Mn) / Quantity (000 MT) for crude, by month.
 // India's average crude import price per barrel = import value ÷ import barrels.
-// This is the genuine price Indian refiners pay for imported crude — the "govt
+// This is the genuine price Indian refiners pay for imported crude - the "govt
 // buying" benchmark behind posts comparing India's import basket to the online
 // (Brent) market price. Computed from real PPAC import data already fetched
 // above (no separate scraper, no CSRF-gated page), fail-open to null.
@@ -238,7 +238,7 @@ function daysInMonth(y, m) {
 }
 
 // ─── TANKERMAP ────────────────────────────────────────────────
-// For each port, try multiple slug variants — TankerMap slug names are not
+// For each port, try multiple slug variants - TankerMap slug names are not
 // always predictable (e.g. "kochi" not "kochi-oil", "ennore" not "chennai-oil")
 const PORT_SLUG_VARIANTS = {
   "jamnagar-oil":      ["jamnagar-oil", "jamnagar", "sikka-oil", "sikka"],

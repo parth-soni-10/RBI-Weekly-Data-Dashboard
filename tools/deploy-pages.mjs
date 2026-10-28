@@ -5,7 +5,7 @@
  *   node tools/deploy-pages.mjs --assets <dir> --out <dir>
  *
  * Why this exists. Cloudflare Pages uploads whatever directory it is handed and
- * serves it, and — unlike the Workers static-assets layer — it reads no ignore
+ * serves it, and - unlike the Workers static-assets layer - it reads no ignore
  * file. Measured, not assumed: a probe deployment whose `.assetsignore` listed
  * `secret.txt` still answered 200 for `/secret.txt`, `.assetsignore` itself
  * included. So the repository's own `.assetsignore` is applied here, before the
@@ -14,14 +14,14 @@
  *
  * The function half of the site is deliberately not part of this: it lives in
  * `functions/`, which Pages compiles from the repository (`functions/[[path]].js`
- * is the catch-all route). An upload needs no `_worker.js` and no bundle step —
+ * is the catch-all route). An upload needs no `_worker.js` and no bundle step -
  * that file was how a Workers module reached a Pages deployment, and there is no
  * Worker here any more.
  *
  * `_headers` / `_redirects` / `_routes.json` are always kept: the platform
  * consumes those as directives, it does not serve them as files. A `404.html` is
  * generated when the assets have none, because without one Pages answers 200
- * with index.html for every unmatched path — which makes an unknown path
+ * with index.html for every unmatched path - which makes an unknown path
  * indistinguishable from a real page.
  */
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -51,7 +51,7 @@ const out = resolve(flags.out);
 const HONOURED_FILES = new Set(["_headers", "_redirects", "_routes.json"]);
 // Never uploaded, whatever a repository's rules say: version control, caches,
 // the staging directories themselves, and the two things that must never be
-// published — the Workers-only ignore file, and local secret files.
+// published - the Workers-only ignore file, and local secret files.
 const ALWAYS_SKIP = new Set([
   ".git", "node_modules", ".freebuff", ".wrangler", ".kilo", ".pytest_cache", "__pycache__",
   ".assetsignore", ".gitignore", ".gitattributes", ".gitmodules",

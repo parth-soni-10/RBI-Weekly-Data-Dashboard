@@ -1,4 +1,4 @@
-/* pages.css — the document pages (About, Contact, Privacy).
+/* pages.css - the document pages (About, Contact, Privacy).
  *
  * `styles.css` loads first and supplies the palette, the type scale, the logo
  * lockup and the footer's source links, so these pages stay the same product as
@@ -6,7 +6,7 @@
  * dashboard's own nav is a JS-driven panel under 1280px and these pages ship no
  * JavaScript, so they carry a plain link row that never collapses.
  *
- * No inline style anywhere, and no script beyond theme-init.js — the deployed
+ * No inline style anywhere, and no script beyond theme-init.js - the deployed
  * policy is `style-src 'self'` with no 'unsafe-inline'.
  */
 

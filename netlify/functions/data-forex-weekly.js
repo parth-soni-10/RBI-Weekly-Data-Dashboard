@@ -1,4 +1,4 @@
-// Public JSON API — returns an array of the last N RBI weekly records,
+// Public JSON API - returns an array of the last N RBI weekly records,
 // just enough to chart forex reserves / gold / rupee trendlines.
 // Defaults to 8 weeks, overridable via ?weeks=N (capped at MAX_WEEKS).
 //

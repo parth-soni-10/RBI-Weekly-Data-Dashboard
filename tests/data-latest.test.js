@@ -1,4 +1,4 @@
-// tests/data-latest.test.js — the public /data/*.json endpoints.
+// tests/data-latest.test.js - the public /data/*.json endpoints.
 //
 //   npm test          (node --test, no dependencies)
 //
@@ -6,7 +6,7 @@
 // (no implicit CDN cache in front of a Worker) made a cold request walk up to six
 // Fridays and time out instead of answering. They now read the committed weekly
 // snapshot through the ASSETS binding. These pin that: the newest record is
-// served, a requested window is sliced, and a missing snapshot is a prompt 503 —
+// served, a requested window is sliced, and a missing snapshot is a prompt 503 -
 // never a hang.
 const test = require("node:test");
 const assert = require("node:assert/strict");

@@ -1,10 +1,10 @@
-// tests/agent-surface.test.mjs — the agent-facing layer of the dashboard.
+// tests/agent-surface.test.mjs - the agent-facing layer of the dashboard.
 //
 //   npm test          (node --test, no dependencies)
 //
 // functions/_router.js serves Markdown for `/`, `/about`, `/contact` and
 // `/privacy`, always answers the `.md` aliases, redirects the `.html` aliases,
-// and turns an unmatched path into a Markdown 404 when one is asked for — all
+// and turns an unmatched path into a Markdown 404 when one is asked for - all
 // without disturbing the `/data/*.json` API that sits in front of it. The
 // router takes `env` as an argument, so an ASSETS stub exercises the real
 // routing without Wrangler, without a scrape and without the network.
@@ -307,7 +307,7 @@ test("the homepage carries the metadata an agent resolves the entity from", asyn
   assert.match(html, /<meta property="og:image:width" content="1200">/);
   assert.match(html, /<meta property="og:image:height" content="630">/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
-  assert.match(html, /RBI Weekly Dashboard — India Forex Reserves/);
+  assert.match(html, /RBI Weekly Dashboard - India Forex Reserves/);
 });
 
 test("the JSON-LD is valid, complete and internally linked", async () => {
@@ -406,7 +406,7 @@ test("robots.txt and llms.txt agree on the sitemap", async () => {
 
 test("the deploy stages public/ and the new pages are in it", async () => {
   // `public/` is the whole upload (tools/deploy-pages.mjs --assets public), so a
-  // file that exists there is published unless .assetsignore excludes it — and
+  // file that exists there is published unless .assetsignore excludes it - and
   // this repo's .assetsignore is empty.
   const ignore = await read(".assetsignore");
   assert.equal(ignore.trim(), "");

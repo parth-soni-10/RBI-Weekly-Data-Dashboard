@@ -1,8 +1,8 @@
-/* 404.css — the styling for 404.html, and nothing else uses it.
+/* 404.css - the styling for 404.html, and nothing else uses it.
  *
  * Why a stylesheet of its own rather than a <style> block in the page: five of
  * this fleet's sites send `style-src 'self'` with no 'unsafe-inline', so an
- * inline block is a style the browser is told to drop — the 404 would render as
+ * inline block is a style the browser is told to drop - the 404 would render as
  * bare markup exactly where it is most likely to be seen by someone who is
  * already lost. A linked sheet under the same origin is allowed by every one of
  * those policies without a hash to keep in step.
@@ -10,7 +10,7 @@
  * Why the palette is local instead of the site's own variables: this page cannot
  * assume the app's stylesheet has loaded, and it must not depend on the app's
  * markup classes to look like anything. It states what it needs, in
- * `prefers-color-scheme`, with a system font stack and no web font to fetch —
+ * `prefers-color-scheme`, with a system font stack and no web font to fetch -
  * a 404 that waits on a font or a bundle before it can say "nothing here" is a
  * worse 404. Identical bytes in every repository that carries one, so the
  * fleet's dead ends look the same.

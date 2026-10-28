@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════
-   RBI Weekly Dashboard — design system
+   RBI Weekly Dashboard - design system
    A dense, institutional "reserve terminal" look. One accent (reserve
    gold) for interaction and identity; emerald/red stay reserved for the
    semantic up/down of markets. Light and dark themes share every token.
@@ -11,7 +11,7 @@
 
    The split is not cosmetic on this site: U+20B9, the rupee sign, falls inside
    the latin-ext range, so every ₹ figure pulls the second file. Declaring only
-   the latin subset would leave the rupee to a system font — on most machines a
+   the latin subset would leave the rupee to a system font - on most machines a
    different face at a different advance width, in the middle of a column of
    numbers, which is exactly where it would be noticed.
 
@@ -50,7 +50,7 @@ html{color-scheme:dark}
   --border:rgba(148,163,184,.13);--border2:rgba(148,163,184,.28);--border3:rgba(148,163,184,.4);
   /* ink3 measured 4.37:1 on --surface2 and 4.68:1 on --surface under white-
      paper AA (the footer's own hint text and the section notes sit on both).
-     #7d8da6 clears 4.5:1 on every surface here — 5.05 / 5.41 / 5.84 — and is
+     #7d8da6 clears 4.5:1 on every surface here - 5.05 / 5.41 / 5.84 - and is
      still plainly the quietest of the three ink levels. */
   --ink:#e9eff8;--ink2:#a2b2c9;--ink3:#7d8da6;
   --brand:#e9b949;--brand2:#f6cf7e;--on-brand:#241a04;--brand-soft:rgba(233,185,73,.13);--brand-line:rgba(233,185,73,.4);
@@ -74,7 +74,7 @@ html{color-scheme:dark}
   --bg:#f1f3f7;
   --surface:#ffffff;--surface2:#f4f6fa;
   --border:rgba(15,30,55,.11);--border2:rgba(15,30,55,.22);--border3:rgba(15,30,55,.35);
-  /* ink3 was 4.49:1 on --bg (#f1f3f7) — under 4.5:1, by 0.01 — which is what
+  /* ink3 was 4.49:1 on --bg (#f1f3f7) - under 4.5:1, by 0.01 - which is what
      the footer's h3 and paragraph were failing on. 4.75:1 now. */
   --ink:#101d33;--ink2:#4d5e78;--ink3:#5c6d85;
   --brand:#9a5e06;--brand2:#7a4a04;--on-brand:#ffffff;--brand-soft:rgba(180,112,10,.1);--brand-line:rgba(154,94,6,.45);
@@ -553,7 +553,7 @@ footer p{font-size:11.5px;color:var(--ink3);line-height:1.7;max-width:760px;font
 
 /* ─── Collapsible header + hamburger (≤1280) ──────────────────────────
    The desktop row (logo + 5-link nav + action buttons + status pill) needs
-   ≈1130px to render without flex-crushing the logo or clipping the pill —
+   ≈1130px to render without flex-crushing the logo or clipping the pill -
    below 1280 the hamburger two-row layout takes over. */
 .nav-toggle{display:none}
 @media(max-width:1280px){
@@ -660,7 +660,7 @@ details.read-more .chart-note{margin-top:.35rem}
 }
 
 /* Fear & Greed gauge card: doughnut-gauge left, verdict + signal bars right.
-   Colors are hard-coded signal greens/reds on purpose — sentiment zones must
+   Colors are hard-coded signal greens/reds on purpose - sentiment zones must
    read identically in both themes (the gauge chrome reads theme vars at draw). */
 .fng-flex{display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap}
 .fng-gauge{width:220px;max-width:44%;flex-shrink:0}

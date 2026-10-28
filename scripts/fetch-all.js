@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * fetch-all.js — regenerate public/rbi-data.json with ALL RBI weekly records.
+ * fetch-all.js - regenerate public/rbi-data.json with ALL RBI weekly records.
  *
  * Reuses the scraper internals from netlify/functions/fetch-data.js
  * (_getFridays + _processOne) so parsing stays in one place.
  *
  * Behaviour:
  *   - Reads the existing public/rbi-data.json (if any) and only fetches weeks
- *     NEWER than the newest record already in the file — each run just adds
+ *     NEWER than the newest record already in the file - each run just adds
  *     what's new ("update it every run").
  *   - On a full first run (no file), fetches every Friday from the start year
  *     (default: the current year).
@@ -19,7 +19,7 @@
  *
  * buildRbiDataFile() is that whole job as a pure function of the text already on
  * disk, because the weekly refresh (netlify/functions/refresh-data.js) runs it
- * against the copy the repository holds — one implementation, so a refresh can
+ * against the copy the repository holds - one implementation, so a refresh can
  * only ever write the JSON this CLI writes. main() is the file I/O around it.
  *
  * Usage:
@@ -32,7 +32,7 @@ const { _getFridays, _processOne } = require("../netlify/functions/fetch-data");
 
 // Where the CLI writes. The weekly refresh imports the builder below and reads
 // its "prior" text from the repository instead, and in a Worker `__dirname` is not
-// a binding at all — the `typeof` guard is what keeps this module importable there
+// a binding at all - the `typeof` guard is what keeps this module importable there
 // (scripts/update-fwd-monthly.js documents the same trap). Only main() reads OUT.
 const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "rbi-data.json") : "";
 
@@ -58,7 +58,7 @@ async function buildRbiDataFile({ priorText = null, startYear = null, limit = nu
   try {
     const parsed = JSON.parse(priorText);
     if (parsed && Array.isArray(parsed.records)) { prior = parsed.records; priorDoc = parsed; }
-  } catch (_) { /* no prior file — first run */ }
+  } catch (_) { /* no prior file - first run */ }
 
   const curYear = new Date().getFullYear();
   const wanted = Number.isFinite(startYear) ? startYear : null;
@@ -99,7 +99,7 @@ async function buildRbiDataFile({ priorText = null, startYear = null, limit = nu
       fresh.push(res.record);
       log(`✓ ${res.record.date} | Reserves $${res.record.total_usd?.toLocaleString()}M | USD/INR ${res.record.usd_inr ?? "N/A"}`);
     } else {
-      log(`⚠ ${res.iso} — ${res.error}`);
+      log(`⚠ ${res.iso} - ${res.error}`);
     }
     await sleep(300); // be polite to RBI + Yahoo
   }
@@ -113,7 +113,7 @@ async function buildRbiDataFile({ priorText = null, startYear = null, limit = nu
   // 4. Build the file. The SEO metadata is carried across an unchanged run: only
   //    a run that actually added a record re-stamps data_updated_at /
   //    date_modified. Otherwise a quiet Friday would rewrite the file (and every
-  //    crawlable snapshot built from it) for no reason — the same rule the
+  //    crawlable snapshot built from it) for no reason - the same rule the
   //    refresh driver applies to fetched_at.
   const changed = fresh.length > 0 || merged.length !== prior.length;
   const nowIso = new Date().toISOString();
@@ -144,7 +144,7 @@ async function main() {
   const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : null;
 
   let priorText = null;
-  try { priorText = fs.readFileSync(OUT, "utf8"); } catch (_) { /* no prior file — first run */ }
+  try { priorText = fs.readFileSync(OUT, "utf8"); } catch (_) { /* no prior file - first run */ }
 
   const { text, count, fresh } = await buildRbiDataFile({ priorText, startYear: argYear, limit, log: console.log });
 

@@ -1,4 +1,4 @@
-// backfill-decomp.js — one-shot backfill of the WSS decomposition fields
+// backfill-decomp.js - one-shot backfill of the WSS decomposition fields
 // (fca_usd/inr, sdr_usd/inr, imf_reserve_usd/inr, gold_tonnes) into the
 // existing public/rbi-data.json records by re-downloading each week's
 // reserves Excel from RBI and re-parsing it with the production parser
@@ -13,7 +13,7 @@
 //     WSS page for publication Friday = as-on + 7 days is probed; if that
 //     page has no reserves Excel (RBI reorganizes old pages), the adjacent
 //     Fridays ±7d are tried before giving up on that week.
-//   - Only missing/zero fields are filled — a value already present is never
+//   - Only missing/zero fields are filled - a value already present is never
 //     overwritten (same never-destroy rule as the fwd-series updaters).
 //   - A sanity check keeps the merge honest: FCA + gold + SDR + IMF must be
 //     within 0.5% of the week's recorded total (USD mn), else the fields are
@@ -29,7 +29,7 @@
 // Run: node scripts/backfill-decomp.js [--dry-run] [--limit N]
 //   --limit N   process at most N weeks this invocation (the script persists
 //               after every filled week, so repeated invocations resume where
-//               the last left off — useful under tight timeouts).
+//               the last left off - useful under tight timeouts).
 
 const fs = require("fs");
 const path = require("path");
@@ -70,12 +70,12 @@ async function parseWeek(pubFriday) {
   }
   const urls = _findExcelUrls(html);
   if (!urls.reserves) return null; // page exists but no reserves file
-  // accept:false — rbidocs (F5 bot check) serves a challenge HTML page for
+  // accept:false - rbidocs (F5 bot check) serves a challenge HTML page for
   // any .xlsx request whose Accept header names text/html.
   const res = await get(urls.reserves, { timeoutMs: 20000, accept: false });
   let buf = Buffer.from(await res.arrayBuffer());
   if (!isSpreadsheet(buf)) {
-    // Challenged — cool down and retry once.
+    // Challenged - cool down and retry once.
     await sleep(8000);
     const res2 = await get(urls.reserves, { timeoutMs: 20000, accept: false });
     buf = Buffer.from(await res2.arrayBuffer());
@@ -117,16 +117,16 @@ async function main() {
   let filled = 0, skipped = 0, failed = 0, challenged = 0, attempted = 0;
   let consecutiveChallenges = 0;
   for (const r of records) {
-    if (limit && attempted >= limit) { console.log(`\n--limit ${limit} reached — rerun to continue.`); break; }
+    if (limit && attempted >= limit) { console.log(`\n--limit ${limit} reached - rerun to continue.`); break; }
     // The F5 limiter flags per-IP for a while once tripped; hammering through
     // it only extends the penalty. Three consecutive challenges = back off
     // and let the next invocation (or the daily cron from a different IP)
     // resume.
     if (consecutiveChallenges >= 3) {
-      console.log("\nLimiter active — stopping this run. Resume later or let the cron retry.");
+      console.log("\nLimiter active - stopping this run. Resume later or let the cron retry.");
       break;
     }
-    // gold_tonnes is best-effort (many sheets don't carry the row) — never
+    // gold_tonnes is best-effort (many sheets don't carry the row) - never
     // let its absence keep a week "needing" forever.
     const needs = r.fca_usd == null || r.sdr_usd == null || r.imf_reserve_usd == null;
     if (!needs) { skipped++; continue; }
@@ -134,7 +134,7 @@ async function main() {
     process.stdout.write(`${r.date} … `);
     const out = await parseWeekWithFallback(r.date);
     if (out && out.challenge) {
-      console.log("⏳ rate-limited by RBI CDN — will resume next run");
+      console.log("⏳ rate-limited by RBI CDN - will resume next run");
       challenged++;
       consecutiveChallenges++;
       await sleep(20000); // let the limiter cool before the next week
@@ -151,7 +151,7 @@ async function main() {
     if (r.total_usd && parsed.fca_usd != null) {
       const diff = Math.abs(decompSum(parsed) - r.total_usd) / r.total_usd;
       if (diff > 0.005) {
-        console.log(`✗ sanity fail: components ${Math.round(decompSum(parsed))} vs total ${Math.round(r.total_usd)} (${(diff * 100).toFixed(2)}% off) — not written`);
+        console.log(`✗ sanity fail: components ${Math.round(decompSum(parsed))} vs total ${Math.round(r.total_usd)} (${(diff * 100).toFixed(2)}% off) - not written`);
         failed++;
         continue;
       }
@@ -176,7 +176,7 @@ async function main() {
   }
 
   console.log(`\nDone: ${filled} weeks filled, ${skipped} already complete, ${failed} failed, ${challenged} rate-limited (retry next run).`);
-  if (dryRun) console.log("Dry run — file NOT written.");
+  if (dryRun) console.log("Dry run - file NOT written.");
   else if (filled) console.log("Wrote " + DATA);
 }
 

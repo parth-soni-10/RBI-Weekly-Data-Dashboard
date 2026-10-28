@@ -1,5 +1,5 @@
 // Shared HTTP helper. Centralizing UA + timeouts so all scrapers behave the same.
-// Caches don't live here — Netlify Blobs are the recommended cache layer.
+// Caches don't live here - Netlify Blobs are the recommended cache layer.
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 const DEFAULT_TIMEOUT_MS = 12000;
 
@@ -8,8 +8,8 @@ async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer,
   let tid;
   // Race the fetch against a hard timer, not just the AbortController: a runtime
   // can leave a fetch to a black-holed host (RBI's WSS page from Cloudflare's
-  // egress) pending well past the signal — node:https is a shim under
-  // nodejs_compat — so the race is what guarantees the caller stops waiting and
+  // egress) pending well past the signal - node:https is a shim under
+  // nodejs_compat - so the race is what guarantees the caller stops waiting and
   // fails fast instead of hanging the whole function.
   const timeout = new Promise((_, reject) => {
     tid = setTimeout(() => { ctrl.abort(); reject(new Error(`timeout after ${timeoutMs}ms on ${url}`)); }, timeoutMs);
@@ -21,7 +21,7 @@ async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer,
         headers: {
           "User-Agent": UA,
           // Document downloads (RBI's rbidocs CDN, behind an F5 bot check) must
-          // send NO Accept header — an Accept that names text/html on an .xlsx
+          // send NO Accept header - an Accept that names text/html on an .xlsx
           // URL trips the challenge page every time. Callers pass accept:false.
           ...(accept ? { "Accept": "text/html,application/xhtml+xml,application/json,text/plain,*/*" } : {}),
           ...(referer ? { "Referer": referer } : {}),
@@ -40,7 +40,7 @@ async function get(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, referer,
   }
 }
 
-// Decode the HTML entities real pages emit (nbsp is the critical one — a raw
+// Decode the HTML entities real pages emit (nbsp is the critical one - a raw
 // non-breaking space breaks numeric parsing if left untouched).
 function decodeEntities(s) {
   const safe = cp => { try { return String.fromCodePoint(cp); } catch (_) { return ""; } };

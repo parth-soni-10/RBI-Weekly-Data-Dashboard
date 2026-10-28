@@ -18,7 +18,7 @@ for (const dir of dirs) {
 // Frontend JS served verbatim from public/ (app.js, sw.js, theme-init.js).
 // A syntax error here blanks the entire page in the browser rather than
 // failing a test, so it must be checked too. Vendored/minified bundles
-// (vendor/*, *.min.js) are skipped — they are third-party and already valid.
+// (vendor/*, *.min.js) are skipped - they are third-party and already valid.
 for (const name of fs.readdirSync('public')) {
   if (name.endsWith('.js') && !name.endsWith('.min.js')) files.push(path.join('public', name));
 }

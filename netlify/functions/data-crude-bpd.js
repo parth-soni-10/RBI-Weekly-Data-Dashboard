@@ -1,7 +1,7 @@
-// Public JSON API — lightweight crude snapshot.
+// Public JSON API - lightweight crude snapshot.
 //
 // For the FULL crude pipeline (PPAC + TankerMap + reconciled daily BPD),
-// call GET /.netlify/functions/fetch-crude?action=all directly — that's the
+// call GET /.netlify/functions/fetch-crude?action=all directly - that's the
 // endpoint the dashboard already uses. This thin endpoint serves a
 // cache-friendly subset so an embed widget or third-party site can pull
 // just the price headline.
@@ -9,7 +9,7 @@
 // GET /data/crude-bpd.json  →  { brent, wti, urals?, fetched_at }
 //
 // Yahoo Finance is hit directly (no net hop to fetch-crude) to keep
-// the response fast and cacheable. urals is best-effort — Yahoo sometimes
+// the response fast and cacheable. urals is best-effort - Yahoo sometimes
 // delists it. If everything fails we still return 200 with null prices
 // so the embed can render a "no data" state without a thrown error.
 
@@ -18,7 +18,7 @@ const { get } = require("./_utils/http");
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "GET,OPTIONS",
-  "Cache-Control":                 "public, max-age=300", // 5 min — prices move
+  "Cache-Control":                 "public, max-age=300", // 5 min - prices move
   "Content-Type":                  "application/json",
 };
 
@@ -48,7 +48,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Fetch the three benchmarks in parallel — they're independent.
+    // Fetch the three benchmarks in parallel - they're independent.
     // urals is included for completeness; many dashboards show Brent + WTI only.
     const [brent, wti, urals] = await Promise.all([
       yahooPrice("BZ=F"),
@@ -69,7 +69,7 @@ exports.handler = async (event) => {
     };
   } catch (err) {
     return {
-      statusCode: 200, headers: { ...CORS, "Cache-Control": "no-store" }, // intentionally 200 — embed handles missing prices
+      statusCode: 200, headers: { ...CORS, "Cache-Control": "no-store" }, // intentionally 200 - embed handles missing prices
       body: JSON.stringify({
         fetched_at:  new Date().toISOString(),
         source:      "Yahoo Finance (spot, USD/bbl)",

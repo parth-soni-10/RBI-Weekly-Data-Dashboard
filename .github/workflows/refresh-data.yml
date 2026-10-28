@@ -1,6 +1,6 @@
 name: Refresh data
 
-# The weekly data refresh — the schedule that used to be a Cloudflare cron
+# The weekly data refresh - the schedule that used to be a Cloudflare cron
 # trigger.
 #
 # It ran on the Worker (`[triggers]` in what was then a Workers config → the
@@ -14,11 +14,11 @@ name: Refresh data
 # Running here also makes the job simpler than the cron was. A runner has this
 # repository checked out, so the plan runs over the working tree
 # (scripts/refresh-static.js, the entry point `npm run refresh` uses) rather than
-# reading and committing every file through the GitHub API — and the commit is
+# reading and committing every file through the GitHub API - and the commit is
 # an ordinary `git commit`, so no personal access token is involved. Same plan,
 # same bytes, whichever way it is started.
 #
-# Friday 22:00 UTC (03:30 IST Saturday) — hours after that day's RBI Weekly
+# Friday 22:00 UTC (03:30 IST Saturday) - hours after that day's RBI Weekly
 # Statistical Supplement is published and after NSDL posts the day's FPI flows,
 # so one run covers the whole week. A run that finds nothing new commits nothing
 # (scrape timestamps do not count as change), so a quiet Friday costs nothing.
@@ -38,7 +38,7 @@ permissions:
   contents: write
 
 # Serialize runs (a manual run while another is going is the way the push step
-# loses — a rejected non-fast-forward).
+# loses - a rejected non-fast-forward).
 concurrency:
   group: refresh-data
   cancel-in-progress: false
@@ -74,11 +74,11 @@ jobs:
       # The whole plan in one command: rbi-data.json + feed.xml, the forward-book
       # series (half-yearly anchor then Bulletin Table 4A, in that order), the
       # World Bank external-debt ranking, and the sentiment + FII/DII histories
-      # — the same steps, run by the same builders, that the cron ran.
+      # - the same steps, run by the same builders, that the cron ran.
       #
       # Steps fail open, one at a time: a dead source costs its own file and
       # nothing else. So the exit status is carried to the end of the job rather
-      # than aborting here — whatever did change still ships — and the run is
+      # than aborting here - whatever did change still ships - and the run is
       # still reported red.
       - name: Refresh the data (the plan in scripts/refresh-static.js)
         id: refresh
@@ -88,7 +88,7 @@ jobs:
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           if [ "$status" -ne 0 ]; then
-            echo "::warning::a refresh step failed (see the log above) — the files that did change are still committed below"
+            echo "::warning::a refresh step failed (see the log above) - the files that did change are still committed below"
           fi
 
       # Deliberately NOT one of the plan's steps: it walks the WSS archive with
@@ -96,7 +96,7 @@ jobs:
       # decomposition (FCA / SDR / IMF / gold tonnes) into the historical weeks,
       # it drains one batch per run, and a backlog may need the button pressed
       # again. RBI's doc CDN fronts an F5 limiter that intermittently serves a
-      # challenge page instead of the file — the script detects it by magic
+      # challenge page instead of the file - the script detects it by magic
       # bytes, paces itself, aborts after three consecutive challenges, and
       # persists after every filled week. Exit code stays 0 either way, so a hot
       # limiter just means the backlog resumes on a later run.
@@ -108,12 +108,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # -u, not -A: every TRACKED file this run modified, which is exactly
-          # the plan's output — public/*.json, public/feed.xml, public/index.html
+          # the plan's output - public/*.json, public/feed.xml, public/index.html
           # and netlify/functions/fetch-fx-intervention.js. A file the run
           # created that the repository does not track is not this job's to add.
           git add -u
           if git diff --cached --quiet; then
-            echo "No new data — nothing to commit."
+            echo "No new data - nothing to commit."
           else
             git commit -m "chore(data): weekly refresh"
             # A manual push can land on main while this run is scraping, which

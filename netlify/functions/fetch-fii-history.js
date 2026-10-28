@@ -1,12 +1,12 @@
-// Netlify callable: daily NSDL FII (equity/debt) + NSE DII flows — gross buy,
+// Netlify callable: daily NSDL FII (equity/debt) + NSE DII flows - gross buy,
 // gross sell and net in ₹ cr, one row per trading day.
 //
 // Sources (both verified live; neither alone covers FII + DII):
-//   1. NSDL Monthly page — every trading day of the current month with the
+//   1. NSDL Monthly page - every trading day of the current month with the
 //      full per-day block (Equity sub-total, the three Debt sub-type
 //      sub-totals: General/VRR/FAR, Hybrid, MF, AIFs, day Total). NSDL
 //      publishes the day's FPI flows on the evening of the same day.
-//   2. NSE fii-dii CSV — the official provisional FII/DII buy/sell/net for the
+//   2. NSE fii-dii CSV - the official provisional FII/DII buy/sell/net for the
 //      latest published session. Needs a cookie warm-up (page first, then the
 //      API), and publishes DII one session behind NSDL. Only the DII row is
 //      used here: NSE's FII/FPI figure is a single equity+debt number and
@@ -18,7 +18,7 @@
 // deploy build); the frontend merges that file with this function's live rows.
 //
 // Always returns 200: if both sources fail we serve a curated ~30-day series
-// flagged `status: "static fallback"` — the frontend ignores fallback rows so
+// flagged `status: "static fallback"` - the frontend ignores fallback rows so
 // fabricated bars can never mix into the accumulated history.
 //
 // CORS: open.
@@ -172,7 +172,7 @@ function mergeByDate(target, add) {
   }
 }
 
-// 2dp on the way out — summed floats carry noise (1054.9299999999998).
+// 2dp on the way out - summed floats carry noise (1054.9299999999998).
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v);
 
 // Build the response payload (also consumed by scripts/snapshot-fii-dii.js,
@@ -181,9 +181,9 @@ async function _buildPayload() {
   const [nsdl, nse] = await Promise.allSettled([fetchNsdlMonth(), fetchNseDii()]);
   const byDate = {};
   if (nsdl.status === "fulfilled") mergeByDate(byDate, nsdl.value);
-  else console.error("fii-history: NSDL failed —", nsdl.reason && nsdl.reason.message);
+  else console.error("fii-history: NSDL failed -", nsdl.reason && nsdl.reason.message);
   if (nse.status === "fulfilled") mergeByDate(byDate, nse.value);
-  else console.error("fii-history: NSE failed —", nse.reason && nse.reason.message);
+  else console.error("fii-history: NSE failed -", nse.reason && nse.reason.message);
 
   let series = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
   let source = "NSDL Monthly (FII split) + NSE fii-dii (DII)";

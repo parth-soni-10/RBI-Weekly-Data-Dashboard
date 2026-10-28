@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1080, height=1920" />
-    <title>RBI Weekly Dashboard — Brag</title>
+    <title>RBI Weekly Dashboard - Brag</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -51,7 +51,7 @@
         opacity: 0.5;
       }
 
-      /* Scene 1 — Hook */
+      /* Scene 1 - Hook */
       #hook {
         display: flex;
         flex-direction: column;
@@ -97,7 +97,7 @@
         color: #16a34a;
       }
 
-      /* Scene 2 — Proof */
+      /* Scene 2 - Proof */
       #proof {
         display: flex;
         flex-direction: column;
@@ -134,7 +134,7 @@
         letter-spacing: 0.02em;
       }
 
-      /* Scene 3 — The Work */
+      /* Scene 3 - The Work */
       #work {
         display: flex;
         align-items: center;
@@ -235,7 +235,7 @@
         color: #9fc9b2;
       }
 
-      /* Scene 4 — Philosophy */
+      /* Scene 4 - Philosophy */
       #philosophy {
         display: flex;
         flex-direction: column;
@@ -259,7 +259,7 @@
         color: #0d2b1a;
       }
 
-      /* Scene 5 — Outro */
+      /* Scene 5 - Outro */
       #outro {
         display: flex;
         flex-direction: column;
@@ -384,7 +384,7 @@
             <p class="kpi-value" id="kpi-usd">0</p>
           </div>
           <div id="bars-wrap">
-            <p id="bars-title">Forex Reserves — last 10 weeks ($B)</p>
+            <p id="bars-title">Forex Reserves - last 10 weeks ($B)</p>
             <div id="bars">
               <div class="bar-col">
                 <div class="bar" id="bar-1" style="height: 72%"></div>
@@ -435,7 +435,7 @@
         tl.fromTo('#bg-music', { volume: 0 }, { volume: 0.32, duration: 0.6 }, 0);
         tl.to('#bg-music', { volume: 0, duration: 2.4 }, 27.6);
 
-        // Scene 1 — Hook (visual 0.0-4.6)
+        // Scene 1 - Hook (visual 0.0-4.6)
         tl.fromTo('#glow', { opacity: 0 }, { opacity: 0.5, duration: 1.4 }, 0.4);
         tl.to('#glow', { opacity: 0.62, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: 5 }, 1.8);
         tl.fromTo('#eyebrow', { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.9, ease: 'power2.out' }, 0.6);
@@ -459,7 +459,7 @@
         tl.to('#hook', { autoAlpha: 0, duration: 0.8, ease: 'none' }, 6.2);
         tl.fromTo('#proof', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'none' }, 6.2);
 
-        // Scene 2 — Proof (visual 7.0-13.0)
+        // Scene 2 - Proof (visual 7.0-13.0)
         tl.fromTo('#sub', { autoAlpha: 0, y: 26 }, { autoAlpha: 1, y: 0, duration: 1.2, ease: 'power2.out' }, 7.2);
         // beat-grid: pills at 8.02 / 9.02 / 10.02 / 11.02 (vol-1)
         const pills = ['#pill-1', '#pill-2', '#pill-3', '#pill-4'];
@@ -476,7 +476,7 @@
         tl.to('#proof', { autoAlpha: 0, duration: 0.8, ease: 'none' }, 13.0);
         tl.fromTo('#work', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'none' }, 13.0);
 
-        // Scene 3 — The Work (visual 13.8-22.2)
+        // Scene 3 - The Work (visual 13.8-22.2)
         // beat-locked: 14.02s (vol-1 beat)
         tl.fromTo(
           '#dash-card',
@@ -520,7 +520,7 @@
         tl.to('#work', { autoAlpha: 0, duration: 0.8, ease: 'none' }, 22.2);
         tl.fromTo('#philosophy', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'none' }, 22.2);
 
-        // Scene 4 — Philosophy (visual 23.0-26.2)
+        // Scene 4 - Philosophy (visual 23.0-26.2)
         // beat-locked: 23.02s (vol-1 strong cue)
         tl.fromTo('#quote-mark', { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, duration: 0.8, ease: 'power2.out' }, 23.02);
         // beat-locked: 24.02s (vol-1 beat)
@@ -530,7 +530,7 @@
         tl.to('#philosophy', { autoAlpha: 0, duration: 0.8, ease: 'none' }, 26.2);
         tl.fromTo('#outro', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'none' }, 26.2);
 
-        // Scene 5 — Outro (visual 27.0-30.0)
+        // Scene 5 - Outro (visual 27.0-30.0)
         // beat-locked: 27.02s (vol-1 strong cue)
         tl.fromTo('#cta', { autoAlpha: 0, y: 36 }, { autoAlpha: 1, y: 0, duration: 1.2, ease: 'power3.out' }, 27.02);
         // beat-locked: 28.01s (vol-1 strong cue)

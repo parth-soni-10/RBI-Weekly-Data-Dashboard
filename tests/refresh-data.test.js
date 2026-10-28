@@ -1,4 +1,4 @@
-// tests/refresh-data.test.js — regression tests for the weekly refresh.
+// tests/refresh-data.test.js - regression tests for the weekly refresh.
 //
 //   npm test          (node --test, no dependencies)
 //
@@ -6,7 +6,7 @@
 // weekly workflow regenerates the committed data files, and the commit deploys.
 // These tests pin the rules that keep that safe, with no network anywhere:
 //
-//   - the commit decision (a quiet run must commit nothing — including a run that
+//   - the commit decision (a quiet run must commit nothing - including a run that
 //     only re-stamped a scrape timestamp, which would otherwise deploy every
 //     Friday for no reason);
 //   - a read that FAILED must never be read as "the repo has no such file", or
@@ -38,7 +38,7 @@ function fakeIo(initial = {}, { unreadable = [] } = {}) {
     repo,
     commits,
     async read(path) {
-      if (unreadable.includes(path)) return { ok: false, text: null, error: "HTTP 500 — upstream is having a day" };
+      if (unreadable.includes(path)) return { ok: false, text: null, error: "HTTP 500 - upstream is having a day" };
       return { ok: true, text: path in repo ? repo[path] : null };
     },
     async commit({ files, message }) {
@@ -91,7 +91,7 @@ test("every changed file lands in one commit, and a failed step does not stop it
   assert.equal(summary.steps.map(s => s.status).join(","), "updated,failed,updated");
   assert.equal(summary.ok, false, "a failed step is reported even though the commit succeeded");
   assert.deepEqual(summary.failed, ["sentiment: Yahoo is down"]);
-  assert.match(io.commits[0].message, /^chore\(data\): weekly refresh — rbi-data\.json, external-debt\.json\n/);
+  assert.match(io.commits[0].message, /^chore\(data\): weekly refresh - rbi-data\.json, external-debt\.json\n/);
   assert.match(io.commits[0].message, /- public\/rbi-data\.json: 41 weeks/);
 });
 
@@ -136,7 +136,7 @@ test("a missing file is a null baseline, not an error, and steps on one path see
 
 test("a failed commit is reported as such", async () => {
   const io = fakeIo({ [RBI]: "old" });
-  io.commit = async () => ({ ok: false, error: "ref: HTTP 422 — Update is not a fast forward" });
+  io.commit = async () => ({ ok: false, error: "ref: HTTP 422 - Update is not a fast forward" });
   const summary = await runRefresh({ io, steps: [step("rbi-data", RBI, async () => ({ text: "new", detail: "" }))] });
   assert.equal(summary.ok, false);
   assert.match(summary.commitError, /not a fast forward/);
@@ -147,7 +147,7 @@ test("commitMessage names the files and lists what each step did", () => {
     [{ path: "public/rbi-data.json" }, { path: "netlify/functions/fetch-fx-intervention.js" }],
     [{ status: "updated", path: "public/rbi-data.json", detail: "41 weeks · 1 new" }, { status: "unchanged", path: "public/feed.xml", detail: "" }],
   );
-  assert.match(msg, /^chore\(data\): weekly refresh — rbi-data\.json, fetch-fx-intervention\.js$/m);
+  assert.match(msg, /^chore\(data\): weekly refresh - rbi-data\.json, fetch-fx-intervention\.js$/m);
   assert.match(msg, /^- public\/rbi-data\.json: 41 weeks · 1 new$/m);
   assert.ok(!msg.includes("public/feed.xml"), "unchanged files stay out of the body");
 });

@@ -1,4 +1,4 @@
-// tests/worker-edge-cache.test.mjs — what the Worker is willing to edge-cache.
+// tests/worker-edge-cache.test.mjs - what the Worker is willing to edge-cache.
 //
 //   npm test          (node --test, no dependencies)
 //
@@ -64,7 +64,7 @@ test("a response that sets a cookie is not stored", () => {
 // The colo cache is the one piece of the runtime these tests stand in for: a
 // Map with match/put is the whole interface the router uses. Stubbing it means
 // the assertions are about which requests reach a handler and which responses
-// get stored — no network, no scraper, no 40-second wait.
+// get stored - no network, no scraper, no 40-second wait.
 // ---------------------------------------------------------------------------
 
 function runtime() {
@@ -111,7 +111,7 @@ test("a no-store route is left alone: not served from cache, not stored", async 
   const response = await call(rt, "/.netlify/functions/data-sync");
 
   // The handler answered (and said no-store), so nothing was stored and a
-  // second request will reach it again — data-sync's reads must stay fresh.
+  // second request will reach it again - data-sync's reads must stay fresh.
   assert.equal(response.status, 200);
   assert.match(response.headers.get("Cache-Control") || "", /no-store/);
   assert.deepEqual(rt.puts, [], "a no-store response must not enter the cache");

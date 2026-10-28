@@ -1,9 +1,9 @@
-// Netlify callable: The world's biggest borrower countries — cross-country
+// Netlify callable: The world's biggest borrower countries - cross-country
 // ranking of total EXTERNAL DEBT STOCKS, with India highlighted, plus each
 // economy's official FX reserves so the dashboard can show debt cover.
 //
 // ── SOURCE (authenticated/official) ──────────────────────────────────────
-// World Bank API v2, Quarterly External Debt Statistics (QEDS) — the
+// World Bank API v2, Quarterly External Debt Statistics (QEDS) - the
 // quarterly, mutually-agreed structured data submissions countries make to
 // the World Bank under the IMF's Special Data Dissemination Standard (SDDS,
 // source 22) and General Data Dissemination System (GDDS, source 23).
@@ -14,8 +14,8 @@
 //
 // ── WHY QUARTERLY QEDS, NOT ANNUAL IDS ───────────────────────────────────
 // The annual IDS series (DT.DOD.DECT.CD) excludes high-income countries and
-// lags a year+. QEDS includes the SDDS subscribers — USA, UK, Japan, the
-// euro-area economies, Singapore, HK… — and runs ~5 quarters fresher
+// lags a year+. QEDS includes the SDDS subscribers - USA, UK, Japan, the
+// euro-area economies, Singapore, HK… - and runs ~5 quarters fresher
 // (latest: 2026Q1). The honest headline changes: the USA is the world's
 // biggest external borrower (~$30T), the UK second (~$11T); CHINA (~$2.3T)
 // leads only among the non-SDDS (annual-IDS) reporters, and INDIA ranks
@@ -25,14 +25,14 @@
 // ── CADENCE / REFRESH ────────────────────────────────────────────────────
 // QEDS vintages land monthly-ish per country (source lastupdated: 2026-08-07).
 // The payload is memoized in-process for 6h; `?refresh=1` bypasses AND
-// overwrites the memo, and the frontend uses it on every explicit Reload —
+// overwrites the memo, and the frontend uses it on every explicit Reload -
 // plus scripts/fetch-debt-rankings.js regenerates public/external-debt.json
 // on every deploy and daily cron run. So every run re-pulls the live API.
 //
 // CORS: open.
 //
 // ── RESERVES (for the debt-cover comparison) ───────────────────────────
-// WDI total reserves incl. gold, current US$ (FI.RES.TOTL.CD) — annual, each
+// WDI total reserves incl. gold, current US$ (FI.RES.TOTL.CD) - annual, each
 // economy's latest non-empty year (2025 as of this writing). Served per row
 // as `reserves_bn`/`reserves_year` so the UI can compute debt ÷ reserves
 // cover. Cross-country cover ratios compare debt quarter vs reserves year;
@@ -41,7 +41,7 @@
 // ── INDIA MATURITY SPLIT (short vs long term) ───────────────────────────
 // QEDS SDDS carries the all-sectors SHORT-TERM external-debt stock directly
 // (DT.DOD.DSTC.CD.US); long-term = the total (DT.DOD.DECT.CD.AR.US) minus
-// short-term — the same-source identity QEDS itself publishes. india.history
+// short-term - the same-source identity QEDS itself publishes. india.history
 // therefore also carries total_bn / st_bn / lt_bn / st_share_pct (st_share
 // omitted where a quarter lacks the short-term figure), which the UI renders
 // as a stacked maturity-split chart.
@@ -52,7 +52,7 @@
 // quarter with ≥30 reporters, india.rank_history records India's rank, the
 // reporter count, India's stock, and the ±2 rank neighbours. NOTE: a rank
 // counts economies REPORTING THAT QUARTER (~117-124 settled), while the
-// current tile rank counts every reporter's latest vintage (135) — the
+// current tile rank counts every reporter's latest vintage (135) - the
 // newest quarter is always still filling in, so its rank runs slightly high.
 //
 // Output shape:
@@ -79,8 +79,8 @@ const CORS = { "Content-Type": "application/json", "Access-Control-Allow-Origin"
 
 const API_BASE = "https://api.worldbank.org/v2";
 // Gross external debt position, all sectors/maturities/instruments, USD:
-//   SDDS (source 22): DT.DOD.DECT.CD.AR.US — includes USA/UK/JPN/CHN/HKG/SGP…
-//   GDDS (source 23): DT.DOD.DECT.CD.TL.US — smaller reporters, same concept
+//   SDDS (source 22): DT.DOD.DECT.CD.AR.US - includes USA/UK/JPN/CHN/HKG/SGP…
+//   GDDS (source 23): DT.DOD.DECT.CD.TL.US - smaller reporters, same concept
 const IND_SDDS = "DT.DOD.DECT.CD.AR.US";
 const IND_GDDS = "DT.DOD.DECT.CD.TL.US";
 const URL_SDDS      = `${API_BASE}/country/all/indicator/${IND_SDDS}?format=json&source=22&per_page=400&mrnev=1`;
@@ -101,8 +101,8 @@ const SCOPE_NOTE =
   "Gross external-debt stock ranking among economies reporting to the World Bank's " +
   "Quarterly External Debt Statistics (IMF SDDS/GDDS subscribers, incl. high-income " +
   "economies). Each economy's latest published quarter is used, so vintages differ " +
-  "by up to a few quarters. The annual IDS series — which excludes high-income " +
-  "reporters — tops out at China instead; QEDS shows the USA and UK far ahead.";
+  "by up to a few quarters. The annual IDS series - which excludes high-income " +
+  "reporters - tops out at China instead; QEDS shows the USA and UK far ahead.";
 
 // Curated fallback, verified against api.worldbank.org on 2026-09-11
 // (SDDS meta.lastupdated 2026-08-07). Served (clearly flagged) only when the
@@ -121,7 +121,7 @@ const FALLBACK_TOP12 = [
   { iso3: 'ITA', name: 'Italy',          value_bn: 3263.3,  period: '2026Q1' }, // #11
   { iso3: 'SGP', name: 'Singapore',      value_bn: 2580.7,  period: '2026Q1' }, // #12
 ];
-// WDI reserves (FI.RES.TOTL.CD), latest year per economy — verified 2026-09-11.
+// WDI reserves (FI.RES.TOTL.CD), latest year per economy - verified 2026-09-11.
 const FALLBACK_RESERVES = {
   USA: { value_bn: 1385.4, year: '2025' }, GBR: { value_bn: 214.4,  year: '2025' },
   FRA: { value_bn: 428.2,  year: '2025' }, DEU: { value_bn: 572.2,  year: '2025' },
@@ -263,7 +263,7 @@ function rankHistory(sddsPanel, gddsPanel, iso3s) {
 const TOP_N = 12;
 const MEMO_TTL_MS = 6 * 60 * 60 * 1000; // QEDS refreshes monthly-ish; 6h is generous
 
-// Small in-process memo (same idea as _utils/cache.js) — hand-rolled so that
+// Small in-process memo (same idea as _utils/cache.js) - hand-rolled so that
 // `?refresh=1` can OVERWRITE the cached entry, which withCache can't do.
 let memo = { t: 0, value: null };
 
@@ -397,11 +397,11 @@ async function buildPayload() {
 function fallbackPayload(reason) {
   return {
     fetched_at: new Date().toISOString(),
-    source: "World Bank Quarterly External Debt Statistics, SDDS+GDDS — curated fallback",
+    source: "World Bank Quarterly External Debt Statistics, SDDS+GDDS - curated fallback",
     source_url: `https://api.worldbank.org/v2/country/all/indicator/${IND_SDDS}?format=json&source=22&mrnev=1`,
     indicator: `${IND_SDDS} / ${IND_GDDS}`,
     status: "static fallback",
-    error: reason + " — showing last-known curated figures",
+    error: reason + " - showing last-known curated figures",
     scope_note: SCOPE_NOTE,
     as_of_period: FALLBACK_TOP12[0].period,
     worldbank_lastupdated: "2026-08-07",

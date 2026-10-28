@@ -2,15 +2,15 @@
 //
 // The public /data/*.json endpoints used to scrape RBI on every request. On
 // Cloudflare that is the wrong shape: a Worker's response is only cached when
-// the handler itself stores it, so a cold request ran the whole scrape —
+// the handler itself stores it, so a cold request ran the whole scrape -
 // data-latest walks back up to six Fridays, each a WSS page fetch plus Excel
-// retries — and took minutes instead of answering. The committed snapshot IS
+// retries - and took minutes instead of answering. The committed snapshot IS
 // the site's source of truth (the Friday refresh keeps it current and the deploy
 // ships it), so these endpoints serve it through the Pages ASSETS binding
 // rather than touching RBI at all.
 //
 // The binding is injected from functions/_router.js with setAssets(), the same
-// way data-sync takes its KV store through setStore() — no handler reaches for a
+// way data-sync takes its KV store through setStore() - no handler reaches for a
 // global, and a test can hand it a fake.
 
 let assets = null;

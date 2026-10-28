@@ -1,15 +1,15 @@
-// data-sync.js — durable merge cache for the dashboard's Reload button.
+// data-sync.js - durable merge cache for the dashboard's Reload button.
 //
 // The dashboard loads the committed static file public/rbi-data.json, live-checks
 // the fetch-data function for weeks newer than the file, and merges them in the
-// browser. That merged set is ephemeral unless persisted — and Netlify Functions
+// browser. That merged set is ephemeral unless persisted - and Netlify Functions
 // cannot write to the publish directory in production. So this function stores
 // the merged records in a Netlify Blob (durable, shared across visitors, survives
 // deploys). On the next page load the dashboard reads the blob first, anchors the
 // live check on its newest record, and only re-scrapes RBI when something newer
-// actually exists — repeat reloads never re-fetch the same weeks.
+// actually exists - repeat reloads never re-fetch the same weeks.
 //
-// The store (a Netlify Blob, now Cloudflare KV — see setStore below) also carries
+// The store (a Netlify Blob, now Cloudflare KV - see setStore below) also carries
 // a `forward` entry (the newest official RBI forward
 // figure found by a live check, so repeat reloads skip the fetch-fwd-latest
 // rbi.org.in scrape), an `em` entry (per-range EM-peers payloads, so repeat
@@ -30,7 +30,7 @@
 //
 //   1. Same-origin writes. A browser sends Origin on a cross-site POST, so a
 //      page on another site is refused (403). Requests with no Origin at all
-//      (curl, a script, CI) pass through to the checks below — an operator may
+//      (curl, a script, CI) pass through to the checks below - an operator may
 //      legitimately seed the cache that way. Note what this does and does not
 //      buy: shape validation (3) is what stops a write from becoming markup, but
 //      it cannot tell a *true* record from a well-formed false one. An
@@ -41,11 +41,11 @@
 //      every write must present it as the x-sync-token header (401 otherwise);
 //      the dashboard sends it from localStorage("rbi-sync-token") when present.
 //      Left unset the write path stays open, because the dashboard is a static
-//      page with no server to hold a secret — which is exactly why nothing here
+//      page with no server to hold a secret - which is exactly why nothing here
 //      is trusted on shape: see 3.
 //   3. Validation and sanitisation on the way in *and* on the way out. Any
 //      string that could become markup is stripped of < and >, dates must look
-//      like dates, numbers must be finite, and every collection has a cap — so
+//      like dates, numbers must be finite, and every collection has a cap - so
 //      neither a fresh write nor a payload stored before this check existed can
 //      reach the page as HTML. public/index.html escapes on render as well.
 // ---------------------------------------------------------------------------
@@ -54,8 +54,8 @@ const { timingSafeEqual } = require("node:crypto");
 const KEY = "records";
 
 // The durable store is injected rather than opened here: functions/_router.js hands in a
-// KV-backed object with the two calls this file makes — `get(key, {type:'json'})`
-// and `setJSON(key, value)` — which is the shape the Netlify Blob store had, so
+// KV-backed object with the two calls this file makes - `get(key, {type:'json'})`
+// and `setJSON(key, value)` - which is the shape the Netlify Blob store had, so
 // the validation and the guards below did not change with the move. The tests
 // inject an in-memory stub the same way. Nothing here holds a credential or a
 // connection, which is why there is no configuration to read either.
@@ -96,7 +96,7 @@ const isIsoDay = (v) => typeof v === "string" && ISO_DAY.test(v) && !Number.isNa
 // The forward book is published MONTHLY (RBI Bulletin Table 4A) and every
 // consumer keys it by month: the deployed series is `{ date: "2026-07", net_fwd }`
 // (scripts/update-fwd-monthly.js), fetch-fx-intervention answers `month: "2026-07"`,
-// and fetch-fwd-latest — the endpoint the dashboard persists this figure from —
+// and fetch-fwd-latest - the endpoint the dashboard persists this figure from -
 // answers `date: "2026-07"` with the day itself in `asOn`.
 //
 // Demanding a day here made that save fail every time: measured on the live site,
@@ -104,7 +104,7 @@ const isIsoDay = (v) => typeof v === "string" && ISO_DAY.test(v) && !Number.isNa
 // load, and the store answered `body.forward must be an object with date
 // (YYYY-MM-DD)...` for `{ date: "2026-07", net_fwd: -136.768 }` while accepting
 // `{ date: "2026-07-31" }`. A weekly record's date is still a day, and still must
-// be (cleanRecord, above) — this is the other series, with the other key.
+// be (cleanRecord, above) - this is the other series, with the other key.
 const isIsoMonth = (v) => typeof v === "string" && ISO_MONTH.test(v);
 const isForwardDate = (v) => isIsoDay(v) || isIsoMonth(v);
 
@@ -227,11 +227,11 @@ function cleanPmcares(pm) {
 
 // Requests carrying an Origin must come from this site. A same-origin POST is
 // the only kind the dashboard makes, and an attacker's page cannot forge the
-// Origin of another origin — so this closes the drive-by write path entirely.
+// Origin of another origin - so this closes the drive-by write path entirely.
 function sameOrigin(event) {
   const headers = event.headers || {};
   const origin = headers.origin || headers.Origin;
-  if (!origin) return true; // curl / script / CI — validated below regardless
+  if (!origin) return true; // curl / script / CI - validated below regardless
   const host = headers.host || headers.Host;
   if (!host) return false;
   try {
@@ -278,12 +278,12 @@ exports.handler = async (event) => {
     store = openStore();
   } catch (err) {
     // No store bound (a Worker deployed without the SYNC_KV binding, or a local
-    // run that forgot to inject one) — report it as 503 with the code the
+    // run that forgot to inject one) - report it as 503 with the code the
     // dashboard already turns into one honest log line instead of mystery noise.
     return json(503, {
       error: `durable store unavailable: ${err.message}`,
       code: "BLOB_UNAVAILABLE",
-      hint: "The Worker needs its SYNC_KV binding — see wrangler.toml.",
+      hint: "The Worker needs its SYNC_KV binding - see wrangler.toml.",
     });
   }
 
@@ -315,8 +315,8 @@ exports.handler = async (event) => {
     // An explicitly empty array is kept out of the store the same way an omitted
     // key is: the store is a shared cache of the weeks the dashboard already
     // merged, so replacing forty of them with none makes every visitor's next
-    // load re-scrape RBI for weeks it had. The empty state is still reachable —
-    // it is a store that has never been written (GET answers `records: null`) —
+    // load re-scrape RBI for weeks it had. The empty state is still reachable -
+    // it is a store that has never been written (GET answers `records: null`) -
     // and the page's own write always carries its full merged set, so nothing
     // legitimate is lost by refusing to shrink it to nothing.
     if (!records.length) {
@@ -341,7 +341,7 @@ exports.handler = async (event) => {
       return json(400, { error: "body.pmcares must be { rows: [...], checkedAt }" });
     }
 
-    // Writes that omit a key must not wipe a previously saved value — keep the
+    // Writes that omit a key must not wipe a previously saved value - keep the
     // existing forward, em, and/or pmcares payloads. Values read back from the
     // store are re-cleaned, so anything saved before this check existed is
     // defused rather than carried forward.
@@ -367,7 +367,7 @@ exports.handler = async (event) => {
     return json(200, { ok: true, savedAt });
   }
 
-  // GET — same cleaning on the way out: a blob written before the write path
+  // GET - same cleaning on the way out: a blob written before the write path
   // was validated must not reach the page as markup either.
   try {
     const saved = await store.get(KEY, { type: "json" });
@@ -386,7 +386,7 @@ exports.handler = async (event) => {
       pmcares: cleanPmcares(saved.pmcares),
     });
   } catch (err) {
-    // Blob missing/unavailable is not fatal — the dashboard falls back to the file.
+    // Blob missing/unavailable is not fatal - the dashboard falls back to the file.
     return json(200, { records: null, savedAt: null, forward: null, em: null, pmcares: null });
   }
 };

@@ -3,7 +3,7 @@
 //
 // The dashboard's "EM Peers" tab used to call Yahoo's chart API straight from
 // the browser, which only works when the page origin is one Yahoo allows
-// (CORS) — locally served copies and other origins got blocked and the tab
+// (CORS) - locally served copies and other origins got blocked and the tab
 // silently degraded. Proxying through this function fixes that: browsers talk
 // to /.netlify/functions/fetch-em-peers (same origin, no CORS) and the
 // function talks to Yahoo server-side.

@@ -1,4 +1,4 @@
-// tests/refresh-workflow.test.js — the two halves of "the data stays current".
+// tests/refresh-workflow.test.js - the two halves of "the data stays current".
 //
 //   1. The weekly GitHub Actions workflow. It is the ONLY thing that can fetch
 //      RBI's WSS Excel (the site runs on Cloudflare Pages, whose egress RBI's
@@ -6,7 +6,7 @@
 //      snapshot goes stale and every visitor's live check fails with "reserves
 //      Excel download failed". These pins cover the mistakes that actually
 //      broke it: a cron that fired on the wrong day, a missing `npm ci`
-//      (node-xlsx is a dependency — the refresh cannot even start without it),
+//      (node-xlsx is a dependency - the refresh cannot even start without it),
 //      a missing `permissions: contents: write` (the bot's token cannot push),
 //      and a `git add` of a path that does not exist (the commit stages
 //      nothing, so the run reports success and ships the same stale data).

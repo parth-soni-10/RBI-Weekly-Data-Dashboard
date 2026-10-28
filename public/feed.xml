@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>RBI Weekly Dashboard — new weeks</title>
+    <title>RBI Weekly Dashboard - new weeks</title>
     <link>https://rbiweeklydashboard.pages.dev/</link>
     <description>One item per RBI Weekly Statistical Supplement week: forex reserves, gold, and the rupee, from the dashboard's weekly data.</description>
     <language>en-in</language>

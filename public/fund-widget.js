@@ -1,4 +1,4 @@
-/* Fund Widget — label/value/change cards on a reel you can spin.
+/* Fund Widget - label/value/change cards on a reel you can spin.
  *
  *   <div class="fw-host" data-fund-widget role="listbox" aria-label="…">
  *     <div class="fw-item">
@@ -16,13 +16,13 @@
  * viewer and its neighbours turned into the ring above and below. Dragging
  * spins it; releasing snaps to the nearest card. Arrow keys, Home/End and a tap
  * on any card do the same, and the front card is reported as the selection the
- * way a listbox reports one — role="option" with aria-selected, named by the
+ * way a listbox reports one - role="option" with aria-selected, named by the
  * host's aria-activedescendant.
  *
  * Everything is measured from the host's own CSS: --fw-gap is the distance
  * between two cards (78px by default), --fw-h the height of the opening. Nothing
  * is declared in JavaScript that a stylesheet could say, and the layout rules
- * only apply once the kit has marked the host [data-fw-ready] — so with the
+ * only apply once the kit has marked the host [data-fw-ready] - so with the
  * script missing, the host's cards simply sit one under the other.
  *
  * A host that rebuilds its cards (a render pass, a data load) calls

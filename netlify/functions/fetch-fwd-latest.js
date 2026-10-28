@@ -1,11 +1,11 @@
-// fetch-fwd-latest.js — on-demand live check of the newest official RBI forward
+// fetch-fwd-latest.js - on-demand live check of the newest official RBI forward
 // figure, for the dashboard's Reload button.
 //
 // The committed forward series (FWD_SERIES in fetch-fx-intervention.js) is
 // refreshed by the daily cron and every deploy (scripts/update-fwd-monthly.js
 // + update-fwd-series.js). Between those runs, Reload calls this function,
 // which re-runs the exact same discovery + parsing against the RBI Bulletin's
-// newest Table 4A and returns the figure — the frontend appends it in-memory
+// newest Table 4A and returns the figure - the frontend appends it in-memory
 // when it's newer than the series tail. Never writes to the series file; the
 // real append/upgrade stays with the scripts.
 //

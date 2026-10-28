@@ -49,7 +49,7 @@ exports.handler = async () => {
       // The page typically renders many rows; the *topmost* row that has
       // a parseable date often = today's row, but some pages have headers
       // as row 0 and Direction swapped. We scan from row 1 to end and
-      // keep the LAST row with a recognizable date — that's the newsett.
+      // keep the LAST row with a recognizable date - that's the newsett.
       let latestRow = null;
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
@@ -72,7 +72,7 @@ exports.handler = async () => {
       }
 
       if (hasEquity) {
-        // Look at rightmost numeric >= 100 (or negative) — net flows are in cr.
+        // Look at rightmost numeric >= 100 (or negative) - net flows are in cr.
         const nums = latestRow
           .map(c => String(c).replace(/[()]/g, "").trim())
           .filter(c => /^-?[\d,.]+$/.test(c))

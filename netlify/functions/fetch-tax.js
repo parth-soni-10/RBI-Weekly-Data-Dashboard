@@ -1,7 +1,7 @@
 // Netlify callable: CBIC indirect tax receipts (GST + Customs + Excise), monthly.
 //
 // Source: PIB monthly press release on indirect tax collection.
-// Backup: curated fallback numbers from the recent CBIC monthly bulletins —
+// Backup: curated fallback numbers from the recent CBIC monthly bulletins -
 // the live PIB HTML page is JS-rendered and the GST regex rarely matches
 // without aggressive sanitisation. Last-known numbers keep the dashboard
 // informative even when scraping fails.

@@ -18,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Entries older than a day are dropped so the map cannot grow without bound
 // across a long-lived warm instance.
 //
-// This used to be a module-level `setInterval(...).unref()` — Node's way of
+// This used to be a module-level `setInterval(...).unref()` - Node's way of
 // keeping the process free to exit. The Workers runtime refuses both halves of
 // that: it has no `unref()`, and creating a timer in global scope is a
 // *disallowed operation* there, so importing this file failed the whole Worker

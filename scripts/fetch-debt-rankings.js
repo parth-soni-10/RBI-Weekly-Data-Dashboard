@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * fetch-debt-rankings.js — regenerate public/external-debt.json.
+ * fetch-debt-rankings.js - regenerate public/external-debt.json.
  *
  * Pulls the world's biggest-borrower ranking (gross external-debt stock,
  * World Bank Quarterly External Debt Statistics, SDDS+GDDS) plus each
@@ -8,13 +8,13 @@
  * ratios) from the live World Bank API and writes it as a static file the
  * dashboard ships with.
  *
- * Runs in the weekly refresh (npm run refresh, and the Friday workflow — this
+ * Runs in the weekly refresh (npm run refresh, and the Friday workflow - this
  * was the Netlify build command before that), so every run re-pulls the
  * authenticated source.
  *
  * Fails open: on network/parse errors the committed file is refreshed from
  * the function's curated fallback (clearly flagged), never left stale and
- * never deleted — a slow/blocked api.worldbank.org can't break a refresh.
+ * never deleted - a slow/blocked api.worldbank.org can't break a refresh.
  *
  * buildExternalDebtFile() is the whole job as a pure function, so the CLI and
  * the weekly refresh produce the same bytes.
@@ -26,13 +26,13 @@
 const fs = require("fs");
 const path = require("path");
 
-// CLI path only — the weekly refresh commits the text the builder returns.
+// CLI path only - the weekly refresh commits the text the builder returns.
 // `__dirname` does not exist in a Worker, hence the guard (see
 // scripts/update-fwd-monthly.js for the same trap).
 const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "external-debt.json") : "";
 const { _buildPayload, _fallbackPayload } = require("../netlify/functions/fetch-external-debt");
 
-/** → { text, payload, note, detail }. Throws only on a bug — both failures below are data. */
+/** → { text, payload, note, detail }. Throws only on a bug - both failures below are data. */
 async function buildExternalDebtFile() {
   let payload;
   let note = "live World Bank API";

@@ -1,19 +1,19 @@
-// refresh-data.js — the weekly data refresh, as one ordered plan.
+// refresh-data.js - the weekly data refresh, as one ordered plan.
 //
 // WHAT THIS REPLACES
 //
-// Netlify ran its build command on every deploy —
+// Netlify ran its build command on every deploy -
 //
 //   npm run fetch:data && npm run update:fwd && npm run update:fwd-monthly &&
 //   npm run fetch:debt && npm run snapshot:fng && npm run snapshot:fii
 //
-// — so every deploy regenerated the committed data files and shipped freshly
+// - so every deploy regenerated the committed data files and shipped freshly
 // scraped numbers whatever the repository held. A Cloudflare deploy has no build
 // step: a deploy ships the files as committed, which turned "the data is current"
 // into a manual step someone had to remember. This module is that chain, written
 // once, and .github/workflows/refresh-data.yml runs it on a schedule: Friday
 // 22:00 UTC, regenerate, commit what changed. The commit is what closes the
-// loop — the Pages project is connected to this repo, so the push deploys a site
+// loop - the Pages project is connected to this repo, so the push deploys a site
 // carrying the new data.
 //
 // (While the site ran on a Worker this same plan ran from the Worker's cron
@@ -34,7 +34,7 @@
 //   fii-dii       public/fii-dii-history.json         scripts/snapshot-fii-dii.js
 //
 // Every step calls the builder that its CLI calls, so `npm run refresh` and the
-// scheduled run write the same bytes — the reason those builders were split out
+// scheduled run write the same bytes - the reason those builders were split out
 // of the scripts instead of being reimplemented here.
 //
 // The two forward-book steps edit the same file on purpose: the half-yearly
@@ -43,8 +43,8 @@
 //
 // HOW IT RUNS SOMEWHERE ELSE
 //
-// The plan is driven through an `io` seam — read(path), commit({ files, message })
-// — which is the whole reason it can run over a filesystem it did not create:
+// The plan is driven through an `io` seam - read(path), commit({ files, message })
+// - which is the whole reason it can run over a filesystem it did not create:
 //
 //   npm run refresh                     scripts/refresh-static.js passes a
 //                                       filesystem io and reports to the console
@@ -62,7 +62,7 @@
 //   - A step whose file the repository does not have yet returns null text from a
 //     successful read: that is "no baseline", which is fine for a file that
 //     rebuilds itself wholesale (debt, feed) and a reason to skip for the
-//     incremental ones. A read that FAILED is never treated as "no file" — an
+//     incremental ones. A read that FAILED is never treated as "no file" - an
 //     unreadable baseline would make fetch-all treat 40 weeks as missing and
 //     refetch them, so it skips the step instead.
 //   - Scrape timestamps are not content: `fetched_at`/`updated_at` are blanked on
@@ -71,7 +71,7 @@
 //   - Steps fail open, one at a time: a dead source costs its own file and
 //     nothing else, and the rest of the plan still commits.
 //
-// This module is not routed — functions/_router.js has no HTTP path to it. The only thing
+// This module is not routed - functions/_router.js has no HTTP path to it. The only thing
 // that runs it is the weekly workflow (or a developer running `npm run refresh`).
 
 const { buildRbiDataFile } = require("../../scripts/fetch-all.js");
@@ -92,8 +92,8 @@ const SENTIMENT = "public/sentiment-history.json";
 const FII_DII = "public/fii-dii-history.json";
 
 // How many weeks one invocation may fetch. fetch-all is incremental, so in a
-// normal Friday this is 0 or 1; the cap exists for the other case — a cold or
-// badly lagged file — because every host this has run on bounds a run somehow
+// normal Friday this is 0 or 1; the cap exists for the other case - a cold or
+// badly lagged file - because every host this has run on bounds a run somehow
 // (a Worker invocation on wall clock, a CI job on its own timeout, and RBI's
 // upstream in patience) and being killed mid-scrape commits nothing. The
 // remainder drains on the next run.
@@ -119,10 +119,10 @@ const STEPS = [
     label: "RSS feed",
     run: async ({ texts, options }) => {
       // The feed describes the record set, so it is built from rbi-data.json as
-      // this run has left it — the text the step above just produced, else the
+      // this run has left it - the text the step above just produced, else the
       // committed file.
       const source = texts.get(RBI);
-      if (source == null) return { text: null, detail: `skipped — ${RBI} unavailable this run` };
+      if (source == null) return { text: null, detail: `skipped - ${RBI} unavailable this run` };
       return buildFeedFile({ priorText: source, siteUrl: options.siteUrl });
     },
   },
@@ -135,9 +135,9 @@ const STEPS = [
       // #snapshot-metrics block + the Dataset JSON-LD) is a function of
       // rbi-data.json. Rebuild it from the text this run produced so a crawler
       // that runs no JS sees the same newest week the dashboard renders.
-      if (priorText == null) return { text: null, detail: `skipped — ${INDEX} unavailable this run` };
+      if (priorText == null) return { text: null, detail: `skipped - ${INDEX} unavailable this run` };
       const source = texts.get(RBI);
-      if (source == null) return { text: null, detail: `skipped — ${RBI} unavailable this run` };
+      if (source == null) return { text: null, detail: `skipped - ${RBI} unavailable this run` };
       const text = injectSnapshot(priorText, source);
       return { text, detail: "latest WSS figures + Dataset JSON-LD synchronized" };
     },
@@ -190,7 +190,7 @@ function commitMessage(files, results) {
   const names = files.map(f => f.path.split("/").pop());
   const detail = results.filter(r => r.status === "updated").map(r => `- ${r.path}: ${r.detail}`);
   return [
-    `chore(data): weekly refresh — ${names.join(", ")}`,
+    `chore(data): weekly refresh - ${names.join(", ")}`,
     "",
     ...detail,
     "",
@@ -208,7 +208,7 @@ function summarise(summary) {
     ? `✓ ${did} ${summary.files.length} file${summary.files.length === 1 ? "" : "s"}${summary.commit.commit ? ` (${String(summary.commit.commit).slice(0, 7)})` : ""}`
     : summary.files.length
       ? `✗ ${summary.files.length} file(s) changed but the commit failed: ${summary.commitError}`
-      : "✓ nothing changed — no commit";
+      : "✓ nothing changed - no commit";
   const lines = summary.steps.map(r => `  ${icon[r.status] || "·"} ${r.id} (${r.path}): ${r.detail}`);
   return [head, ...lines].join("\n");
 }
@@ -251,7 +251,7 @@ async function runRefresh({ io, steps = STEPS, options = {}, log = () => {} }) {
       continue;
     }
 
-    // `handed` is the file as it stands *now* — the committed text, or what an
+    // `handed` is the file as it stands *now* - the committed text, or what an
     // earlier step on this path just produced. The two forward-book steps share a
     // file and must compose, not overwrite each other.
     const handed = texts.get(step.path);

@@ -1,7 +1,7 @@
 {
   "name": "RBI Weekly Dashboard",
   "short_name": "RBI Weekly",
-  "description": "India's forex reserves, gold, rupee spot, equity markets, crude-oil imports, external debt and macro context — updated weekly from the RBI Statistical Supplement.",
+  "description": "India's forex reserves, gold, rupee spot, equity markets, crude-oil imports, external debt and macro context - updated weekly from the RBI Statistical Supplement.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

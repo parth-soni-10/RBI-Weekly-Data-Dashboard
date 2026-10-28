@@ -1,15 +1,15 @@
-// tests/data-sync.test.js — regression tests for the data-sync write path.
+// tests/data-sync.test.js - regression tests for the data-sync write path.
 //
 //   npm test          (node --test, no dependencies)
 //
 // data-sync is a public, shared cache: whatever it accepts is what every
 // visitor's browser renders. These tests pin the three things that keep that
-// safe — shape validation, the write guards, and the cleaning applied to
-// values read back out of the store — so a future edit cannot quietly reopen
+// safe - shape validation, the write guards, and the cleaning applied to
+// values read back out of the store - so a future edit cannot quietly reopen
 // the hole that let a record's "date" execute as markup.
 //
 // The durable store is injected as an in-memory stub, which is the same seam the
-// Worker uses to hand the function its KV namespace — so these tests need no
+// Worker uses to hand the function its KV namespace - so these tests need no
 // runtime at all, and they exercise the function exactly as deployed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -135,8 +135,8 @@ test("caps and shape checks reject oversized or malformed writes", async () => {
 });
 
 test("the monthly forward the dashboard actually sends is accepted", async () => {
-  // Regression: fetch-fwd-latest answers `date: "2026-07"` — the forward book is
-  // published monthly and every consumer keys it by month — while this store
+  // Regression: fetch-fwd-latest answers `date: "2026-07"` - the forward book is
+  // published monthly and every consumer keys it by month - while this store
   // demanded an ISO day, so the dashboard's save failed with 400 on every load
   // and the figure was never persisted. Both spellings are valid now.
   saved = null;

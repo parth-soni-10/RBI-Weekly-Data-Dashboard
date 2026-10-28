@@ -1,12 +1,12 @@
-// tests/gsec-repo.test.js — regression tests for the live repo-rate check.
+// tests/gsec-repo.test.js - regression tests for the live repo-rate check.
 //
 //   npm test          (node --test, no dependencies)
 //
 // fetch-gsec used to answer the repo rate from a curated table alone, so a
 // decided-but-unrecorded MPC meeting froze the site on a stale rate no matter
 // how often the page refreshed (Oct 7 2026 hiked to 5.50% while the table
-// still said 5.25%). These tests pin the two things that keep that fixed —
-// the RBI press-release parsing, and the curated table staying current — so a
+// still said 5.25%). These tests pin the two things that keep that fixed -
+// the RBI press-release parsing, and the curated table staying current - so a
 // future edit cannot quietly reintroduce a refresh-proof rate.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -17,7 +17,7 @@ const assert = require("node:assert/strict");
 // exactly the failure mode every live source already handles.
 const httpPath = require.resolve("../netlify/functions/_utils/http.js");
 // NOTE: fetch-gsec destructures { get } at require time, so this stub function
-// itself is never reassigned afterwards — per-test pages go through the
+// itself is never reassigned afterwards - per-test pages go through the
 // mutable `servedPages` binding it closes over. Reassigning stub.get per test
 // would leave the function holding the original throwing reference.
 let servedPages = {};

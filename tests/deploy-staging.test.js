@@ -1,4 +1,4 @@
-// tests/deploy-staging.test.js — the staging step the deploy depends on.
+// tests/deploy-staging.test.js - the staging step the deploy depends on.
 //
 // The Cloudflare Pages project builds this site with
 //
@@ -8,7 +8,7 @@
 // `pages_build_output_dir`). When tools/ was removed from the repository the
 // build command had nothing left to run: the build failed on every push, the
 // site silently kept serving an older commit, and nothing in the repo said so
-// — the data pipeline looked broken (stale weeks, "reserves Excel download
+// - the data pipeline looked broken (stale weeks, "reserves Excel download
 // failed") when the real fault was one missing file.
 //
 // This test runs the script the way the build does and asserts the upload it
@@ -37,7 +37,7 @@ test("staging public/ produces the upload the Pages project expects", () => {
       encoding: "utf8",
     });
 
-    // The page itself — an upload without it serves nothing.
+    // The page itself - an upload without it serves nothing.
     assert.ok(fs.existsSync(path.join(OUT, "index.html")), "index.html is staged");
     // Directives the platform consumes rather than serves: dropping them
     // silently loses CSP, the /data/*.json routes and the SPA fallback.
@@ -45,9 +45,9 @@ test("staging public/ produces the upload the Pages project expects", () => {
       assert.ok(fs.existsSync(path.join(OUT, directive)), `${directive} is staged`);
     }
     // Without a 404.html, Pages answers 200 with index.html for every unknown
-    // path — which makes a typo look like a real page.
+    // path - which makes a typo look like a real page.
     assert.ok(fs.existsSync(path.join(OUT, "404.html")), "a 404.html is generated");
-    // The committed data is the upload — the build regenerates nothing.
+    // The committed data is the upload - the build regenerates nothing.
     assert.ok(fs.existsSync(path.join(OUT, "rbi-data.json")), "rbi-data.json is staged");
     // Never published, whatever the repository says.
     for (const secret of [".env", ".dev.vars", ".assetsignore", "node_modules"]) {

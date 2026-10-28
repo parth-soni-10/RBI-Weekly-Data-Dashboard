@@ -1,17 +1,17 @@
 /**
- * RBI weekly dashboard — the routing half of this site's Pages Function.
+ * RBI weekly dashboard - the routing half of this site's Pages Function.
  *
  * This file only adapts how the sixteen functions under netlify/functions/ are
  * hosted. Pages compiles this directory (see `functions/[[path]].js`, the
  * catch-all route) and it imports those files, so the scrapers, the parsers, the
  * validation in data-sync and the response caching keep exactly one
- * implementation — the one the site ran on. The `_` prefix keeps this file out of
+ * implementation - the one the site ran on. The `_` prefix keeps this file out of
  * the routing table: the only route is the catch-all beside it.
  *
  * What the Netlify runtime used to provide, and what replaces it here:
  *
- *   routing     `public/_redirects` mapped the dashboard's public API — the
- *               /data/*.json paths — onto functions. Those rewrites are handled
+ *   routing     `public/_redirects` mapped the dashboard's public API - the
+ *               /data/*.json paths - onto functions. Those rewrites are handled
  *               here instead (PUBLIC_API below), because on Cloudflare a
  *               rewrite in `_redirects` only reaches the function if the
  *               post-rewrite path is also routed to it, which makes the same rule
@@ -21,8 +21,8 @@
  *
  *   storage     data-sync.js kept its durable merge cache in a Netlify Blob. It
  *               now receives a KV-backed store through setStore() with the same
- *               two calls it made before — get(key, { type: 'json' }) and
- *               setJSON(key, value) — so its validation, its write guards and
+ *               two calls it made before - get(key, { type: 'json' }) and
+ *               setJSON(key, value) - so its validation, its write guards and
  *               its read-side cleaning are untouched.
  *
  *   config      Netlify put environment variables in process.env; Workers hand
@@ -33,8 +33,8 @@
  *               the handler already declares (`public, max-age=900` on the
  *               data-* endpoints), so repeat and embed traffic never re-scraped.
  *               A Worker's response is not edge-cached unless the Worker puts it
- *               there, and these handlers scrape live on request — data-latest
- *               walks back up to six Fridays — so the missing layer showed up as
+ *               there, and these handlers scrape live on request - data-latest
+ *               walks back up to six Fridays - so the missing layer showed up as
  *               36–54 seconds per request instead of a cache hit. The two
  *               weekly endpoints no longer scrape on request: they read the
  *               committed snapshot (see _utils/committed.js), so only the live
@@ -44,15 +44,15 @@
  *
  *   build       Netlify ran scripts/fetch-all.js and the forward-book updaters
  *               on every deploy to regenerate the committed public/*.json. There
- *               is no build step here — a deploy ships what the repository holds
- *               — so the same chain is run by .github/workflows/refresh-data.yml
+ *               is no build step here - a deploy ships what the repository holds
+ *               - so the same chain is run by .github/workflows/refresh-data.yml
  *               (Friday 22:00 UTC) over a checked-out tree, and its data commit
  *               is what the Pages build that follows deploys. It was this file's
  *               `scheduled` handler calling netlify/functions/refresh-data.js
  *               over the GitHub API while the site ran on a Worker; Pages has no
  *               cron triggers, and a runner has the filesystem the API call was
  *               standing in for. Nothing in this file regenerates data any more.
- *               The live figures never depended on any of it — the fetch-*
+ *               The live figures never depended on any of it - the fetch-*
  *               endpoints scrape on request.
  *
  * Handlers are called with the same event shape they declare ({ httpMethod,
@@ -115,7 +115,7 @@ const ROUTES = {
 
 /** The clean public API `public/_redirects` described, pointing at the same
     handlers. Kept here because a Worker rewrite only reaches this Worker when
-    the rewritten path is also listed in `run_worker_first` — one mechanism
+    the rewritten path is also listed in `run_worker_first` - one mechanism
     instead of two that have to agree. */
 const PUBLIC_API = {
   "/data/latest.json": dataLatest,
@@ -132,13 +132,13 @@ const PUBLIC_API = {
 };
 
 /**
- * EDGE CACHE — the layer Netlify's CDN used to be.
+ * EDGE CACHE - the layer Netlify's CDN used to be.
  *
  * A response is stored only when the handler itself asked for it: `public` with
  * a positive `max-age`, and no `Set-Cookie`. That is deliberately narrower than
  * "anything with a Cache-Control header". Every error path in these handlers
  * sends `no-store`, and data-sync sends `no-store` on its reads as well as its
- * writes, so nothing that should stay fresh is held — the same policy the site
+ * writes, so nothing that should stay fresh is held - the same policy the site
  * had in front of it before. A response we decline to store is simply returned,
  * which is the behaviour without this block.
  *
@@ -209,7 +209,7 @@ async function fetchDocument(env, request, document) {
 }
 
 /** Advertise the Markdown alternative on the HTML response, and make a shared
-    cache key on Accept — without Vary it would hand one visitor's
+    cache key on Accept - without Vary it would hand one visitor's
     representation to the next. */
 function withDocHeaders(response, document) {
   const headers = new Headers(response.headers);

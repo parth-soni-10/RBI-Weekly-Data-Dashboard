@@ -6,7 +6,7 @@
 
 Live site: https://rbiweeklydashboard.pages.dev/
 Source: https://github.com/parth-soni-10/RBI-Weekly-Data-Dashboard
-Maintainer: Parth Soni — soni.soni.parth@gmail.com
+Maintainer: Parth Soni - soni.soni.parth@gmail.com
 Cost: free, no account, no cookies, no analytics.
 
 ## When to use this
@@ -25,7 +25,7 @@ Use this dashboard when the task is one of these:
   from its own dated series, never derived from the reserves.
 - **Add macro context.** FII/FPI flows (NSDL), the 10-year G-Sec yield, REER, RBI's net forward book,
   monthly indirect-tax receipts, crude import values (PPAC), a World Bank external-debt ranking and
-  a market Fear & Greed composite — each a separate JSON endpoint.
+  a market Fear & Greed composite - each a separate JSON endpoint.
 - **Check a transcribed figure.** The PM CARES section reproduces the Fund's audited Receipt and
   Payment Accounts with its own caveats.
 
@@ -64,7 +64,7 @@ All `GET`, CORS `*`, no authentication:
 - `GET /data/external-debt.json` → World Bank quarterly external-debt ranking.
 
 Every handler is also reachable at `/.netlify/functions/<name>`; `/data/*.json` is the public
-contract. `POST /.netlify/functions/data-sync` is the dashboard's private merge cache — not an API.
+contract. `POST /.netlify/functions/data-sync` is the dashboard's private merge cache - not an API.
 
 ### Units and dates
 
@@ -89,7 +89,7 @@ curl -sS 'https://rbiweeklydashboard.pages.dev/data/forex-weekly.json?weeks=12'
 
 ## How it stays current
 
-A GitHub Actions job runs Friday 22:00 UTC — after the WSS is published — regenerates the committed
+A GitHub Actions job runs Friday 22:00 UTC - after the WSS is published - regenerates the committed
 `rbi-data.json`, the feed and the auxiliary series, and commits; the commit deploys. The dashboard's
 Reload button additionally live-checks RBI for a week newer than the committed file and merges it in
 memory. A failed scrape keeps the last good snapshot and labels the tile instead of guessing.

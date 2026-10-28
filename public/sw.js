@@ -1,4 +1,4 @@
-/* sw.js — offline shell + last-known-data cache for the RBI Weekly Dashboard.
+/* sw.js - offline shell + last-known-data cache for the RBI Weekly Dashboard.
  *
  * Strategy:
  *   - App shell (index.html, icons, manifest): network-first with cache
@@ -7,7 +7,7 @@
  *   - Data (rbi-data.json, external-debt.json, fii-dii-history.json):
  *     network-first with a
  *     24-hour-tolerant cache fallback. When the network is unreachable, the
- *     last successfully fetched data still renders — charts, tiles and tables
+ *     last successfully fetched data still renders - charts, tiles and tables
  *     work offline with the newest numbers this device ever saw.
  *   - Fonts (the only external fetch): cache-first with an opportunistic
  *     cache write. Everything else scripts-side is vendored in /vendor/.
@@ -34,7 +34,7 @@ const DATA_URLS = ['rbi-data.json', 'external-debt.json', 'fii-dii-history.json'
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_VERSION);
-    // Individually tolerate a partial shell — a miss must never fail install.
+    // Individually tolerate a partial shell - a miss must never fail install.
     await Promise.all(SHELL.map((url) =>
       cache.add(new Request(url, { cache: 'reload' })).catch(() => {})));
     await self.skipWaiting();

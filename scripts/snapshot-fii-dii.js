@@ -1,4 +1,4 @@
-// snapshot-fii-dii.js — merge the latest NSDL FII + NSE DII daily flow rows
+// snapshot-fii-dii.js - merge the latest NSDL FII + NSE DII daily flow rows
 // into public/fii-dii-history.json, building the committed daily history the
 // dashboard's FII/DII chart renders (same pattern as snapshot-sentiment.js →
 // sentiment-history.json).
@@ -11,7 +11,7 @@
 //     a DII-only row (NSE publishes one session behind NSDL) never erases the
 //     equity/debt split already stored for that date, and later runs correct
 //     the same day's provisional figures in place.
-//   - Degraded payloads (static fallback / zero rows — curated or empty) are
+//   - Degraded payloads (static fallback / zero rows - curated or empty) are
 //     skipped: fabricated bars must never enter the accumulated history.
 //   - Keeps the most recent 400 rows (≈ 19 months of trading days, enough for
 //     a rolling 6-month chart window plus a full-year YTD sum).
@@ -29,7 +29,7 @@ const fs = require("fs");
 const path = require("path");
 const { _buildPayload } = require("../netlify/functions/fetch-fii-history");
 
-// CLI path only — the weekly refresh commits the text the builder returns.
+// CLI path only - the weekly refresh commits the text the builder returns.
 // `__dirname` does not exist in a Worker, hence the guard (see
 // scripts/update-fwd-monthly.js for the same trap).
 const OUT = typeof __dirname === "string" ? path.join(__dirname, "..", "public", "fii-dii-history.json") : "";
@@ -68,10 +68,10 @@ async function buildFiiHistoryFile({ priorText = null } = {}) {
   try {
     payload = await _buildPayload();
   } catch (e) {
-    return { text: null, detail: `skipped — sources unreachable (${String((e && e.message) || e)})` };
+    return { text: null, detail: `skipped - sources unreachable (${String((e && e.message) || e)})` };
   }
   if (!payload || payload.status !== "ok" || !Array.isArray(payload.series) || !payload.series.length) {
-    return { text: null, detail: `skipped — no live rows (status: ${payload && payload.status})` };
+    return { text: null, detail: `skipped - no live rows (status: ${payload && payload.status})` };
   }
 
   const merged = mergeFiiHistory(priorText, payload);
@@ -86,7 +86,7 @@ async function main() {
   let priorText = null;
   try { priorText = fs.readFileSync(OUT, "utf8"); } catch (_) { /* first run */ }
   const res = await buildFiiHistoryFile({ priorText });
-  if (!res.text) { console.error(`ℹ FII/DII snapshot skipped — ${res.detail}`); return; }
+  if (!res.text) { console.error(`ℹ FII/DII snapshot skipped - ${res.detail}`); return; }
   fs.writeFileSync(OUT, res.text);
   console.log(`✓ fii-dii-history.json: ${res.detail}`);
 }

@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 /**
- * update-fwd-monthly.js — auto-append the MONTHLY RBI Bulletin forward figures.
+ * update-fwd-monthly.js - auto-append the MONTHLY RBI Bulletin forward figures.
  *
  * The half-yearly updater (update-fwd-series.js) keeps the Mar/Sep anchors
  * current; the months between them were hand-added from press coverage of the
  * RBI Bulletin. This script closes that gap: the Bulletin's Current Statistics
- * section has a dedicated, SERVER-RENDERED table —
+ * section has a dedicated, SERVER-RENDERED table -
  *
  *   "4A. Maturity Breakdown (by Residual Maturity) of Outstanding Forwards of
  *    RBI (US $ Million)"   (BS_ViewBulletin.aspx?Id=<issue-specific>)
  *
- * — whose rows give long/short positions by maturity and a Total row with
+ * - whose rows give long/short positions by maturity and a Total row with
  *   Long (+) / Short (-) / Net (1-2). Net (1-2) = long − short in US$ million
  * and equals the series the press quotes (and the half-yearly reports): e.g.
  * the May-2025 issue's table reads "As on March 31, 2025" with net −84,345mn,
  * matching the official half-yearly −84.345bn exactly.
  *
  * Each Bulletin issue (month M, released ~M+1 month) carries data "As on" the
- * second previous month-end, stated on the page — so the DATA month is read
+ * second previous month-end, stated on the page - so the DATA month is read
  * from the page, never assumed.
  *
  * Usage:
@@ -39,12 +39,12 @@
  * Fails open: a slow/blocked/unparseable RBI site logs a warning and exits 0,
  * so a refresh is never broken by this step. The newest-issue sync is also what
  * the weekly refresh runs (netlify/functions/refresh-data.js), through
- * buildFwdMonthlyFile() below — the same code, so the two paths cannot drift.
+ * buildFwdMonthlyFile() below - the same code, so the two paths cannot drift.
  */
 const fs = require("fs");
 const path = require("path");
 
-// The CLI writes into the function's source file, so it needs a path on disk —
+// The CLI writes into the function's source file, so it needs a path on disk -
 // but fetch-fwd-latest.js imports `fetchLatestOfficial` from this module, which
 // means the whole file is bundled into the Worker, where `__dirname` does not
 // exist (ESM has no such binding) and referencing it at module scope failed the
@@ -98,7 +98,7 @@ function parseFwdTable(html) {
   // Row-based so stray page content can never leak into the numbers: find the
   // <tr> whose cells start with the "Total (1+2+3+4)" label and read only that
   // row's long / short / net cells. A nil cell renders as ".." (e.g. the
-  // May-2026 issue has all-long zero) — treat a nil LONG as zero only when
+  // May-2026 issue has all-long zero) - treat a nil LONG as zero only when
   // short + net then balance. Net (1-2) = long − short is enforced, so a
   // mis-parse can never silently ship a wrong figure.
   const asOnM = html.match(/As on\s+([A-Za-z]+)\s+(\d{1,2})\s*,\s*(\d{4})/i);
@@ -239,7 +239,7 @@ function applyOfficial(entries, official) {
   if (sameValue) return { rows, changed: [], summary: `period ${official.date} already matches the official figure` };
   // The half-yearly report figures at Mar/Sep are authoritative at those dates:
   // RBI later revises the Bulletin table (e.g. Sep-2021 reads +49.61bn in the
-  // Nov-2021 Bulletin but the report — and Dec-2021's table — use the revised
+  // Nov-2021 Bulletin but the report - and Dec-2021's table - use the revised
   // +49.11bn), so a verified report anchor must never be overwritten by the
   // Bulletin table when the two disagree.
   if (!e.approx && /Half-Yearly FX Reserves Report|long-era anchor/.test(e.source)) {
@@ -252,8 +252,8 @@ function applyOfficial(entries, official) {
 // ── Newest-issue discovery + parse (no file writes) ─────────────────────
 // Shared with netlify/functions/fetch-fwd-latest.js so the Reload button can
 // live-check the newest official figure without running the CLI. Returns
-//   { id, date, asOn, netMn, longMn, shortMn, netFwd, source }  — newest figure
-//   { error: "no-table" | "unparseable", id? }                  — nothing usable
+//   { id, date, asOn, netMn, longMn, shortMn, netFwd, source }  - newest figure
+//   { error: "no-table" | "unparseable", id? }                  - nothing usable
 async function fetchLatestOfficial() {
   const id = await newestTableId();
   if (!id) return { error: "no-table" };
@@ -274,7 +274,7 @@ async function fetchLatestOfficial() {
 // ── Newest-issue sync, as a function of the file's current source ───────
 // Returns { text, detail, warn? }: `text` is null when the series already
 // carries the newest Bulletin figure, so there is nothing to write. This is what
-// the weekly refresh runs (netlify/functions/refresh-data.js) — the --backfill
+// the weekly refresh runs (netlify/functions/refresh-data.js) - the --backfill
 // walk below stays a manual one-off: it reads ~65 issues with throttling, which
 // is the wrong shape for a cron invocation.
 async function buildFwdMonthlyFile(src, { log = () => {} } = {}) {
@@ -285,11 +285,11 @@ async function buildFwdMonthlyFile(src, { log = () => {} } = {}) {
   if (latest.error === "no-table") return { text: null, detail: "No 4A (Outstanding Forwards of RBI) table found on the Bulletin front page", warn: true };
   if (latest.error === "unparseable") return { text: null, detail: `Could not parse Table 4A from page ${latest.id}`, warn: true };
   log(`Bulletin front page: newest 4A forward table id ${latest.id}`);
-  log(`Table 4A: ${latest.asOn} — net ${latest.netMn >= 0 ? "+" : "−"}$${Math.abs(latest.netMn).toLocaleString("en-US")}mn (long ${latest.longMn.toLocaleString("en-US")}, short ${latest.shortMn.toLocaleString("en-US")}) → period ${latest.date}`);
+  log(`Table 4A: ${latest.asOn} - net ${latest.netMn >= 0 ? "+" : "−"}$${Math.abs(latest.netMn).toLocaleString("en-US")}mn (long ${latest.longMn.toLocaleString("en-US")}, short ${latest.shortMn.toLocaleString("en-US")}) → period ${latest.date}`);
 
   const official = { date: latest.date, netFwd: latest.netFwd, source: latest.source };
   const res = applyOfficial(entries, official);
-  if (!res.changed.length) return { text: null, detail: `Up to date — ${res.summary}.` };
+  if (!res.changed.length) return { text: null, detail: `Up to date - ${res.summary}.` };
   const marker = res.summary.startsWith("inserted") ? " (auto-appended)" : " (official)";
   res.changed[0].source += marker;
   return {
@@ -305,7 +305,7 @@ async function main() {
   if (!backfill) {
     const res = await buildFwdMonthlyFile(src, { log: console.log });
     if (!res.text) {
-      console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} — leaving FWD_SERIES unchanged.`);
+      console.log(`${res.warn ? "⚠" : "✓"} ${res.detail} - leaving FWD_SERIES unchanged.`);
       return;
     }
     fs.writeFileSync(FN, res.text, "utf8");
@@ -353,7 +353,7 @@ async function main() {
       else upgraded++;
     }
   }
-  if (!changed.length) { console.log("✓ Backfill complete — every official monthly figure already matches the series."); return; }
+  if (!changed.length) { console.log("✓ Backfill complete - every official monthly figure already matches the series."); return; }
   const out = rewriteSeries(src, rowsArr, changed);
   fs.writeFileSync(FN, out, "utf8");
   console.log(`✎ Backfill wrote ${inserted} inserted + ${upgraded} upgraded monthly points (series now ${rowsArr.length} entries).`);
@@ -361,7 +361,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(e => {
-    console.warn(`⚠ update-fwd-monthly skipped (${e.message}) — FWD_SERIES unchanged.`);
+    console.warn(`⚠ update-fwd-monthly skipped (${e.message}) - FWD_SERIES unchanged.`);
   });
 }
 
