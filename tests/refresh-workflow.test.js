@@ -112,3 +112,61 @@ test("the handler ships the error code on the wire", async () => {
   assert.equal(body.errorCode, "not_published");
   assert.equal(body.record, null);
 });
+
+// A minimal real xlsx (node-xlsx round-trips it) whose first row carries a
+// "Total Reserves" label followed by INR cr then US$ mn numerics, so
+// parseReservesExcel can extract total_usd.
+const XLSX = require("node-xlsx");
+const XLSX_BUFFER = XLSX.build([{ name: "Sheet1", data: [["Total Reserves", 734606, 726027]] }]);
+
+test("download retries against repeated F5 challenges before giving up", async () => {
+  const fetchData = require("../netlify/functions/fetch-data.js");
+  let calls = 0;
+  const out = await withStubbedFetch(
+    async (url) => {
+      calls++;
+      if (String(url).includes("WSSViewDetail")) {
+        return new Response(PAGE_WITH_LINKS, { status: 200, headers: { "Content-Type": "text/html" } });
+      }
+      // F5 challenges 4 times, then serves the real spreadsheet on the 5th try.
+      if (calls < 6) {
+        return new Response("<!DOCTYPE html><title>F5 bot check</title>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+      return new Response(XLSX_BUFFER, { status: 200, headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } });
+    },
+    () => fetchData._processOne(new Date("2026-10-23T00:00:00Z")),
+  );
+  assert.equal(out.code, undefined, "no error code on success");
+  assert.equal(out.iso, "2026-10-16");
+  assert.ok(out.record, "parsed a record after retries");
+  assert.equal(out.record.total_usd, 726027, "parsed total_usd from the retried spreadsheet");
+  assert.ok(calls >= 6, "at least one page fetch + 5 download attempts (plus Yahoo quote fetches)");
+});
+
+test("download gives up after MAX_ATTEMPTS challenges instead of retrying forever", async () => {
+  const fetchData = require("../netlify/functions/fetch-data.js");
+  let calls = 0;
+  const out = await withStubbedFetch(
+    async (url) => {
+      calls++;
+      if (String(url).includes("WSSViewDetail")) {
+        return new Response(PAGE_WITH_LINKS, { status: 200, headers: { "Content-Type": "text/html" } });
+      }
+      // Always challenges - never serves the spreadsheet.
+      calls++;
+      return new Response("<!DOCTYPE html><title>F5 bot check</title>", {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      });
+    },
+    () => fetchData._processOne(new Date("2026-10-23T00:00:00Z")),
+  );
+  assert.equal(out.code, "download_blocked", "stable code after exhausting retries");
+  assert.match(out.error, /challenge/i);
+  // page fetch (1) + MAX_ATTEMPTS download attempts (5), each Excel attempt
+  // double-increments calls
+  assert.equal(calls, 1 + 5 * 2, "attempted the download MAX_ATTEMPTS times then stopped");
+});

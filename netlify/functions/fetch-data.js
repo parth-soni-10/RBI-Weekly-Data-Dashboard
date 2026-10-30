@@ -351,15 +351,16 @@ async function getYahooClose(symbol, targetDate) {
 // the two failures need opposite reactions:
 //
 //   "challenge"  the CDN answered fast with F5's bot page - transient, so it
-//                is worth one more try after a short backoff.
+//                is worth several tries with backing off. F5 can challenge
+//                more than once in a row, so one retry is not enough.
 //   "timeout" /  the request never came back: this runtime's network cannot
 //   "network"    reach the doc CDN at all (Cloudflare's egress is refused by
 //                RBI's CDN). Retrying the same URL cannot change that, so the
 //                wait is not doubled for nothing and the caller reports it as
 //                "this edge cannot reach the source" rather than "try again".
-async function downloadSpreadsheet(url, timeoutMs = 8000) {
-  const MAX_ATTEMPTS = 2;
-  const backoffMs = [2000];
+async function downloadSpreadsheet(url, timeoutMs = 12000) {
+  const MAX_ATTEMPTS = 5;
+  const backoffMs = [2000, 4000, 8000, 12000];
   let reason = "unavailable";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let buf = null;
@@ -393,9 +394,11 @@ async function downloadSpreadsheet(url, timeoutMs = 8000) {
     if (isSpreadsheet(buf)) return { buf, reason: null };
     if (why === "unavailable") why = "challenge"; // a body that is not a spreadsheet
     reason = why;
-    // Only a challenge page is worth a second attempt: it came back quickly,
-    // which means the network is fine. A timeout or a refused connection is
-    // the network itself, and no retry can fix it.
+    // Only a challenge page is worth retrying: it came back quickly, which
+    // means the network is fine. F5 can challenge more than once in a row, so
+    // we retry with backing off instead of giving up after one attempt. A
+    // timeout or a refused connection is the network itself, and no retry can
+    // fix it.
     if (reason !== "challenge") break;
     if (attempt < MAX_ATTEMPTS) await sleep(backoffMs[attempt - 1]);
   }
