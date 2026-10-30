@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-28T17:08:18.546Z",
+  "updated_at": "2026-10-30T20:29:32.332Z",
   "source": "Yahoo Finance - Nifty 50, India VIX, Nifty Smallcap, USD/INR (server-side)",
   "points": [
     {
@@ -45,6 +45,11 @@
     {
       "date": "2026-10-28",
       "score": 33,
+      "label": "Fear"
+    },
+    {
+      "date": "2026-10-30",
+      "score": 30,
       "label": "Fear"
     }
   ]
