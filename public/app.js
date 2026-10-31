@@ -274,13 +274,14 @@ function freshAgeText(ms){
 function renderFreshness(){
   const main = document.getElementById('status-text');
   const mini = document.getElementById('fresh-text');
-  if(!main || !mini || !lastDataLoadedAt) return;
+  const pill = document.getElementById('status-pill');
+  if(!main || !mini || !pill || !lastDataLoadedAt) return;
   const age = Date.now() - lastDataLoadedAt;
   main.textContent = freshAgeText(age);
   mini.textContent = freshAgeText(age).replace(' ago', '');
-  document.getElementById('status-pill').title =
+  pill.title =
     'Data refreshed ' + new Date(lastDataLoadedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' - auto-refreshes every 30 min';
-  document.getElementById('status-pill').classList.toggle('stale', age > STALE_AFTER_MS);
+  pill.classList.toggle('stale', age > STALE_AFTER_MS);
 }
 setInterval(renderFreshness, 30 * 1000);
 
@@ -317,6 +318,7 @@ async function mergeLiveUpdates() {
       }
       if (fromBlob) {
         records.sort((a, b) => a.date.localeCompare(b.date));
+        updateUI();
         appendLog(`✓ Restored ${fromBlob} week${fromBlob > 1 ? 's' : ''} from saved sync data → ${records.length} total`);
       }
     }
@@ -1329,7 +1331,7 @@ function bindZoom(cv, st){
     const x = st.chart.scales.x; if(!x) return;
     const c = cur(); const anchor = Math.round(x.getValueForPixel(px)) || 0;
     const span = Math.max(8, Math.min(totalIdx(), Math.round((c.max - c.min) * factor)));
-    const rel = span ? (anchor - c.min) / (c.max - c.min) : 0.5;
+    const rel = (c.max > c.min && span) ? (anchor - c.min) / (c.max - c.min) : 0.5;
     apply(anchor - rel * span, anchor - rel * span + span);
   };
   cv.addEventListener('wheel', e => {
@@ -1609,7 +1611,7 @@ function renderMacroTrends(){
       v => v.toFixed(2) + '%', v => '10Y yield: ' + v.toFixed(2) + '%');
     if (chart) chart.data.datasets[0].label = 'India 10Y G-Sec yield';
   } else {
-    const repo = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice(-16).map(p => ({ date:p.date, v:p.pct })) : [];
+    const repo = Array.isArray(gsec.repo_history) ? gsec.repo_history.slice(0,16).reverse().map(p => ({ date:p.date, v:p.pct })) : [];
     const chart = drawSeriesLine('cGsec', 'gsec-empty', repo, AMB,
       v => v.toFixed(2) + '%', v => 'Repo rate: ' + v.toFixed(2) + '%');
     if(chart && gsec.gsec_10y_yield_pct != null){
@@ -2048,10 +2050,10 @@ function renderFngHistory(){
       options:{ responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{ display:false },
           tooltip:{ backgroundColor:CH.tbg, titleColor:CH.tt, bodyColor:CH.tb, borderColor:AMB, borderWidth:1,
-            callbacks:{ label: ctx => ctx.parsed.y + ' - ' + (pts[ctx.dataIndex].label || labelForFng(ctx.parsed.y)) } },
-          fngZones: {
-            id:'fngZones',
-            beforeDatasetsDraw(chart){
+            callbacks:{ label: ctx => ctx.parsed.y + ' - ' + (pts[ctx.dataIndex].label || labelForFng(ctx.parsed.y)) } } },
+      plugins: [{
+        id:'fngZones',
+        beforeDatasetsDraw(chart){
               const { ctx, chartArea: a, scales } = chart;
               if(!a) return;
               const y = scales.y;
@@ -2068,9 +2070,8 @@ function renderFngHistory(){
               ctx.lineTo(a.right, y.getPixelForValue(50));
               ctx.stroke();
               ctx.restore();
-            },
-          },
-          interaction:{ mode:'index', intersect:false } },
+        },
+      }],
         scales:{
           x: axOpts(v => v).x,
           y: { min:0, max:100,
@@ -2150,7 +2151,7 @@ const eventsPlugin = {
       ctx.lineTo(x, a.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
-      const label = ev.label.replace(/: hold |: cut |: raise /, ' ');
+      const label = ev.label.replace(/: hold |: cut |: raise |: hike /, ' ');
       ctx.font = '600 9px Inter, system-ui, sans-serif';
       const tw = ctx.measureText(label).width;
       const cw = tw + 10, chh = 13;
@@ -2415,6 +2416,8 @@ async function loadCrudeData() {
           monthly:    data.ppac_monthly_barrels  || {},
           quality:    data.quality_metrics       || {},
           prices:     data.live_prices           || {},
+          ppac_import_price_usd_bbl: data.ppac_import_price_usd_bbl ?? null,
+          ppac_price_month:          data.ppac_price_month          ?? null,
           fetched_at: data.fetched_at            || new Date().toISOString(),
         };
         crudeCheckedAt = Date.now(); // arms the hourly cap on explicit-reload live-checks
@@ -2781,9 +2784,8 @@ function renderImportBill(){
 
 function dlCSV(){
   if(!records.length) return;
-  const last10 = tableRows();
   const header = 'date,total_usd,total_inr,gold_usd,gold_inr,gold_tonnes,fca_usd,fca_inr,sdr_usd,sdr_inr,imf_reserve_usd,usd_inr,eur_inr,nifty,sensex';
-  const rows = last10.map(r => [
+  const rows = records.map(r => [
     r.date, r.total_usd||'', r.total_inr||'',
     r.gold_usd||'', r.gold_inr||'', r.gold_tonnes||'',
     r.fca_usd||'', r.fca_inr||'',
@@ -3420,11 +3422,13 @@ function renderImportCover(){
   const bpd = last.barrels_per_day || 0;
   const brent = crudeData.prices && crudeData.prices.brent;
   if(!bpd || !brent) return;
-  const monthlyImportUsd = bpd * 30 * brent; // crude-bill proxy
-  const months = L.total_usd / monthlyImportUsd;
+  const monthlyImportUsd = bpd * 30 * brent; // crude-bill proxy (raw USD)
+  // L.total_usd is USD millions (~726,027), monthlyImportUsd is raw USD (~1.1e10):
+  // multiply total_usd by 1e6 to bring both to raw USD before dividing.
+  const months = (L.total_usd * 1e6) / monthlyImportUsd;
   document.getElementById('import-cover').textContent = months.toFixed(2) + ' mo';
   document.getElementById('import-cover-detail').textContent =
-    `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e3).toFixed(2)}B/mo (crude proxy)`;
+    `$${(L.total_usd/1000).toFixed(1)}B ÷ $${(monthlyImportUsd/1e9).toFixed(2)}B/mo (crude proxy)`;
 }
 
 // CRUDE PRICE KPI: two live benchmarks from real sources - no hardcoded numbers.

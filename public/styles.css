@@ -115,6 +115,10 @@ a{color:var(--brand)}
 .head-actions{display:inline-flex;gap:.45rem}
 /* the .theme-toggle display rule would otherwise override the UA [hidden] style */
 .theme-toggle[hidden]{display:none}
+
+/* .sr-snapshot marks content meant for screen readers / crawlers only:
+   it must never render visibly on screen. */
+.sr-snapshot{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 @media(max-width:1280px){
   .head-actions{order:1}
 }
@@ -124,7 +128,7 @@ a{color:var(--brand)}
    interactive bits drop out, cards keep their borders, charts print at a
    fixed height, and each card avoids being split across pages. */
 @media print{
-  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,.macro-trends,#sentiment-row,.chart-actions,.range-row{display:none!important}
+  header,#mini-bar,.fetch-panel,.nav-toggle,#log-box,details,.dl-row,.theme-toggle,.head-actions,.skip-link,#toast-zone,.new-week-badge,#macro-trends,#sentiment-row,.chart-actions,.range-row{display:none!important}
   .print-vintage{display:block!important;position:fixed;bottom:.4rem;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:#555;border-top:1px solid #ccc;padding-top:.3rem}
   body{background:#fff;color:#111}
   .section{display:none;padding:0;max-width:none}
