@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-07T01:34:53.034Z",
+  "updated_at": "2026-11-07T23:08:18.674Z",
   "source": "Yahoo Finance - Nifty 50, India VIX, Nifty Smallcap, USD/INR (server-side)",
   "points": [
     {
@@ -59,7 +59,7 @@
     },
     {
       "date": "2026-11-07",
-      "score": 63,
+      "score": 61,
       "label": "Greed"
     }
   ]
