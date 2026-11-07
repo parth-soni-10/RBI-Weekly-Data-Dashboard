@@ -118,7 +118,8 @@ const FWD_SERIES = [
   { date: "2026-04", net_fwd: -95.30, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on April 30, 2026 (official)" },
   { date: "2026-05", net_fwd: -106.66, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on May 31, 2026 (official)" },
   { date: "2026-06", net_fwd: -103.33, source: "RBI Bulletin via Business Standard, Aug 2026" },
-  { date: "2026-07", net_fwd: -136.77, source: "RBI Bulletin via Business Standard, 31 Aug 2026 (record)" }
+  { date: "2026-07", net_fwd: -136.77, source: "RBI Bulletin via Business Standard, 31 Aug 2026 (record)" },
+  { date: "2026-08", net_fwd: -200.06, source: "RBI Bulletin Table 4A (Maturity Breakdown of Outstanding Forwards), as on August 31, 2026 (auto-appended)" }
 ];
 
 exports.handler = async () => {

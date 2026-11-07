@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-10-30T20:29:24.864Z",
-  "data_updated_at": "2026-10-30T20:29:24.864Z",
-  "date_modified": "2026-10-30",
-  "temporal_coverage": "2025-12-26/2026-10-23",
+  "fetched_at": "2026-11-07T01:34:43.844Z",
+  "data_updated_at": "2026-11-07T01:34:43.844Z",
+  "date_modified": "2026-11-07",
+  "temporal_coverage": "2025-12-26/2026-10-30",
   "source": "RBI Weekly Statistical Supplement (Excel) + Yahoo Finance",
   "generated_by": "scripts/fetch-all.js",
-  "count": 44,
+  "count": 45,
   "records": [
     {
       "date": "2025-12-26",
@@ -759,6 +759,24 @@
       "eur_inr": 106.31500244140625,
       "nifty": 22600,
       "sensex": 73123.828125
+    },
+    {
+      "date": "2026-10-30",
+      "total_usd": 717056,
+      "total_inr": 6808728,
+      "gold_usd": 102591,
+      "gold_inr": 974120,
+      "gold_tonnes": null,
+      "fca_usd": 591118,
+      "fca_inr": 5612775,
+      "sdr_usd": 18558,
+      "sdr_inr": 176209,
+      "imf_reserve_usd": 4790,
+      "imf_reserve_inr": 45625,
+      "usd_inr": 95.15239715576172,
+      "eur_inr": 106.38700103759766,
+      "nifty": 23053.099609375,
+      "sensex": 74459.53125
     }
   ]
 }
