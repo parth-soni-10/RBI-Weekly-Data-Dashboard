@@ -165,8 +165,84 @@ test("download gives up after MAX_ATTEMPTS challenges instead of retrying foreve
     () => fetchData._processOne(new Date("2026-10-23T00:00:00Z")),
   );
   assert.equal(out.code, "download_blocked", "stable code after exhausting retries");
-  assert.match(out.error, /challenge/i);
-  // page fetch (1) + MAX_ATTEMPTS download attempts (5), each Excel attempt
-  // double-increments calls
-  assert.equal(calls, 1 + 5 * 2, "attempted the download MAX_ATTEMPTS times then stopped");
+  assert.match(out.error, /challenge/i);  // page fetch (1) + MAX_ATTEMPTS download attempts (5), each Excel attempt
+  // double-increments calls, + the archive form lookup that follows when
+  // neither the detail page nor the file yields a usable issue (this stub
+  // counts every non-detail fetch twice as well). No POST: a challenge page
+  // has no __VIEWSTATE, so the archive is not replayed against it.
+  assert.equal(calls, 1 + 5 * 2 + 2, "attempted the download MAX_ATTEMPTS times then stopped");
+});
+
+// ── The HTML view: the same issue, from the host the edge CAN reach ─────────
+// RBI publishes each WSS issue twice - the .XLSX on rbidocs (refused outright
+// to Cloudflare's egress) and the same table as HTML on www.rbi.org.in. When
+// the download is blocked the live check reads the HTML table instead, so a
+// Reload can still merge the week RBI published. These are the real figures
+// from the issue published 20 Nov 2026 (as on 13 Nov 2026).
+const WSS_HTML_VIEW = `<html><body><table>
+  <tr><td colspan="2"><span class="head">As on November 13, 2026</span></td></tr>
+  <tr><td>1 Total Reserves</td><td align="right">6647812</td><td align="right">705342</td><td align="right">-111173</td><td align="right">-14205</td></tr>
+  <tr><td>1.1 Foreign Currency Assets #</td><td align="right">5499031</td><td align="right">583452</td><td align="right">-55669</td><td align="right">-7897</td></tr>
+  <tr><td>1.2 Gold</td><td align="right">929430</td><td align="right">98613</td><td align="right">-54947</td><td align="right">-6183</td></tr>
+  <tr><td>1.3 SDRs</td><td align="right">174527</td><td align="right">18517</td><td align="right">-281</td><td align="right">-92</td></tr>
+  <tr><td>1.4 Reserve Position in the IMF</td><td align="right">44824</td><td align="right">4758</td><td align="right">-277</td><td align="right">-32</td></tr>
+</table></body></html>`;
+
+// The date listing RBI renders beside every issue: the HTML view's id and the
+// spreadsheet link travel together in the same row.
+const PAGE_WITH_HTML_VIEW = `<html><body><table>
+  <tr><th colspan="4" align="left">20 Nov 2026</th></tr>
+  <tr><td><a class='link2' href=WSSView.aspx?Id=28849>Foreign Exchange Reserves</a></td>
+      <td><a href="https://rbidocs.rbi.org.in/rdocs/Wss/DOCs/2T_201120267605AEDD664A485885A51B04C5FB854B.XLSX">XLSX</a></td></tr>
+</table></body></html>`;
+
+test("the HTML view of an issue parses into the same fields as the Excel", () => {
+  const fetchData = require("../netlify/functions/fetch-data.js");
+  const parsed = fetchData._parseWssHtml(WSS_HTML_VIEW);
+  assert.equal(parsed.as_on, "2026-11-13", "the page's own as-on line, as ISO");
+  assert.equal(parsed.total_inr, 6647812);
+  assert.equal(parsed.total_usd, 705342);
+  assert.equal(parsed.fca_usd, 583452);
+  assert.equal(parsed.gold_usd, 98613);
+  assert.equal(parsed.sdr_usd, 18517);
+  assert.equal(parsed.imf_reserve_usd, 4758);
+});
+
+test("an unreachable file host falls back to the HTML view and still merges the week", async () => {
+  const fetchData = require("../netlify/functions/fetch-data.js");
+  const out = await withStubbedFetch(
+    async (url) => {
+      const u = String(url);
+      if (u.includes("WSSViewDetail")) return new Response(PAGE_WITH_HTML_VIEW, { status: 200, headers: { "Content-Type": "text/html" } });
+      if (u.includes("WSSView.aspx?Id=28849")) return new Response(WSS_HTML_VIEW, { status: 200, headers: { "Content-Type": "text/html" } });
+      if (u.includes("rbidocs")) throw new Error("fetch failed"); // the CDN refuses this network
+      return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }); // Yahoo
+    },
+    () => fetchData._processOne(new Date("2026-11-20T00:00:00Z")),
+  );
+  assert.equal(out.code, undefined, "the refusal is no longer the end of the week");
+  assert.equal(out.iso, "2026-11-13");
+  assert.equal(out.via, "html");
+  assert.equal(out.record.date, "2026-11-13");
+  assert.equal(out.record.total_usd, 705342);
+  assert.equal(out.record.gold_usd, 98613);
+});
+
+test("an HTML view for a different week is refused, never merged", async () => {
+  const fetchData = require("../netlify/functions/fetch-data.js");
+  const out = await withStubbedFetch(
+    async (url) => {
+      const u = String(url);
+      if (u.includes("WSSViewDetail")) return new Response(PAGE_WITH_HTML_VIEW, { status: 200, headers: { "Content-Type": "text/html" } });
+      if (u.includes("WSSView.aspx?Id=28849")) {
+        const wrongWeek = WSS_HTML_VIEW.replace("November 13, 2026", "November 6, 2026");
+        return new Response(wrongWeek, { status: 200, headers: { "Content-Type": "text/html" } });
+      }
+      if (u.includes("rbidocs")) throw new Error("fetch failed");
+      return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
+    },
+    () => fetchData._processOne(new Date("2026-11-20T00:00:00Z")),
+  );
+  assert.equal(out.code, "source_unreachable", "the honest failure stands rather than a wrong week slipping in");
+  assert.equal(out.record, undefined);
 });

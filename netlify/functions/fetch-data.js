@@ -1,7 +1,7 @@
 const XLSX  = require("node-xlsx");
 // Shared HTTP client (UA + timeout) and numeric parser from _utils/http - one
 // place for every scraper instead of a private copy here.
-const { get: httpGet, parseNum: toNum, UA } = require("./_utils/http");
+const { get: httpGet, extractHtmlTables, parseNum: toNum, UA } = require("./_utils/http");
 
 // NOTE: Crude-oil import data is fetched LIVE by the dashboard from
 // /.netlify/functions/fetch-crude (PPAC + TankerMap AIS + Yahoo). No static
@@ -405,6 +405,171 @@ async function downloadSpreadsheet(url, timeoutMs = 12000) {
   return { buf: null, reason };
 }
 
+// ─── THE HTML VIEW (same issue, host the edge can reach) ──────
+// RBI publishes every WSS issue twice: the .XLSX on rbidocs - behind an F5 bot
+// check, and refused outright to Cloudflare's egress - and the same table as
+// HTML at /Scripts/WSSView.aspx?Id=N on www.rbi.org.in, which the edge CAN
+// read. That is the live check's way in when the download is refused: same
+// figures, same [₹ crore | US$ mn] column order the Excel parser reads.
+//
+// The id is not guessable, so it comes from a page that lists the issue: the
+// detail page the caller already fetched links it in the row beside the
+// spreadsheet; when it doesn't, the monthly archive on BS_ViewWss.aspx does
+// (an ASP.NET postback - the form's hidden fields are replayed here).
+
+const MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+const two = n => String(n).padStart(2, "0");
+
+// Parse one issue's HTML view into the field names the Excel parser produces.
+// `as_on` is the page's own "As on <date>" line, so the caller can prove the
+// page is the week it asked for before a single figure is used.
+function parseWssHtml(html) {
+  const out = {
+    as_on: null,
+    total_usd: null, total_inr: null,
+    gold_usd: null, gold_inr: null,
+    fca_usd: null, fca_inr: null,
+    sdr_usd: null, sdr_inr: null,
+    imf_reserve_usd: null, imf_reserve_inr: null,
+  };
+  const text = String(html || "");
+  const asOn = text.match(/As on\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/i);
+  if (asOn) {
+    const mi = MONTHS.indexOf(asOn[1].toLowerCase());
+    if (mi >= 0) out.as_on = `${asOn[3]}-${two(mi + 1)}-${two(Number(asOn[2]))}`;
+  }
+  const rows = [];
+  for (const table of extractHtmlTables(text)) for (const row of table) rows.push(row);
+  // [label | ₹ cr | US$ mn | ...variations] - read only the first two numerics,
+  // and only from a row whose ₹cr-per-$mn ratio passes the same 4-25 gate the
+  // Excel decomposition uses, so a variations-first layout or a decoy row can
+  // never be mistaken for a level.
+  const read = (labelRe) => {
+    for (const row of rows) {
+      const label = String(row[0] || "");
+      if (!labelRe.test(label)) continue;
+      const inr = toNum(row[1]);
+      const usd = toNum(row[2]);
+      if (!isFinite(inr) || !isFinite(usd) || inr <= 0 || usd <= 0) continue;
+      if (inr / usd < 4 || inr / usd > 25) continue;
+      return { inr, usd };
+    }
+    return null;
+  };
+  const total = read(/total reserves/i);
+  if (total) { out.total_inr = total.inr; out.total_usd = total.usd; }
+  const fca = read(/foreign currency assets/i);
+  if (fca) { out.fca_inr = fca.inr; out.fca_usd = fca.usd; }
+  const gold = read(/^\s*\d+(?:\.\d+)?\s*gold\b/i);
+  if (gold) { out.gold_inr = gold.inr; out.gold_usd = gold.usd; }
+  const sdr = read(/^\s*\d+(?:\.\d+)?\s*sdrs?\b/i);
+  if (sdr) { out.sdr_inr = sdr.inr; out.sdr_usd = sdr.usd; }
+  const imf = read(/reserve position in the imf/i);
+  if (imf) { out.imf_reserve_inr = imf.inr; out.imf_reserve_usd = imf.usd; }
+  return out;
+}
+
+// The WSSView.aspx?Id= of an issue, taken from any page that links it.
+function findHtmlViewId(html) {
+  const rows = String(html || "").match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  for (const row of rows) {
+    if (!/foreign exchange reserves/i.test(row.replace(/<[^>]+>/g, " "))) continue;
+    const id = row.match(/WSSView\.aspx\?Id=(\d+)/i);
+    if (id) return id[1];
+  }
+  const any = String(html || "").match(/WSSView\.aspx\?Id=(\d+)/i);
+  return any ? any[1] : null;
+}
+
+// The monthly archive, mapping publication Friday → HTML-view id. Megabytes of
+// markup, so it is fetched at most once per month per isolate, and only when
+// the cheap lookup above came up empty.
+let archiveCache = null;
+async function archiveViewIds(pubFriday) {
+  const key = `${pubFriday.getUTCFullYear()}-${two(pubFriday.getUTCMonth() + 1)}`;
+  if (archiveCache && archiveCache.key === key && Date.now() - archiveCache.at < 30 * 60 * 1000) return archiveCache.map;
+  const form = await (await get("https://www.rbi.org.in/Scripts/BS_ViewWss.aspx", 12000)).text();
+  const body = new URLSearchParams();
+  for (const m of form.matchAll(/<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"/gi)) {
+    body.set(m[1], m[2].replace(/&amp;/gi, "&"));
+  }
+  if (!body.get("__VIEWSTATE")) return {}; // a bot-challenge page, not the form
+  body.set("ddlYear", String(pubFriday.getUTCFullYear()));
+  body.set("ddlMonth", String(pubFriday.getUTCMonth() + 1));
+  body.set("ddlSection", "2"); // Foreign Exchange Reserves
+  body.set("btnGo", "Go");
+  const res = await fetch("https://www.rbi.org.in/Scripts/BS_ViewWss.aspx", {
+    method: "POST",
+    headers: {
+      "User-Agent": UA,
+      "Referer": "https://www.rbi.org.in/",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+  const listing = await res.text();
+  // Each issue is a date heading followed by one row per section; the row whose
+  // link text is "Foreign Exchange Reserves" carries the HTML view's id.
+  const map = {};
+  const heads = [...listing.matchAll(/<th[^>]*>\s*(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\s*<\/th>/gi)];
+  for (let i = 0; i < heads.length; i++) {
+    const start = heads[i].index + heads[i][0].length;
+    const end = i + 1 < heads.length ? heads[i + 1].index : listing.length;
+    const id = listing.slice(start, end).match(/WSSView\.aspx\?Id=(\d+)[^>]*>\s*Foreign Exchange Reserves/i);
+    const token = heads[i][2].toLowerCase();
+    const mi = MONTHS.findIndex(m => m.slice(0, 3) === token.slice(0, 3));
+    if (!id || mi < 0) continue;
+    map[`${heads[i][3]}-${two(mi + 1)}-${two(Number(heads[i][1]))}`] = id[1];
+  }
+  archiveCache = { key, at: Date.now(), map };
+  return map;
+}
+
+// One issue's fields, read from its HTML view. Null when the page is
+// unreachable, or when it turns out to be a different week than the one asked
+// for - the guard that keeps a stale or adjacent issue out of the series.
+async function reservesFromHtmlView(detailHtml, pubFriday, asOnIso) {
+  try {
+    let id = findHtmlViewId(detailHtml);
+    if (!id) {
+      const map = await archiveViewIds(pubFriday);
+      id = map[isoDate(pubFriday)] || null;
+    }
+    if (!id) return null;
+    const page = await get(`https://www.rbi.org.in/Scripts/WSSView.aspx?Id=${id}`, 12000);
+    const parsed = parseWssHtml(await page.text());
+    if (parsed.as_on !== asOnIso || parsed.total_usd == null) return null;
+    return parsed;
+  } catch (_) {
+    return null; // a bonus path: any failure leaves the committed snapshot in charge
+  }
+}
+
+// The market quotes every record carries (the WSS table has none of them).
+function marketQuotes(asOn) {
+  return Promise.all([
+    getYahooClose("^NSEI",  asOn),
+    getYahooClose("^BSESN", asOn),
+    getYahooClose("USDINR=X", asOn),
+    getYahooClose("EURINR=X", asOn),
+  ]);
+}
+
+// An HTML-view issue as a dashboard record - the same shape as the Excel path,
+// with gold_tonnes left null (that row exists only in the spreadsheet).
+async function recordFromHtmlView(view, iso, asOn) {
+  const [nifty, sensex, usdInr, eurInr] = await marketQuotes(asOn);
+  return {
+    date: iso,
+    total_usd: view.total_usd, total_inr: view.total_inr,
+    gold_usd: view.gold_usd, gold_inr: view.gold_inr, gold_tonnes: null,
+    fca_usd: view.fca_usd, fca_inr: view.fca_inr,
+    sdr_usd: view.sdr_usd, sdr_inr: view.sdr_inr,
+    imf_reserve_usd: view.imf_reserve_usd, imf_reserve_inr: view.imf_reserve_inr,
+    usd_inr: usdInr, eur_inr: eurInr, nifty, sensex,
+  };
+}
+
 // ─── PROCESS ONE FRIDAY ───────────────────────────────────────
 async function processOneFriday(pubFriday) {
   // The publication Friday's WSS shows reserves/gold data "as on" the *previous* Friday
@@ -446,6 +611,10 @@ async function processOneFriday(pubFriday) {
   //    at scrape time (up to latest available).
   const dl = await downloadSpreadsheet(urls.reserves, 8000);
   if (!dl.buf) {
+    // The file host refused this network (Cloudflare's egress, always) - read
+    // the same issue from its HTML view rather than giving up on the week.
+    const view = await reservesFromHtmlView(html, pubFriday, iso);
+    if (view) return { iso, via: "html", record: await recordFromHtmlView(view, iso, asOn) };
     const blocked = dl.reason === "timeout" || dl.reason === "network";
     return {
       iso,
@@ -461,17 +630,17 @@ async function processOneFriday(pubFriday) {
   const resBuf = dl.buf;
 
   // 4. Spot Excel + Yahoo quotes in parallel now that reserves is in hand.
-  const [spotDl, nifty, sensex, usdInr, eurInr] = await Promise.all([
-    urls.spot ? downloadSpreadsheet(urls.spot, 8000) : null,
-    getYahooClose("^NSEI",  asOn),
-    getYahooClose("^BSESN", asOn),
-    getYahooClose("USDINR=X", asOn),
-    getYahooClose("EURINR=X", asOn),
+  const [spotDl, quotes] = await Promise.all([
+    urls.spot ? downloadSpreadsheet(urls.spot, 8000) : Promise.resolve(null),
+    marketQuotes(asOn),
   ]);
+  const [nifty, sensex, usdInr, eurInr] = quotes;
 
   // 5. Parse
   const reserves = parseReservesExcel(resBuf);
   if (reserves.total_usd == null) {
+    const view = await reservesFromHtmlView(html, pubFriday, iso);
+    if (view) return { iso, via: "html", record: await recordFromHtmlView(view, iso, asOn) };
     return {
       iso,
       code: "parse_failed",
@@ -518,6 +687,8 @@ exports._processOne    = processOneFriday;
 // duplicating parsing logic (same pattern as fetch-all.js).
 exports._findExcelUrls = findExcelUrls;
 exports._parseReservesExcel = parseReservesExcel;
+exports._parseWssHtml = parseWssHtml;
+exports._findHtmlViewId = findHtmlViewId;
 
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
@@ -562,6 +733,9 @@ exports.handler = async (event) => {
       errorCode: result.code  || null,
       hint:      result.hint  || null,
       iso:       result.iso,
+      // Which transport produced the record: "html" is the fallback used when
+      // RBI's file CDN refuses this network (see reservesFromHtmlView).
+      via:       result.via || null,
       weekIndex: offset,
       totalWeeks: total,
     }),
