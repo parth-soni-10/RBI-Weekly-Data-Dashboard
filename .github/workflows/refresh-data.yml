@@ -124,6 +124,21 @@ jobs:
             echo "Pushed refreshed data."
           fi
 
+      # ── The guards ──────────────────────────────────────────────────
+      # Both questions a silent breakage leaves open, asked after the commit so
+      # whatever did change still ships while the job goes red:
+      #   • is the committed snapshot recent? A healthy run leaves its newest
+      #     week about seven days old (the WSS published tonight is "as on" the
+      #     Friday before); past nine days the scrape has missed a cycle.
+      #   • can the DEPLOYED live check produce a week from the edge? RBI's file
+      #     CDN is unreachable there, so the HTML-view fallback is what has to
+      #     answer - an errorCode instead of a record means Reload is showing
+      #     "live week check unavailable" again.
+      # A guard that fires is an error line plus a red run (and the usual
+      # Actions failure mail), which is the alarm this pipeline did not have.
+      - name: Guard the data path (freshness + live check)
+        run: node scripts/verify-live.js
+
       - name: Fail the run if a refresh step did
         if: steps.refresh.outputs.status != '0'
         run: |

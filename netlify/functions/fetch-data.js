@@ -416,6 +416,19 @@ async function downloadSpreadsheet(url, timeoutMs = 12000) {
 // detail page the caller already fetched links it in the row beside the
 // spreadsheet; when it doesn't, the monthly archive on BS_ViewWss.aspx does
 // (an ASP.NET postback - the form's hidden fields are replayed here).
+//
+// Whether this runtime can reach the file CDN at all is a property of the
+// network, not of the week: Cloudflare's egress is refused outright, so on that
+// runtime the download is skipped and the HTML view is read directly instead of
+// spending the 8s timeout on a request that cannot succeed. workerd names
+// itself in navigator.userAgent; every other runtime still downloads first.
+const DOC_CDN_UNREACHABLE = (() => {
+  try {
+    return typeof navigator !== "undefined" && /Cloudflare-Workers/i.test(String(navigator.userAgent || ""));
+  } catch (_) {
+    return false;
+  }
+})();
 
 const MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
 const two = n => String(n).padStart(2, "0");
@@ -609,7 +622,7 @@ async function processOneFriday(pubFriday) {
   //    Yahoo targets use the as-on Friday (previous week) for all.
   //    Nifty and Sensex (and rupee) for the latest record will be the values
   //    at scrape time (up to latest available).
-  const dl = await downloadSpreadsheet(urls.reserves, 8000);
+  const dl = DOC_CDN_UNREACHABLE ? { buf: null, reason: "network" } : await downloadSpreadsheet(urls.reserves, 8000);
   if (!dl.buf) {
     // The file host refused this network (Cloudflare's egress, always) - read
     // the same issue from its HTML view rather than giving up on the week.

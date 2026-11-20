@@ -246,3 +246,42 @@ test("an HTML view for a different week is refused, never merged", async () => {
   assert.equal(out.code, "source_unreachable", "the honest failure stands rather than a wrong week slipping in");
   assert.equal(out.record, undefined);
 });
+
+// ── The guards that make a silent breakage loud ─────────────────────────────
+// A failing scrape used to surface only as "the numbers look a week old":
+// nothing failed, so nothing told anyone. The weekly run now asks both
+// questions after it commits - is the snapshot recent, and can the DEPLOYED
+// live check still produce a week from the edge.
+const guards = require("../scripts/verify-live.js");
+
+test("the weekly run guards freshness and the live check after committing", () => {
+  assert.match(workflow, /node scripts\/verify-live\.js/);
+  const commit = workflow.indexOf("git add -u");
+  const guard = workflow.indexOf("node scripts/verify-live.js");
+  assert.ok(commit !== -1 && guard > commit, "the guards run after the data commit, so what did change still ships");
+});
+
+test("freshness: a healthy run leaves the newest week ~7 days old, a missed one 14", () => {
+  const now = new Date("2026-11-20T22:30:00Z");
+  assert.equal(guards.MAX_AGE_DAYS, 9);
+  assert.equal(guards.ageDays("2026-11-13", now), 7, "the WSS published tonight is as on last Friday");
+  assert.equal(guards.ageDays("2026-11-06", now), 14, "a week of failed scrapes");
+});
+
+test("the live smoke check accepts only healthy answers", () => {
+  assert.equal(guards.judgeLive(200, { record: { date: "2026-11-13" }, via: "html" }).ok, true);
+  assert.equal(guards.judgeLive(404, { done: true }).ok, true);
+  assert.equal(guards.judgeLive(200, { errorCode: "not_published" }).ok, true, "a late RBI week is not a broken path");
+  const broken = guards.judgeLive(200, { errorCode: "source_unreachable", error: "unreachable", hint: "x" });
+  assert.equal(broken.ok, false);
+  assert.match(broken.message, /source_unreachable/);
+  assert.equal(guards.judgeLive(502, null).ok, false);
+});
+
+test("the smoke check anchors on the publication Friday of the newest committed week", () => {
+  assert.equal(guards.publicationOf("2026-11-13"), "2026-11-20");
+  assert.equal(
+    guards.newestWeek({ records: [{ date: "2026-11-06" }, { date: "2026-11-13" }, { date: "not-a-date" }] }),
+    "2026-11-13",
+  );
+});
