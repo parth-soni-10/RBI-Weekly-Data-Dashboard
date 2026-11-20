@@ -3052,10 +3052,13 @@ function setRangeLabels(){
 }
 
 /* ─── Living title + auto-refresh + quick actions + PWA ────────────── */
+// Brand first, figures after. Google reads the *rendered* <title> as one of
+// its site-name signals, so the name it is asked to show has to lead the line;
+// the same numbers the tab used to open with are still in it.
 function updateDocTitle(){
   if(!records.length) return;
   const L = records[records.length - 1];
-  if(L.total_usd != null) document.title = `Reserves $${(L.total_usd/1000).toFixed(1)}B · USD/INR ${fmt(L.usd_inr,2)} · RBI Weekly Dashboard`;
+  if(L.total_usd != null) document.title = `RBI Weekly Dashboard · Reserves $${(L.total_usd/1000).toFixed(1)}B · USD/INR ${fmt(L.usd_inr,2)}`;
 }
 
 // Timestamp of the last completed data load (initial, button, or auto).
