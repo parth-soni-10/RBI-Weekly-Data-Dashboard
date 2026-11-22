@@ -267,6 +267,65 @@
   font-size: 0.84rem;
 }
 
+/* A dated weekly page's five components: ₹ crore and US$ million side by side.
+   A class rather than an inline style because `_headers` sends style-src 'self'. */
+.doc-table-wrap {
+  overflow-x: auto;
+  margin: 0.4rem 0 1.1rem;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-table caption {
+  caption-side: bottom;
+  padding-top: 0.5rem;
+  font-size: 0.76rem;
+  color: var(--ink3);
+  text-align: left;
+}
+
+.doc-table th,
+.doc-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink2);
+}
+
+.doc-table th:first-child,
+.doc-table td:first-child {
+  text-align: left;
+  white-space: normal;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.doc-table thead th {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+.doc-table tbody tr:last-child th,
+.doc-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.doc-pager {
+  margin: 1.3rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink3);
+}
+
 .doc-back {
   display: inline-flex;
   align-items: center;

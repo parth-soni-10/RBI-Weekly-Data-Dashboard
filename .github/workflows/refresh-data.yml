@@ -91,6 +91,13 @@ jobs:
             echo "::warning::a refresh step failed (see the log above) - the files that did change are still committed below"
           fi
 
+      # One dated page per published week (/forex-reserves/YYYY-MM-DD) and the
+      # sitemap that lists them, both rebuilt from the rbi-data.json the step
+      # above just wrote. Every view on `/` is a #fragment, which a search engine
+      # treats as the same URL, so these pages are what let a single week rank.
+      - name: Build the dated week pages and sitemap
+        run: node scripts/make-week-pages.js
+
       # Deliberately NOT one of the plan's steps: it walks the WSS archive with
       # deliberate delays, it is a one-shot backfill of the reserves
       # decomposition (FCA / SDR / IMF / gold tonnes) into the historical weeks,
@@ -112,6 +119,9 @@ jobs:
           # and netlify/functions/fetch-fx-intervention.js. A file the run
           # created that the repository does not track is not this job's to add.
           git add -u
+          # The week pages are NEW files the first time a week is published, and
+          # `-u` stages only tracked ones.
+          git add public/forex-reserves
           if git diff --cached --quiet; then
             echo "No new data - nothing to commit."
           else

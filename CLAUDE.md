@@ -43,6 +43,8 @@ public/                 → Static site (publish dir)
   external-debt.json      → Committed World Bank QEDS borrower ranking (regenerated + auto-committed)
   _redirects              → The /data/*.json public API contract (the function answers these; Cloudflare parses this file too)
   embed/                  → Standalone chart embeds
+  forex-reserves/         → One dated page per published week (/forex-reserves/YYYY-MM-DD),
+  built by scripts/make-week-pages.js; sitemap.xml is generated with them
 netlify/functions/      → Serverless scrapers + APIs
   fetch-data.js           → RBI WSS scraper core (_getFridays, _processOne) - reused by others
   fetch-crude.js          → Heavy pipeline: PPAC + TankerMap AIS + Yahoo prices
@@ -81,6 +83,10 @@ netlify/functions/      → Serverless scrapers + APIs
   _utils/                 → http.js (shared fetch/parse), cache.js (TTL memo)
 scripts/refresh-static.js → `npm run refresh`: the whole weekly plan over the
   filesystem (--check writes nothing, --only=id,id and --limit=N narrow it)
+scripts/make-week-pages.js → `npm run pages`: writes public/forex-reserves/<date>.html
+  for every rbi-data.json record and regenerates public/sitemap.xml (home lastmod =
+  the snapshot's data_updated_at). The weekly workflow runs it after the refresh,
+  before the commit, and stages public/forex-reserves (new files, not `-u`)
 scripts/fetch-all.js    → CLI that regenerates public/rbi-data.json (exports
   buildRbiDataFile, which the weekly refresh calls with the repo's copy on disk)
 scripts/fetch-debt-rankings.js → CLI that regenerates public/external-debt.json
@@ -108,6 +114,7 @@ scripts/check-syntax.js  → `npm run check`, the whole static check the repo ha
 - PM CARES data is curated (audited PDFs are scanned images, not scrapable) - it lives in the `PMCARES` array in `index.html`, not in the pipeline
 - RBI's net forward position (`fetch-fx-intervention.js`) is AUTO-UPDATED, not hand-curated: month-end figures (Mar-21 → today, all 65 months) come from the RBI Bulletin's Current Statistics table 4A "Maturity Breakdown (by Residual Maturity) of Outstanding Forwards of RBI", a server-rendered BS_ViewBulletin page - `scripts/update-fwd-monthly.js` reads the newest issue on every deploy/Friday run and appends/upgrades `FWD_SERIES` (its `--backfill` flag walks every issue back to May-2021 to fill or verify gaps). `scripts/update-fwd-series.js` does the same for the Mar/Sep half-yearly FX reserves report anchors, which WIN over the Bulletin table at the same date (RBI revised some early figures - Sep-2021 is +49.61bn in the Nov-21 Bulletin but +49.11bn in the report and later Bulletins). Both fail open (slow/blocked RBI never breaks a deploy) and never delete entries. The macro tile, the reserve KPIs, and the `cFwd` chart read the series automatically - chart tabs: stepped weekly on the dashboard's own WSS Fridays, stepped weekly every Friday since 2021 (long-to-short flip + Oct-23 short dip), and every published figure as points
 - Keep inline `style=""` out of new markup; add classes to the stylesheet instead
+- The dated week pages and `sitemap.xml` are generated, never hand-edited: run `npm run pages` after a data change (the weekly workflow does, and stages the new files). A sitemap entry and a page must always agree - `tests/week-pages.test.js` pins that
 - The borrower tiles/chart live on `debtData` (loaded by `loadExternalDebt` inside `fetchAllMacro`, static-file fallback `external-debt.json` for local previews), NOT in `macroData`; rendered by `renderExternalDebt()`/`renderDebtChart()` with tab group `debt` (top/india/cover/maturity/rank/history) wired through `sw()`; the `rank` tab inverts the y-axis (#1 on top) and lists each quarter's ±2 rank neighbours in the tooltip. Debt cover = external debt ÷ FX reserves: India's tile uses the dashboard's own fresher RBI weekly reserves (`records`) via `debtCoverRatio()`, falling back to the WDI annual figure; the `cover` chart tab plots cover ratios on a LOG x-axis (financial hubs like Luxembourg ~1300× / Ireland ~280× would crush a linear scale) with India's ratio as a dashed amber line dataset. `updateUI()` re-renders the tile after records load so the RBI figure replaces the WB one
 
 ## Icons (Lucide)

@@ -53,6 +53,17 @@ test("the workflow carries the decomposition backfill as its own step", () => {
   assert.match(workflow, /node scripts\/backfill-decomp\.js/);
 });
 
+test("the weekly run builds the dated week pages, and stages the new ones", () => {
+  assert.match(workflow, /node scripts\/make-week-pages\.js/);
+  const build = workflow.indexOf("node scripts/make-week-pages.js");
+  const refresh = workflow.indexOf("node scripts/refresh-static.js");
+  const commit = workflow.indexOf("git add -u");
+  const add = workflow.indexOf("git add public/forex-reserves");
+  assert.ok(refresh < build, "the pages are built from the data this run wrote");
+  assert.ok(build < commit, "and before the commit that ships them");
+  assert.ok(add > commit, "`-u` stages only tracked files, so a new week page needs its own add");
+});
+
 // ── The live check's error codes ───────────────────────────────────────────
 const PAGE_WITH_LINKS = `<html><body><table>
   <tr><td>Foreign Exchange Reserves</td><td><a href="https://rbidocs.rbi.org.in/rdocs/Wss/DOCs/WSS23102026_X.XLSX">XLSX</a></td></tr>

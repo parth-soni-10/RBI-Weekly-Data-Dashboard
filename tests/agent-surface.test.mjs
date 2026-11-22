@@ -14,7 +14,7 @@
 // llms.txt and the social card.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 import {
   ABOUT_MARKDOWN,
@@ -380,18 +380,30 @@ test("the 404 page points at the machine-readable files", async () => {
   assert.match(html, /noindex/);
 });
 
-test("the sitemap lists every published page", async () => {
+test("the sitemap lists every published page, including one dated page per week", async () => {
   const sitemap = await readFile(new URL("sitemap.xml", PUBLIC), "utf8");
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  assert.deepEqual(
-    locations.sort(),
-    [`${SITE}/`, `${SITE}/about`, `${SITE}/contact`, `${SITE}/privacy`].sort()
-  );
+  for (const page of ["/", "/about", "/contact", "/privacy"]) {
+    assert.ok(locations.includes(`${SITE}${page}`), `${page} is not in the sitemap`);
+  }
   for (const page of ["about.html", "contact.html", "privacy.html"]) {
     const html = await readFile(new URL(page, PUBLIC), "utf8");
     const canonical = html.match(/rel="canonical" href="([^"]+)"/)[1];
     assert.ok(locations.includes(canonical), `${page} canonical is not in the sitemap`);
   }
+
+  // Every dated page is built by scripts/make-week-pages.js; a page that exists
+  // but is unlisted can never rank, and a listing pointing at nothing is a dead
+  // result in the search index.
+  const weeks = (await readdir(new URL("forex-reserves/", PUBLIC)))
+    .filter((name) => name.endsWith(".html"))
+    .map((name) => name.replace(/\.html$/, ""));
+  assert.ok(weeks.length > 0, "no dated week pages were built");
+  assert.deepEqual(
+    locations.filter((loc) => loc.includes("/forex-reserves/")).sort(),
+    weeks.map((date) => `${SITE}/forex-reserves/${date}`).sort(),
+    "the sitemap and public/forex-reserves disagree"
+  );
 });
 
 test("robots.txt and llms.txt agree on the sitemap", async () => {

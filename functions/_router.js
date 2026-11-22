@@ -292,6 +292,19 @@ export default {
           });
         }
 
+        // A dated weekly page is canonical without `.html` too: the sitemap
+        // and every link use /forex-reserves/<date>, so the file alias must
+        // not become a second indexable address for the same week.
+        const weekAlias = url.pathname.match(/^\/forex-reserves\/(\d{4}-\d{2}-\d{2})\.html$/);
+        if (weekAlias) {
+          const target = new URL(url);
+          target.pathname = `/forex-reserves/${weekAlias[1]}`;
+          return new Response(null, {
+            status: 308,
+            headers: { Location: target.toString(), "Cache-Control": "public, max-age=3600" },
+          });
+        }
+
         const document = await serveDocument(request, env, url.pathname);
         if (document) return document;
 
