@@ -72,11 +72,17 @@ test("the week page is dated by the WSS release, and the oldest week invents no 
   assert.match(oldest, /stood at US\$/);
   assert.doesNotMatch(oldest, /fell by US\$|rose by US\$/);
   assert.doesNotMatch(oldest, /fell US\$|rose US\$/, "no component is compared against a week that is not there");
+  assert.doesNotMatch(oldest, /start of this series/, "the first week is not compared with itself");
 });
 
-test("the year-earlier sentence appears only when the history reaches back a year", () => {
+test("the long-horizon sentence is a year-on-year figure only when the history has a year", () => {
   const newest = buildWeekPage(latest, previous, { records: data.records });
   assert.doesNotMatch(newest, /Compared with a year earlier/, "the committed history starts 2025-12-26");
+  assert.match(
+    newest,
+    /Since 26 December 2025, the start of this series, total reserves are up US\$8,732 million\./,
+    "with under a year of history the comparison says so instead of pretending"
+  );
 
   const synthetic = [
     { date: "2025-11-14", total_usd: 692577 },

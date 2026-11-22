@@ -250,5 +250,10 @@ test("the feed is a function of its records, so an unchanged week cannot churn i
   assert.match(a.text, new RegExp(`<lastBuildDate>${new Date(Date.UTC(2026, 9, 9, 6, 0, 0)).toUTCString()}<`), "lastBuildDate is the newest item's pubDate, not the clock");
   assert.equal(a.newest, "2026-10-02");
   assert.match(a.text, /Reserves rose/);
+  assert.match(
+    a.text,
+    /<link>https:\/\/example\.test\/forex-reserves\/2026-10-02<\/link>/,
+    "each item links its dated week page, not the dashboard fragment"
+  );
   assert.throws(() => buildFeed([]), /no records/);
 });

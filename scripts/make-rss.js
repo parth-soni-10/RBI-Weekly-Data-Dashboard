@@ -38,9 +38,12 @@ function item(rec, prev, site) {
   const desc = `Forex reserves ${rec.total_usd != null ? rec.total_usd.toLocaleString('en-IN') : '-'} USD mn` +
     (rec.gold_usd != null ? `, gold ${rec.gold_usd.toLocaleString('en-IN')} USD mn` : '') +
     (rec.usd_inr != null ? `, USD/INR ${rec.usd_inr.toFixed(2)}` : '') + '.' + change;
+  // The dated page for that week, not the dashboard's #tab fragment: a feed
+  // reader and a crawler both get a URL that says which week it is.
+  const link = `${String(site).replace(/\/+$/, '')}/forex-reserves/${rec.date}`;
   return `    <item>
       <title>${esc(title)}</title>
-      <link>${site}#tab=dashboard</link>
+      <link>${link}</link>
       <guid isPermaLink="false">rbi-week-${rec.date}</guid>
       <pubDate>${pubDateFor(rec.date).toUTCString()}</pubDate>
       <description>${esc(desc)}</description>

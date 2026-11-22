@@ -114,7 +114,7 @@ function componentSentence(label, value, before, { percent = false } = {}) {
  * the total's move first, then each component, then the year-earlier comparison
  * when the committed history reaches back that far.
  */
-function summaryFor(record, previous = null, yearEarlier = null) {
+function summaryFor(record, previous = null, yearEarlier = null, earliest = null) {
   const published = longDate(publicationOf(record.date));
   const asOn = longDate(record.date);
   const total = record.total_usd;
@@ -142,6 +142,15 @@ function summaryFor(record, previous = null, yearEarlier = null) {
       change === 0
         ? "Total reserves are unchanged from a year earlier."
         : `Compared with a year earlier, total reserves are ${change > 0 ? "up" : "down"} US$${num(Math.abs(change))} million.`;
+  } else if (total != null && earliest && earliest.date !== record.date && earliest.total_usd != null) {
+    // The committed history is shorter than a year, so the long-horizon
+    // comparison is against the start of the series - stated as such rather
+    // than passed off as a year-on-year figure.
+    const change = Number(total) - Number(earliest.total_usd);
+    yoy =
+      change === 0
+        ? `Total reserves are unchanged since ${longDate(earliest.date)}, the start of this series.`
+        : `Since ${longDate(earliest.date)}, the start of this series, total reserves are ${change > 0 ? "up" : "down"} US$${num(Math.abs(change))} million.`;
   }
 
   return [head, fca, gold, tail, yoy].filter(Boolean).join(" ").trim();
@@ -155,7 +164,10 @@ function buildWeekPage(record, previous = null, { siteUrl = DEFAULT_SITE, record
     record.total_usd == null ? null : record.total_usd / 1000,
     1
   )} billion | RBI Weekly Dashboard`;
-  const summary = summaryFor(record, previous, yearAgo(records.length ? records : [record], record.date));
+  const sorted = (records.length ? records : [record])
+    .filter((row) => row && row.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const summary = summaryFor(record, previous, yearAgo(sorted, record.date), sorted[0]);
   const description = summary.split(/(?<=\.)\s/)[0] || summary;
   const published = publicationOf(record.date);
 
@@ -183,7 +195,6 @@ function buildWeekPage(record, previous = null, { siteUrl = DEFAULT_SITE, record
     )
     .join("\n");
 
-  const sorted = (records.length ? records : [record]).filter((row) => row && row.date).sort((a, b) => a.date.localeCompare(b.date));
   const at = sorted.findIndex((row) => row.date === record.date);
   const before = at > 0 ? sorted[at - 1] : null;
   const after = at >= 0 && at < sorted.length - 1 ? sorted[at + 1] : null;
