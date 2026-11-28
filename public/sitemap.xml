@@ -8,7 +8,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://rbiweeklydashboard.pages.dev/</loc>
-    <lastmod>2026-11-20T21:05:02.800Z</lastmod>
+    <lastmod>2026-11-28T03:42:50.872Z</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
@@ -22,6 +22,11 @@
   <url>
     <loc>https://rbiweeklydashboard.pages.dev/privacy</loc>
     <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://rbiweeklydashboard.pages.dev/forex-reserves/2026-11-20</loc>
+    <lastmod>2026-11-27</lastmod>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://rbiweeklydashboard.pages.dev/forex-reserves/2026-11-13</loc>
